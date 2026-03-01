@@ -12,6 +12,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
     const [editStartDate, setEditStartDate] = useState('');
     const [editDuration, setEditDuration] = useState('');
     const [editProgress, setEditProgress] = useState('0');
+    const [editStatus, setEditStatus] = useState<'backlog' | 'progress' | 'hold' | 'done'>('backlog');
 
     // Populate local state once the task loads
     useEffect(() => {
@@ -21,6 +22,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
             setEditStartDate(task.startDate);
             setEditDuration(task.duration.toString());
             setEditProgress(task.progress.toString());
+            setEditStatus(task.status || 'backlog');
         }
     }, [task]);
 
@@ -33,7 +35,8 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
             description: editDescription.trim(),
             startDate: editStartDate,
             duration: parseInt(editDuration, 10) || 1,
-            progress: parseInt(editProgress, 10) || 0
+            progress: parseInt(editProgress, 10) || 0,
+            status: editStatus
         });
 
         onBack();
@@ -100,6 +103,20 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                                 className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
                             />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium mb-1.5 block">Status</label>
+                        <select
+                            value={editStatus}
+                            onChange={(e) => setEditStatus(e.target.value as any)}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                            <option value="backlog">Backlog</option>
+                            <option value="progress">In Progress</option>
+                            <option value="hold">On Hold</option>
+                            <option value="done">Done</option>
+                        </select>
                     </div>
 
                     <div>

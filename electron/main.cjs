@@ -1,4 +1,4 @@
-const { app, BrowserWindow, protocol } = require('electron');
+const { app, BrowserWindow, protocol, ipcMain, shell } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -21,6 +21,15 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+    // Expose folder path and open action
+    ipcMain.handle('get-user-data-path', () => {
+        return app.getPath('userData');
+    });
+
+    ipcMain.on('open-folder', (event, folderPath) => {
+        shell.openPath(folderPath);
+    });
+
     createWindow();
 
     app.on('activate', () => {

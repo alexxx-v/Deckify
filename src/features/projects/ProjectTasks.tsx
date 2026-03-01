@@ -6,15 +6,37 @@ import { Button } from '@/components/ui/button';
 import dayjs from 'dayjs';
 import { ExportModal } from '../pdf/ExportModal';
 
+const getStatusBadgeClass = (status?: string) => {
+    switch (status) {
+        case 'done': return 'bg-green-100 text-green-800 border-green-200';
+        case 'progress': return 'bg-blue-100 text-blue-800 border-blue-200';
+        case 'hold': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'backlog':
+        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+}
+
+const getRoadmapColor = (status?: string) => {
+    switch (status) {
+        case 'done': return { bg: 'rgba(34, 197, 94, 0.15)', border: 'rgb(34, 197, 94)', fill: 'rgba(34, 197, 94, 0.4)' };
+        case 'progress': return { bg: 'rgba(59, 130, 246, 0.15)', border: 'rgb(59, 130, 246)', fill: 'rgba(59, 130, 246, 0.4)' };
+        case 'hold': return { bg: 'rgba(234, 179, 8, 0.15)', border: 'rgb(234, 179, 8)', fill: 'rgba(234, 179, 8, 0.4)' };
+        case 'backlog':
+        default: return { bg: 'rgba(107, 114, 128, 0.15)', border: 'rgb(107, 114, 128)', fill: 'rgba(107, 114, 128, 0.4)' };
+    }
+}
+
 export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: string, onBack: () => void, onEditTask: (taskId: string) => void }) {
     const [showExportModal, setShowExportModal] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [viewMode, setViewMode] = useState<'list' | 'roadmap'>('list');
     const [currentPage, setCurrentPage] = useState(1);
     const [newTitle, setNewTitle] = useState('');
     const [newDescription, setNewDescription] = useState('');
     const [newStartDate, setNewStartDate] = useState(dayjs().format('YYYY-MM-DD'));
     const [newDuration, setNewDuration] = useState('5');
     const [newProgress, setNewProgress] = useState('0');
+    const [newStatus, setNewStatus] = useState<'backlog' | 'progress' | 'hold' | 'done'>('backlog');
 
     // Removed inline editing state
 
@@ -31,6 +53,15 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
         setCurrentPage(totalPages);
     }
 
+    // Roadmap calculations
+    const minDate = tasks && tasks.length > 0 ? dayjs(tasks[0].startDate) : dayjs();
+    let maxDate = minDate;
+    tasks?.forEach(t => {
+        const end = dayjs(t.startDate).add(t.duration, 'day');
+        if (end.isAfter(maxDate)) maxDate = end;
+    });
+    const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
+
     const addTask = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTitle.trim()) return;
@@ -42,12 +73,14 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
             description: newDescription.trim(),
             startDate: newStartDate,
             duration: parseInt(newDuration, 10) || 1,
-            progress: parseInt(newProgress, 10) || 0
+            progress: parseInt(newProgress, 10) || 0,
+            status: newStatus
         });
 
         setNewTitle('');
         setNewDescription('');
         setNewProgress('0');
+        setNewStatus('backlog');
         setShowAddModal(false);
         // keep date and duration the same for easy adding of consecutive tasks
     };
@@ -75,19 +108,37 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                     </Button>
                     <h2 className="text-2xl font-bold">{project.name}</h2>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Button onClick={() => setShowAddModal(true)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        Add Task
-                    </Button>
-                    <Button
-                        variant="default"
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                        onClick={() => setShowExportModal(true)}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
-                        Export PDF
-                    </Button>
+
+                <div className="flex items-center gap-6">
+                    <div className="hidden sm:flex bg-muted p-1 rounded-lg">
+                        <button
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                            onClick={() => setViewMode('list')}
+                        >
+                            List
+                        </button>
+                        <button
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'roadmap' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                            onClick={() => setViewMode('roadmap')}
+                        >
+                            Roadmap
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <Button onClick={() => setShowAddModal(true)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Add Task
+                        </Button>
+                        <Button
+                            variant="default"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            onClick={() => setShowExportModal(true)}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+                            Export PDF
+                        </Button>
+                    </div>
                 </div>
             </div>
 
@@ -112,6 +163,19 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                         placeholder="Task name"
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium mb-1 block">Status</label>
+                                    <select
+                                        value={newStatus}
+                                        onChange={(e) => setNewStatus(e.target.value as any)}
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    >
+                                        <option value="backlog">Backlog</option>
+                                        <option value="progress">In Progress</option>
+                                        <option value="hold">On Hold</option>
+                                        <option value="done">Done</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium mb-1 block">Start Date</label>
@@ -154,73 +218,125 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                 </div>
             )}
 
-            <div className="space-y-3">
-                {tasks?.length === 0 && (
-                    <p className="text-muted-foreground text-center py-8">No tasks for this company yet.</p>
-                )}
-                {paginatedTasks.map(task => (
-                    <div key={task.id} className="bg-card border rounded-lg p-4 shadow-sm flex flex-col sm:flex-row sm:items-baseline justify-between gap-4">
-                        <div className="flex-1">
-                            <h4 className="font-semibold text-lg">{task.title}</h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Starts: {dayjs(task.startDate).format('MMM D, YYYY')} • Duration: {task.duration} days
-                            </p>
-                        </div>
+            <div className="mt-6">
+                {tasks?.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">No tasks in this project yet.</p>
+                ) : viewMode === 'list' ? (
+                    <>
+                        <div className="space-y-3">
+                            {paginatedTasks.map(task => (
+                                <div key={task.id} className="bg-card border rounded-lg p-4 shadow-sm flex flex-col sm:flex-row sm:items-baseline justify-between gap-4">
+                                    <div className="flex-1">
+                                        <h4 className="font-semibold text-lg hover:underline cursor-pointer" onClick={() => onEditTask(task.id)}>{task.title}</h4>
+                                        <p className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
+                                            <span>Starts: {dayjs(task.startDate).format('MMM D, YYYY')} • Duration: {task.duration} days</span>
+                                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
+                                                {task.status || 'backlog'}
+                                            </span>
+                                        </p>
+                                    </div>
 
-                        <div className="flex items-center gap-4 w-full sm:w-auto self-center">
-                            <div className="flex-1 sm:w-48 flex items-center gap-3">
-                                <span className="text-sm font-medium w-9">{task.progress}%</span>
-                                <input
-                                    type="range"
-                                    min="0" max="100" step="5"
-                                    value={task.progress}
-                                    onChange={(e) => updateProgress(task.id, parseInt(e.target.value, 10))}
-                                    className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
-                                />
+                                    <div className="flex items-center gap-4 w-full sm:w-auto self-center">
+                                        <div className="flex-1 sm:w-48 flex items-center gap-3">
+                                            <span className="text-sm font-medium w-9">{task.progress}%</span>
+                                            <input
+                                                type="range"
+                                                min="0" max="100" step="5"
+                                                value={task.progress}
+                                                onChange={(e) => updateProgress(task.id, parseInt(e.target.value, 10))}
+                                                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
+                                            />
+                                        </div>
+                                        <div className="flex shrink-0">
+                                            <button
+                                                onClick={() => onEditTask(task.id)}
+                                                className="text-muted-foreground hover:text-primary p-2"
+                                                title="Edit Task"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+                                            </button>
+                                            <button
+                                                onClick={() => deleteTask(task.id)}
+                                                className="text-muted-foreground hover:text-destructive p-2"
+                                                title="Delete Task"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        {totalPages > 1 && (
+                            <div className="flex justify-center items-center gap-4 pt-6">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    Previous
+                                </Button>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    Next
+                                </Button>
                             </div>
-                            <div className="flex shrink-0">
-                                <button
-                                    onClick={() => onEditTask(task.id)}
-                                    className="text-muted-foreground hover:text-primary p-2"
-                                    title="Edit Task"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
-                                </button>
-                                <button
-                                    onClick={() => deleteTask(task.id)}
-                                    className="text-muted-foreground hover:text-destructive p-2"
-                                    title="Delete Task"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
-                                </button>
+                        )}
+                    </>
+                ) : (
+                    <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
+                        <div className="px-6 py-4 border-b bg-muted/30 flex justify-between items-center">
+                            <h3 className="font-semibold px-4 pt-3 pb-2 text-foreground/80">Visual Roadmap</h3>
+                            <div className="text-sm text-muted-foreground">
+                                {minDate.format('MMM D, YYYY')} - {maxDate.format('MMM D, YYYY')}
+                            </div>
+                        </div>
+                        <div className="p-6 overflow-x-auto">
+                            <div className="min-w-[800px] space-y-4">
+                                {/* Timeline markers */}
+                                <div className="flex relative h-6 mb-2 border-b">
+                                    {[0, 25, 50, 75, 100].map(percent => (
+                                        <div key={percent} className="absolute h-full border-l text-[10px] text-muted-foreground pl-1" style={{ left: `${percent}%` }}>
+                                            {minDate.add((totalDays * percent) / 100, 'day').format('MMM D')}
+                                        </div>
+                                    ))}
+                                </div>
+                                {/* Task bars */}
+                                {tasks?.map((task) => {
+                                    const taskStartDiff = dayjs(task.startDate).diff(minDate, 'day');
+                                    const leftPercent = Math.max(0, (taskStartDiff / totalDays) * 100);
+                                    const widthPercent = Math.min(100 - leftPercent, (task.duration / totalDays) * 100);
+                                    const colors = getRoadmapColor(task.status);
+
+                                    return (
+                                        <div key={task.id} className="relative h-10 group cursor-pointer" onClick={() => onEditTask(task.id)}>
+                                            <div
+                                                className="absolute top-1 bottom-1 rounded-md opacity-80 hover:opacity-100 transition-opacity border overflow-hidden backdrop-blur-sm shadow-sm"
+                                                style={{ left: `${leftPercent}%`, width: `${widthPercent}%`, backgroundColor: colors.bg, borderColor: colors.border }}
+                                            >
+                                                {/* Progress fill inside bar */}
+                                                <div className="h-full transition-all" style={{ width: `${task.progress}%`, backgroundColor: colors.fill }}></div>
+
+                                                <div className="absolute inset-0 px-2 flex items-center text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-foreground shadow-sm">
+                                                    {task.title} ({task.progress}%)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
-                ))}
+                )}
             </div>
-            {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-4 pt-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                    >
-                        Previous
-                    </Button>
-                    <span className="text-sm font-medium text-muted-foreground">
-                        Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                    >
-                        Next
-                    </Button>
-                </div>
-            )}
             {showExportModal && (
                 <ExportModal
                     project={project}

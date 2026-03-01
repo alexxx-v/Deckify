@@ -1,6 +1,16 @@
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
-import { Project, Task } from '@/db/schema';
+import { Project, Task, TaskStatus } from '@/db/schema';
 import dayjs from 'dayjs';
+
+const getPdfStatusColor = (status?: TaskStatus) => {
+    switch (status) {
+        case 'done': return { text: '#166534', bg: '#DCFCE7', border: '#86EFAC', bar: '#22C55E' };
+        case 'progress': return { text: '#1E40AF', bg: '#DBEAFE', border: '#93C5FD', bar: '#3B82F6' };
+        case 'hold': return { text: '#854D0E', bg: '#FEF9C3', border: '#FDE047', bar: '#EAB308' };
+        case 'backlog':
+        default: return { text: '#374151', bg: '#F3F4F6', border: '#D1D5DB', bar: '#6B7280' };
+    }
+};
 
 // Register fonts
 Font.register({
@@ -244,6 +254,26 @@ export const ProjectPresentation = ({ project, tasks, period }: PdfDocumentProps
                                     {dayjs(task.startDate).add(task.duration, 'day').format('MMMM D, YYYY')}
                                 </Text>
                             </View>
+                            <View>
+                                <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 8 }}>Status</Text>
+                                <View style={{
+                                    backgroundColor: getPdfStatusColor(task.status).bg,
+                                    borderColor: getPdfStatusColor(task.status).border,
+                                    borderWidth: 1,
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 4,
+                                    borderRadius: 4
+                                }}>
+                                    <Text style={{
+                                        fontSize: 16,
+                                        fontWeight: 'bold',
+                                        color: getPdfStatusColor(task.status).text,
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        {task.status || 'backlog'}
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
 
                         {/* Progress Bar */}
@@ -253,7 +283,7 @@ export const ProjectPresentation = ({ project, tasks, period }: PdfDocumentProps
                                 <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#4F46E5' }}>{task.progress}%</Text>
                             </View>
                             <View style={{ height: 20, backgroundColor: '#E5E7EB', borderRadius: 10 }}>
-                                <View style={{ height: '100%', backgroundColor: '#4F46E5', borderRadius: 10, width: `${task.progress}%` }} />
+                                <View style={{ height: '100%', backgroundColor: getPdfStatusColor(task.status).bar, borderRadius: 10, width: `${task.progress}%` }} />
                             </View>
                         </View>
 
@@ -300,7 +330,15 @@ export const ProjectPresentation = ({ project, tasks, period }: PdfDocumentProps
                                             {
                                                 left: `${Math.max(0, Math.min(100, leftPercent))}%`,
                                                 width: `${Math.max(2, Math.min(100 - leftPercent, widthPercent))}%`,
-                                                backgroundColor: task.progress === 100 ? '#10B981' : '#4F46E5' // green if done
+                                                backgroundColor: getPdfStatusColor(task.status).bar,
+                                            }
+                                        ]} />
+                                        <View style={[
+                                            styles.roadmapBar,
+                                            {
+                                                left: `${Math.max(0, Math.min(100, leftPercent))}%`,
+                                                width: `${Math.max(2, Math.min(100 - leftPercent, widthPercent)) * (task.progress / 100)}%`,
+                                                backgroundColor: 'rgba(0,0,0,0.2)', // overlay for progress
                                             }
                                         ]} />
                                     </View>

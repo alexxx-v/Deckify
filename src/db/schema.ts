@@ -6,6 +6,8 @@ export interface Project {
     createdAt: number; // timestamp
 }
 
+export type TaskStatus = 'backlog' | 'progress' | 'hold' | 'done';
+
 export interface Task {
     id: string; // UUID
     projectId: string; // Foreign key to Project
@@ -14,6 +16,7 @@ export interface Task {
     startDate: string; // YYYY-MM-DD
     duration: number; // Duration in days
     progress: number; // 0-100
+    status?: TaskStatus; // Enum for status
 }
 
 export const db = new Dexie('TaskToPdfDatabase') as Dexie & {

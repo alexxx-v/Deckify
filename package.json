@@ -1,5 +1,5 @@
 {
-  "name": "task_to_pdf",
+  "name": "deckify",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -58,8 +58,8 @@
     "vite": "^8.0.0-beta.13"
   },
   "build": {
-    "appId": "com.tasktopdf.app",
-    "productName": "Task to PDF",
+    "appId": "com.deckify.app",
+    "productName": "Deckify",
     "directories": {
       "output": "release/"
     },

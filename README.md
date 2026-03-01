@@ -1,4 +1,4 @@
-# Task to PDF Generator
+# Deckify
 
 A local-first application built with React, Vite, and Electron that allows users to manage projects and tasks, and export professional PDF presentations of their task roadmaps.
 
@@ -10,10 +10,12 @@ A local-first application built with React, Vite, and Electron that allows users
 -   **PDF Generation**: `@react-pdf/renderer` for declarative, vector-based PDF generation directly in the browser/app.
 
 ## Features
-- **Company Management**: Create and delete workspaces (companies).
+- **Sidebar Navigation**: Quickly switch between the Dashboard, Projects List, and Settings.
+- **Overview Dashboard**: View high-level statistics of your total projects, task counts, and average completion rate.
+- **Project Management**: Create and delete workspaces (projects).
 - **Task Tracking**:
   - Add tasks via a dedicated modal interface with title, description, start date, and duration.
-  - Efficiently manage large projects with built-in task list pagination (10 items per page).
+  - **Dual Views**: Toggle seamlessly between a tabular 'List' view (with built-in pagination) and a beautiful interactive 'Roadmap' timeline view.
   - Dynamically update real-time progress using interactive sliders from the list.
   - Comprehensive task editing via a dedicated, spacious sub-page for easier text entry.
 - **Automated PDF Export**:
