@@ -30,6 +30,8 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
     const [showExportModal, setShowExportModal] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [viewMode, setViewMode] = useState<'list' | 'roadmap'>('list');
+    const [timeframe, setTimeframe] = useState<'all' | 'month' | 'quarter' | 'year'>('all');
+    const [filterDate, setFilterDate] = useState(dayjs().format('YYYY-MM'));
     const [currentPage, setCurrentPage] = useState(1);
     const [newTitle, setNewTitle] = useState('');
     const [newDescription, setNewDescription] = useState('');
@@ -43,23 +45,64 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
     const project = useLiveQuery(() => db.projects.get(projectId));
     const tasks = useLiveQuery(() => db.tasks.where('projectId').equals(projectId).sortBy('startDate'));
 
+    // Filter tasks by timeframe
+    const filteredTasks = (tasks || []).filter(t => {
+        if (timeframe === 'all') return true;
+        const taskStart = dayjs(t.startDate);
+        const taskEnd = dayjs(t.startDate).add(t.duration, 'day');
+        const baseDate = dayjs(filterDate + '-01');
+        let rangeStart = baseDate, rangeEnd = baseDate;
+
+        if (timeframe === 'month') {
+            rangeStart = baseDate.startOf('month');
+            rangeEnd = baseDate.endOf('month');
+        } else if (timeframe === 'quarter') {
+            const startMonth = Math.floor(baseDate.month() / 3) * 3;
+            rangeStart = baseDate.month(startMonth).startOf('month');
+            rangeEnd = rangeStart.add(2, 'month').endOf('month');
+        } else if (timeframe === 'year') {
+            rangeStart = baseDate.startOf('year');
+            rangeEnd = baseDate.endOf('year');
+        }
+
+        // Check if task overlaps with the timeframe
+        return taskStart.isBefore(rangeEnd) && taskEnd.isAfter(rangeStart);
+    });
+
     const pageSize = 10;
-    const totalTasks = tasks?.length || 0;
+    const totalTasks = filteredTasks.length;
     const totalPages = Math.ceil(totalTasks / pageSize);
-    const paginatedTasks = tasks ? tasks.slice((currentPage - 1) * pageSize, currentPage * pageSize) : [];
+    const paginatedTasks = filteredTasks.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     // Ensure we don't end up on an empty page if we delete the last item on it
     if (currentPage > totalPages && totalPages > 0) {
         setCurrentPage(totalPages);
     }
 
-    // Roadmap calculations
-    const minDate = tasks && tasks.length > 0 ? dayjs(tasks[0].startDate) : dayjs();
-    let maxDate = minDate;
-    tasks?.forEach(t => {
-        const end = dayjs(t.startDate).add(t.duration, 'day');
-        if (end.isAfter(maxDate)) maxDate = end;
-    });
+    // Roadmap calculations based on timeframe
+    let minDate = dayjs(), maxDate = dayjs();
+
+    if (timeframe === 'all') {
+        minDate = filteredTasks.length > 0 ? dayjs(filteredTasks[0].startDate) : dayjs();
+        maxDate = minDate;
+        filteredTasks.forEach(t => {
+            const end = dayjs(t.startDate).add(t.duration, 'day');
+            if (end.isAfter(maxDate)) maxDate = end;
+        });
+    } else {
+        const baseDate = dayjs(filterDate + '-01');
+        if (timeframe === 'month') {
+            minDate = baseDate.startOf('month');
+            maxDate = baseDate.endOf('month');
+        } else if (timeframe === 'quarter') {
+            const startMonth = Math.floor(baseDate.month() / 3) * 3;
+            minDate = baseDate.month(startMonth).startOf('month');
+            maxDate = minDate.add(2, 'month').endOf('month');
+        } else if (timeframe === 'year') {
+            minDate = baseDate.startOf('year');
+            maxDate = baseDate.endOf('year');
+        }
+    }
     const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
 
     const addTask = async (e: React.FormEvent) => {
@@ -109,7 +152,23 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                     <h2 className="text-2xl font-bold">{project.name}</h2>
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
+                    <div className="hidden md:flex items-center gap-2 bg-muted p-1 rounded-lg">
+                        <input
+                            type="month"
+                            value={filterDate}
+                            onChange={(e) => setFilterDate(e.target.value)}
+                            disabled={timeframe === 'all'}
+                            title="Select reference period"
+                            className={`h-7 px-2 text-xs rounded-md border-0 bg-background shadow-sm focus:ring-0 ${timeframe === 'all' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        />
+                        <div className="h-4 w-px bg-border mx-1"></div>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'all' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('all')}>All Time</button>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'year' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('year')}>Year</button>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'quarter' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('quarter')}>Quarter</button>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'month' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('month')}>Month</button>
+                    </div>
+
                     <div className="hidden sm:flex bg-muted p-1 rounded-lg">
                         <button
                             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
@@ -219,8 +278,8 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
             )}
 
             <div className="mt-6">
-                {tasks?.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">No tasks in this project yet.</p>
+                {filteredTasks.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">No tasks found for this timeframe.</p>
                 ) : viewMode === 'list' ? (
                     <>
                         <div className="space-y-3">
@@ -295,43 +354,50 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                     <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
                         <div className="px-6 py-4 border-b bg-muted/30 flex justify-between items-center">
                             <h3 className="font-semibold px-4 pt-3 pb-2 text-foreground/80">Visual Roadmap</h3>
-                            <div className="text-sm text-muted-foreground">
-                                {minDate.format('MMM D, YYYY')} - {maxDate.format('MMM D, YYYY')}
+                            <div className="text-sm text-muted-foreground font-medium capitalize">
+                                {timeframe === 'all' ? 'Entire Project' : `${timeframe} of ${dayjs(filterDate + '-01').format('MMMM YYYY')}`} • {minDate.format('MMM D, YYYY')} - {maxDate.format('MMM D, YYYY')}
                             </div>
                         </div>
                         <div className="p-6 overflow-x-auto">
-                            <div className="min-w-[800px] space-y-4">
+                            <div className="min-w-[800px] overflow-hidden relative">
                                 {/* Timeline markers */}
-                                <div className="flex relative h-6 mb-2 border-b">
+                                <div className="flex relative h-6 mb-4 border-b">
                                     {[0, 25, 50, 75, 100].map(percent => (
-                                        <div key={percent} className="absolute h-full border-l text-[10px] text-muted-foreground pl-1" style={{ left: `${percent}%` }}>
+                                        <div key={percent} className="absolute h-full border-l text-[10px] font-medium text-muted-foreground pl-1" style={{ left: `${percent}%` }}>
                                             {minDate.add((totalDays * percent) / 100, 'day').format('MMM D')}
                                         </div>
                                     ))}
                                 </div>
-                                {/* Task bars */}
-                                {tasks?.map((task) => {
-                                    const taskStartDiff = dayjs(task.startDate).diff(minDate, 'day');
-                                    const leftPercent = Math.max(0, (taskStartDiff / totalDays) * 100);
-                                    const widthPercent = Math.min(100 - leftPercent, (task.duration / totalDays) * 100);
-                                    const colors = getRoadmapColor(task.status);
+                                {/* Task bars container (clips overrun) */}
+                                <div className="space-y-4 pb-2">
+                                    {filteredTasks.map((task) => {
+                                        const taskStartDiff = dayjs(task.startDate).diff(minDate, 'day');
+                                        const leftPercentRaw = (taskStartDiff / totalDays) * 100;
+                                        const widthPercentRaw = (task.duration / totalDays) * 100;
+                                        const colors = getRoadmapColor(task.status);
 
-                                    return (
-                                        <div key={task.id} className="relative h-10 group cursor-pointer" onClick={() => onEditTask(task.id)}>
-                                            <div
-                                                className="absolute top-1 bottom-1 rounded-md opacity-80 hover:opacity-100 transition-opacity border overflow-hidden backdrop-blur-sm shadow-sm"
-                                                style={{ left: `${leftPercent}%`, width: `${widthPercent}%`, backgroundColor: colors.bg, borderColor: colors.border }}
-                                            >
-                                                {/* Progress fill inside bar */}
-                                                <div className="h-full transition-all" style={{ width: `${task.progress}%`, backgroundColor: colors.fill }}></div>
+                                        return (
+                                            <div key={task.id} className="relative h-10 group cursor-pointer" onClick={() => onEditTask(task.id)}>
+                                                <div
+                                                    className="absolute top-1 bottom-1 rounded-md opacity-80 hover:opacity-100 transition-opacity border backdrop-blur-sm shadow-sm flex items-center overflow-hidden"
+                                                    style={{
+                                                        left: `${leftPercentRaw}%`,
+                                                        width: `${widthPercentRaw}%`,
+                                                        backgroundColor: colors.bg,
+                                                        borderColor: colors.border
+                                                    }}
+                                                >
+                                                    {/* Progress fill inside bar */}
+                                                    <div className="absolute inset-y-0 left-0 transition-all" style={{ width: `${task.progress}%`, backgroundColor: colors.fill }}></div>
 
-                                                <div className="absolute inset-0 px-2 flex items-center text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-foreground shadow-sm">
-                                                    {task.title} ({task.progress}%)
+                                                    <div className="absolute inset-0 px-2 flex items-center text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-foreground shadow-sm">
+                                                        {task.title} ({task.progress}%)
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
                     </div>
