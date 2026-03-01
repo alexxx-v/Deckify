@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { db } from '@/db/schema';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { db, useLiveQuery } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import dayjs from 'dayjs';
@@ -46,7 +45,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
     const tasks = useLiveQuery(() => db.tasks.where('projectId').equals(projectId).sortBy('startDate'));
 
     // Filter tasks by timeframe
-    const filteredTasks = (tasks || []).filter(t => {
+    const filteredTasks = (tasks || []).filter((t: any) => {
         if (timeframe === 'all') return true;
         const taskStart = dayjs(t.startDate);
         const taskEnd = dayjs(t.startDate).add(t.duration, 'day');
@@ -85,7 +84,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
     if (timeframe === 'all') {
         minDate = filteredTasks.length > 0 ? dayjs(filteredTasks[0].startDate) : dayjs();
         maxDate = minDate;
-        filteredTasks.forEach(t => {
+        filteredTasks.forEach((t: any) => {
             const end = dayjs(t.startDate).add(t.duration, 'day');
             if (end.isAfter(maxDate)) maxDate = end;
         });
@@ -144,15 +143,34 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={onBack}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-                    </Button>
-                    <h2 className="text-2xl font-bold">{project.name}</h2>
+            <div className="flex flex-col gap-6">
+                {/* Header Row: Title & Primary Actions */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button variant="outline" size="icon" onClick={onBack}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                        </Button>
+                        <h2 className="text-2xl font-bold">{project.name}</h2>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <Button onClick={() => setShowAddModal(true)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Add Task
+                        </Button>
+                        <Button
+                            variant="default"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            onClick={() => setShowExportModal(true)}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+                            Export PDF
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                {/* Filter Row */}
+                <div className="flex flex-col sm:flex-row items-baseline sm:items-center justify-between gap-4">
                     <div className="hidden md:flex items-center gap-2 bg-muted p-1 rounded-lg">
                         <input
                             type="month"
@@ -182,21 +200,6 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                         >
                             Roadmap
                         </button>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <Button onClick={() => setShowAddModal(true)}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            Add Task
-                        </Button>
-                        <Button
-                            variant="default"
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                            onClick={() => setShowExportModal(true)}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
-                            Export PDF
-                        </Button>
                     </div>
                 </div>
             </div>
@@ -283,7 +286,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                 ) : viewMode === 'list' ? (
                     <>
                         <div className="space-y-3">
-                            {paginatedTasks.map(task => (
+                            {paginatedTasks.map((task: any) => (
                                 <div key={task.id} className="bg-card border rounded-lg p-4 shadow-sm flex flex-col sm:flex-row sm:items-baseline justify-between gap-4">
                                     <div className="flex-1">
                                         <h4 className="font-semibold text-lg hover:underline cursor-pointer" onClick={() => onEditTask(task.id)}>{task.title}</h4>
@@ -370,7 +373,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                 </div>
                                 {/* Task bars container (clips overrun) */}
                                 <div className="space-y-4 pb-2">
-                                    {filteredTasks.map((task) => {
+                                    {filteredTasks.map((task: any) => {
                                         const taskStartDiff = dayjs(task.startDate).diff(minDate, 'day');
                                         const leftPercentRaw = (taskStartDiff / totalDays) * 100;
                                         const widthPercentRaw = (task.duration / totalDays) * 100;

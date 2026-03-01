@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ProjectList } from './features/projects/ProjectList'
 import { ProjectTasks } from './features/projects/ProjectTasks'
 import { TaskEditView } from './features/projects/TaskEditView'
 import { Dashboard } from './features/dashboard/Dashboard'
 import { Settings } from './features/settings/Settings'
+import { initDb } from './db/schema'
+import { Button } from './components/ui/button'
 
 type Tab = 'dashboard' | 'projects' | 'settings';
 
@@ -11,6 +13,50 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [dbReady, setDbReady] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [dbPathInput, setDbPathInput] = useState('');
+  const [dbError, setDbError] = useState('');
+
+  useEffect(() => {
+    const savedPath = localStorage.getItem('sqliteDataPath');
+    if (savedPath) {
+      if (initDb(savedPath)) {
+        setDbReady(true);
+      } else {
+        setDbError('Failed to load database. Path may be invalid.');
+        setShowSetup(true);
+      }
+    } else {
+      // First launch
+      if (typeof window !== 'undefined' && 'require' in window) {
+        try {
+          const { ipcRenderer } = (window as any).require('electron');
+          ipcRenderer.invoke('get-user-data-path').then((userDataPath: string) => {
+            setDbPathInput(userDataPath + '/deckify.db');
+            setShowSetup(true);
+          });
+        } catch (err) {
+          setDbPathInput('./deckify.db');
+          setShowSetup(true);
+        }
+      } else {
+        setDbPathInput('./deckify.db');
+        setShowSetup(true);
+      }
+    }
+  }, []);
+
+  const handleSaveDbConfig = () => {
+    if (!dbPathInput.trim()) return;
+    if (initDb(dbPathInput.trim())) {
+      localStorage.setItem('sqliteDataPath', dbPathInput.trim());
+      setDbReady(true);
+      setShowSetup(false);
+    } else {
+      setDbError('Failed to initialize SQLite at that path.');
+    }
+  };
 
   const navigateTo = (tab: Tab) => {
     setActiveTab(tab);
@@ -23,6 +69,39 @@ function App() {
       ? 'bg-indigo-50 text-indigo-700'
       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
     }`;
+
+  if (!dbReady) {
+    if (showSetup) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md rounded-xl shadow-lg border p-6">
+            <h2 className="text-2xl font-bold mb-4">Database Setup</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Welcome to Deckify! Please specify where you would like to store your SQLite database file.
+            </p>
+            {dbError && <div className="p-3 mb-4 bg-red-50 text-red-800 rounded text-sm border border-red-200">{dbError}</div>}
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Database File Path</label>
+                <input
+                  type="text"
+                  value={dbPathInput}
+                  onChange={(e) => setDbPathInput(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+              <div className="pt-4 flex justify-end">
+                <Button onClick={handleSaveDbConfig} className="bg-indigo-600 hover:bg-indigo-700 text-white w-full">
+                  Save & Continue
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Loading Setup...</p></div>;
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans antialiased flex">

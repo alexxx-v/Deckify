@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { db } from '@/db/schema';
+import { db, useLiveQuery } from '@/db/schema';
 import { Button } from '@/components/ui/button';
-import { useLiveQuery } from 'dexie-react-hooks';
 
 export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () => void }) {
     // Initial fetch of the task using live query to keep it reactive if updated elsewhere

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { db } from '@/db/schema';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { db, useLiveQuery } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 
@@ -23,11 +22,11 @@ export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
 
     const deleteProject = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        if (confirm('Are you sure you want to delete this project and all its tasks?')) {
+        if (confirm('Are you sure you want to delete this project? All associated tasks will be removed as well.')) {
             await db.projects.delete(id);
             // CASCADE DELETE TASKS:
-            const tasksToDelete = await db.tasks.where('projectId').equals(id).toArray();
-            const taskIds = tasksToDelete.map(t => t.id);
+            const tasksToDelete = await db.tasks.where('projectId').equals(id).toArray() as any[];
+            const taskIds = tasksToDelete.map((t: any) => t.id);
             await db.tasks.bulkDelete(taskIds);
         }
     }
@@ -53,12 +52,12 @@ export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
                 {projects?.length === 0 && (
                     <p className="text-muted-foreground">No projects yet. Add one above!</p>
                 )}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {projects?.map(project => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {projects?.map((project: any) => (
                         <div
                             key={project.id}
                             onClick={() => onSelect(project.id)}
-                            className="group cursor-pointer bg-card border rounded-xl p-5 shadow-sm hover:shadow-md transition-all hover:border-primary/50 relative"
+                            className="bg-card border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between group"
                         >
                             <h3 className="font-medium text-lg mb-1 pr-8">{project.name}</h3>
                             <p className="text-xs text-muted-foreground">
