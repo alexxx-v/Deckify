@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/ui/button.tsx","./src/db/schema.ts","./src/features/pdf/exportmodal.tsx","./src/features/pdf/projectpresentation.tsx","./src/features/projects/projectlist.tsx","./src/features/projects/projecttasks.tsx","./src/features/projects/taskeditview.tsx","./src/lib/utils.ts"],"version":"5.9.3"}
