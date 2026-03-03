@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { db, useLiveQuery } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
@@ -271,16 +272,16 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                 </div>
             </div>
 
-            {showAddModal && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-card w-full max-w-2xl rounded-xl shadow-lg border p-6 animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
+            {showAddModal && createPortal(
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-card w-full max-w-2xl rounded-xl shadow-lg border p-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto flex flex-col">
+                        <div className="flex justify-between items-center mb-6 shrink-0">
                             <h2 className="text-xl font-bold">{t('taskEdit.addTask')}</h2>
                             <button onClick={() => setShowAddModal(false)} className="text-muted-foreground hover:text-foreground">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         </div>
-                        <form onSubmit={addTask} className="space-y-4">
+                        <form onSubmit={addTask} className="space-y-4 shrink-0">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-sm font-medium mb-1 block">{t('taskEdit.title')}</label>
@@ -356,7 +357,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                         </form>
                     </div>
                 </div>
-            )}
+                , document.body)}
 
             <div className="mt-6">
                 {filteredTasks.length === 0 ? (
