@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { db, useLiveQuery } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
+    const { t } = useTranslation();
     const [newProjectName, setNewProjectName] = useState('');
 
     const projects = useLiveQuery(() => db.projects.orderBy('createdAt').reverse().toArray());
@@ -34,23 +36,23 @@ export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
     return (
         <div className="space-y-6">
             <div className="bg-card border rounded-xl p-6 shadow-sm">
-                <h2 className="text-xl font-semibold mb-4">Create New Project</h2>
+                <h2 className="text-xl font-semibold mb-4">{t('projects.addTitle')}</h2>
                 <form onSubmit={addProject} className="flex gap-3">
                     <input
                         type="text"
                         value={newProjectName}
                         onChange={(e) => setNewProjectName(e.target.value)}
-                        placeholder="Project Name..."
+                        placeholder={t('projects.projectName')}
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     />
-                    <Button type="submit">Add Project</Button>
+                    <Button type="submit">{t('projects.submit')}</Button>
                 </form>
             </div>
 
             <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Your Projects</h2>
+                <h2 className="text-xl font-semibold">{t('projects.title')}</h2>
                 {projects?.length === 0 && (
-                    <p className="text-muted-foreground">No projects yet. Add one above!</p>
+                    <p className="text-muted-foreground">{t('projects.noProjects')}</p>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {projects?.map((project: any) => (
