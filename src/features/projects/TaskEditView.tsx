@@ -4,6 +4,56 @@ import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+function SortableStepItem({ step, onUpdate, onDelete, t }: { step: TaskStep, onUpdate: (step: TaskStep) => void, onDelete: () => void, t: any }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+    } = useSortable({ id: step.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="flex items-center gap-3 bg-background group relative z-10 w-full">
+            <div {...attributes} {...listeners} className="cursor-grab hover:bg-muted p-1.5 rounded text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity flex-shrink-0 touch-none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1" /><circle cx="9" cy="5" r="1" /><circle cx="9" cy="19" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="5" r="1" /><circle cx="15" cy="19" r="1" /></svg>
+            </div>
+            <input
+                type="checkbox"
+                checked={step.completed}
+                onChange={(e) => onUpdate({ ...step, completed: e.target.checked })}
+                className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 flex-shrink-0"
+            />
+            <input
+                type="text"
+                value={step.text}
+                onChange={(e) => onUpdate({ ...step, text: e.target.value })}
+                placeholder={t('taskEdit.stepPlaceholder')}
+                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${step.completed ? 'line-through text-muted-foreground' : ''}`}
+            />
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onDelete}
+                className="text-muted-foreground hover:text-red-500 hover:bg-red-50 flex-shrink-0"
+                title={t('taskEdit.deleteStep')}
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+            </Button>
+        </div>
+    );
+}
 
 export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () => void }) {
     const { t } = useTranslation();
@@ -18,6 +68,25 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
     const [editProgress, setEditProgress] = useState('0');
     const [editStatus, setEditStatus] = useState<'backlog' | 'progress' | 'hold' | 'done'>('backlog');
     const [editSteps, setEditSteps] = useState<TaskStep[]>([]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    function handleDragEnd(event: any) {
+        const { active, over } = event;
+
+        if (active.id !== over?.id && over) {
+            setEditSteps((items) => {
+                const oldIndex = items.findIndex(i => i.id === active.id);
+                const newIndex = items.findIndex(i => i.id === over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        }
+    }
 
     // Populate local state once the task loads
     useEffect(() => {
@@ -175,44 +244,32 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                         </div>
 
                         <div className="space-y-3">
-                            {editSteps.map((step, index) => (
-                                <div key={step.id} className="flex items-center gap-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={step.completed}
-                                        onChange={(e) => {
-                                            const newSteps = [...editSteps];
-                                            newSteps[index].completed = e.target.checked;
-                                            setEditSteps(newSteps);
-                                        }}
-                                        className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                                    />
-                                    <input
-                                        type="text"
-                                        value={step.text}
-                                        onChange={(e) => {
-                                            const newSteps = [...editSteps];
-                                            newSteps[index].text = e.target.value;
-                                            setEditSteps(newSteps);
-                                        }}
-                                        placeholder={t('taskEdit.stepPlaceholder')}
-                                        className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${step.completed ? 'line-through text-muted-foreground' : ''}`}
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => {
-                                            const newSteps = editSteps.filter(s => s.id !== step.id);
-                                            setEditSteps(newSteps);
-                                        }}
-                                        className="text-muted-foreground hover:text-red-500 hover:bg-red-50"
-                                        title={t('taskEdit.deleteStep')}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-                                    </Button>
-                                </div>
-                            ))}
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext
+                                    items={editSteps}
+                                    strategy={verticalListSortingStrategy}
+                                >
+                                    {editSteps.map((step, index) => (
+                                        <SortableStepItem
+                                            key={step.id}
+                                            step={step}
+                                            t={t}
+                                            onUpdate={(updated) => {
+                                                const newSteps = [...editSteps];
+                                                newSteps[index] = updated;
+                                                setEditSteps(newSteps);
+                                            }}
+                                            onDelete={() => {
+                                                setEditSteps(editSteps.filter(s => s.id !== step.id));
+                                            }}
+                                        />
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
                             {editSteps.length === 0 && (
                                 <div className="text-center py-6 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
                                     No steps added yet. Add steps to create a timeline in your PDF.

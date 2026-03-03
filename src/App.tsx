@@ -180,27 +180,29 @@ function App() {
       {/* Main Content Area */}
       <main className={`flex-1 p-8 overflow-y-auto min-h-screen transition-all duration-300 w-full ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
         <div className={`mx-auto transition-all duration-300 ${isFullWidth ? 'max-w-none' : 'max-w-5xl'}`}>
-          {editingTaskId ? (
-            <TaskEditView
-              taskId={editingTaskId}
-              onBack={() => setEditingTaskId(null)}
-            />
-          ) : selectedProjectId ? (
-            <ProjectTasks
-              projectId={selectedProjectId}
-              onBack={() => setSelectedProjectId(null)}
-              onEditTask={(taskId) => setEditingTaskId(taskId)}
-            />
-          ) : activeTab === 'dashboard' ? (
-            <Dashboard />
-          ) : activeTab === 'settings' ? (
-            <Settings isFullWidth={isFullWidth} onToggleFullWidth={(v) => {
-              setIsFullWidth(v);
-              localStorage.setItem('fullWidth', JSON.stringify(v));
-            }} />
-          ) : (
-            <ProjectList onSelect={(id) => { setSelectedProjectId(id); setActiveTab('projects'); }} />
-          )}
+          <div key={activeTab + (selectedProjectId || '') + (editingTaskId || '')} className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both">
+            {editingTaskId ? (
+              <TaskEditView
+                taskId={editingTaskId}
+                onBack={() => setEditingTaskId(null)}
+              />
+            ) : selectedProjectId ? (
+              <ProjectTasks
+                projectId={selectedProjectId}
+                onBack={() => setSelectedProjectId(null)}
+                onEditTask={(taskId) => setEditingTaskId(taskId)}
+              />
+            ) : activeTab === 'dashboard' ? (
+              <Dashboard />
+            ) : activeTab === 'settings' ? (
+              <Settings isFullWidth={isFullWidth} onToggleFullWidth={(v) => {
+                setIsFullWidth(v);
+                localStorage.setItem('fullWidth', JSON.stringify(v));
+              }} />
+            ) : (
+              <ProjectList onSelect={(id) => { setSelectedProjectId(id); setActiveTab('projects'); }} />
+            )}
+          </div>
         </div>
       </main>
     </div>

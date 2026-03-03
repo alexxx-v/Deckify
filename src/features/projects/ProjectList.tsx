@@ -52,7 +52,15 @@ export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
             <div className="space-y-4">
                 <h2 className="text-xl font-semibold">{t('projects.title')}</h2>
                 {projects?.length === 0 && (
-                    <p className="text-muted-foreground">{t('projects.noProjects')}</p>
+                    <div className="flex flex-col items-center justify-center p-12 mt-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-2xl bg-muted/10 animate-in fade-in zoom-in duration-500">
+                        <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4 text-muted-foreground">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10h12" /><path d="M4 14h9" /><path d="M19 6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6Z" /></svg>
+                        </div>
+                        <h3 className="text-lg font-semibold tracking-tight text-foreground mb-1">{t('projects.noProjects')}</h3>
+                        <p className="text-sm text-muted-foreground max-w-sm text-balance">
+                            Cоздайте свой первый проект используя форму выше, чтобы начать планировать задачи и строить Roadmap.
+                        </p>
+                    </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {projects?.map((project: any) => (

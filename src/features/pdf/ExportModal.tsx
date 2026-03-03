@@ -89,8 +89,8 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-card w-full max-w-md rounded-xl shadow-lg border p-6">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-card w-full max-w-md rounded-xl shadow-lg border p-6 animate-in zoom-in-95 duration-200">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold">{t('export.title')}</h2>
                     <button onClick={onClose} className="text-muted-foreground hover:text-foreground">

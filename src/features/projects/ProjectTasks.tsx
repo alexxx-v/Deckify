@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import dayjs from 'dayjs';
 import { ExportModal } from '../pdf/ExportModal';
 import { useTranslation } from 'react-i18next';
+import { DraggableTaskBar } from './DraggableTaskBar';
 
 const getStatusBadgeClass = (status?: string) => {
     switch (status) {
@@ -271,8 +272,8 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
             </div>
 
             {showAddModal && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-card w-full max-w-2xl rounded-xl shadow-lg border p-6">
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-card w-full max-w-2xl rounded-xl shadow-lg border p-6 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold">{t('taskEdit.addTask')}</h2>
                             <button onClick={() => setShowAddModal(false)} className="text-muted-foreground hover:text-foreground">
@@ -359,7 +360,34 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
 
             <div className="mt-6">
                 {filteredTasks.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">{t('tasks.noTasks')}</p>
+                    tasks.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-12 mt-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-2xl bg-muted/5 animate-in fade-in zoom-in duration-500">
+                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4 text-muted-foreground">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" x2="12" y1="18" y2="12" /><line x1="9" x2="15" y1="15" y2="15" /></svg>
+                            </div>
+                            <h3 className="text-lg font-semibold tracking-tight text-foreground mb-1">{t('tasks.noTasks')}</h3>
+                            <p className="text-sm text-muted-foreground max-w-sm text-balance mb-6">
+                                В этом проекте пока нет ни одной задачи. Создайте первую задачу, чтобы составить план!
+                            </p>
+                            <Button onClick={() => setShowAddModal(true)} variant="secondary" className="shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                {t('tasks.addTask')}
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center p-12 mt-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-2xl bg-muted/5 animate-in fade-in zoom-in duration-500">
+                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4 text-muted-foreground">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                            </div>
+                            <h3 className="text-lg font-semibold tracking-tight text-foreground mb-1">Ничего не найдено</h3>
+                            <p className="text-sm text-muted-foreground max-w-sm text-balance mb-6">
+                                Задач в выбранном периоде (с {minDate.format('MMM D')} по {maxDate.format('MMM D, YYYY')}) не найдено.
+                            </p>
+                            <Button onClick={() => setTimeframe('all')} variant="outline">
+                                Показать все задачи
+                            </Button>
+                        </div>
+                    )
                 ) : viewMode === 'list' ? (
                     <>
                         <div className="space-y-2">
@@ -444,34 +472,19 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                 {/* Task bars container (clips overrun) */}
                                 <div className="space-y-4 pb-2 relative z-10">
                                     {filteredTasks.map((task: any) => {
-                                        const taskStartDiff = dayjs(task.startDate).diff(minDate, 'day');
-                                        const leftPercentRaw = (taskStartDiff / totalDays) * 100;
-                                        const widthPercentRaw = (task.duration / totalDays) * 100;
                                         const colors = getRoadmapColor(task.status);
-                                        const cutOffPercent = leftPercentRaw < 0 ? (-leftPercentRaw / widthPercentRaw) * 100 : 0;
-
                                         return (
-                                            <div key={task.id} className="relative h-10 group cursor-pointer" onClick={() => onEditTask(task.id)}>
-                                                <div
-                                                    className="absolute top-1 bottom-1 rounded-md opacity-80 hover:opacity-100 transition-opacity border backdrop-blur-sm shadow-sm flex items-center overflow-hidden"
-                                                    style={{
-                                                        left: `${leftPercentRaw}%`,
-                                                        width: `${widthPercentRaw}%`,
-                                                        backgroundColor: colors.bg,
-                                                        borderColor: colors.border
-                                                    }}
-                                                >
-                                                    {/* Progress fill inside bar */}
-                                                    <div className="absolute inset-y-0 left-0 transition-all" style={{ width: `${task.progress}%`, backgroundColor: colors.fill }}></div>
-
-                                                    <div
-                                                        className="absolute inset-y-0 right-0 px-2 flex items-center text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-foreground shadow-sm"
-                                                        style={{ left: `${cutOffPercent}%` }}
-                                                    >
-                                                        {task.title} ({task.progress}%)
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            <DraggableTaskBar
+                                                key={task.id}
+                                                task={task}
+                                                minDate={minDate}
+                                                totalDays={totalDays}
+                                                colors={colors}
+                                                onUpdate={async (id, start, duration) => {
+                                                    await db.tasks.update(id, { startDate: start, duration });
+                                                }}
+                                                onClick={() => onEditTask(task.id)}
+                                            />
                                         );
                                     })}
                                 </div>
