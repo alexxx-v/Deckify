@@ -110,10 +110,10 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
                 <div className="absolute inset-y-0 left-0 transition-all pointer-events-none rounded-l-md" style={{ width: `${task.progress}%`, backgroundColor: colors.fill }}></div>
 
                 <div
-                    className="absolute inset-y-0 right-0 px-2 flex items-center text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-foreground shadow-sm pointer-events-none select-none"
+                    className="absolute inset-y-0 right-0 px-3 flex items-center text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-foreground shadow-sm pointer-events-none select-none lg:hidden"
                     style={{ left: `${cutOffPercent}%` }}
                 >
-                    {task.title} <span className="text-[10px] opacity-70 ml-1">({task.progress}%)</span>
+                    {task.title} <span className="text-xs opacity-70 ml-1.5 font-medium">({task.progress}%)</span>
                 </div>
 
                 {/* Resize Handle */}

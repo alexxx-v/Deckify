@@ -52,6 +52,7 @@
         "onHold": "On Hold",
         "done": "Done",
         "startDate": "Start Date",
+        "endDate": "End Date",
         "duration": "Duration",
         "days": "Days",
         "weeks": "Weeks",

@@ -391,29 +391,59 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                     )
                 ) : viewMode === 'list' ? (
                     <>
-                        <div className="space-y-2">
-                            {paginatedTasks.map((task: any) => (
-                                <div
-                                    key={task.id}
-                                    onClick={() => onEditTask(task.id)}
-                                    className="bg-card border rounded-lg px-4 py-3 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-primary/40"
-                                >
-                                    <div className="flex-1 flex items-center gap-4 min-w-0 pr-4">
-                                        <div className="shrink-0 w-10 text-right font-semibold text-sm tabular-nums text-muted-foreground group-hover:text-foreground transition-colors">{task.progress}%</div>
-                                        <h4 className="font-medium truncate text-foreground group-hover:text-primary transition-colors">{task.title}</h4>
-                                    </div>
+                        <div className="bg-card border rounded-xl shadow-sm relative overflow-hidden">
+                            {/* Table Header Row */}
+                            <div className="hidden sm:flex sm:items-center justify-between gap-x-4 px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b bg-muted/10">
+                                <div className="flex-1 pl-4 min-w-0 shrink-0">{t('taskEdit.title')}</div>
+                                <div className="w-[120px] shrink-0">{t('taskEdit.startDate')}</div>
+                                <div className="w-[140px] shrink-0">{t('taskEdit.endDate', 'Дата завершения')}</div>
+                                <div className="w-[120px] shrink-0">{t('taskEdit.duration')}</div>
+                                <div className="w-[100px] shrink-0 text-center">{t('taskEdit.progressStatus', 'Прогресс').replace(/\s*\(.*?\)/, '')}</div>
+                                <div className="w-[120px] shrink-0 text-center sm:pr-8">{t('taskEdit.status')}</div>
+                            </div>
 
-                                    <div className="flex items-center gap-4 shrink-0 text-sm">
-                                        <div className="hidden md:block text-muted-foreground tabular-nums min-w-[200px] text-right">
-                                            {dayjs(task.startDate).format('MMM D')} - {dayjs(task.startDate).add(task.duration, 'day').format('MMM D, YYYY')} <span className="text-xs opacity-60 ml-1">({task.duration}d)</span>
+                            <div className="flex flex-col">
+                                {paginatedTasks.map((task: any, index: number) => (
+                                    <div
+                                        key={task.id}
+                                        onClick={() => onEditTask(task.id)}
+                                        className={`px-4 py-3 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-y-3 gap-x-4 group hover:bg-muted/50 transition-colors relative ${index !== paginatedTasks.length - 1 ? 'border-b border-border/50' : ''}`}
+                                    >
+                                        <div className="flex-1 flex items-center gap-4 min-w-0 pr-4 pl-4 shrink-0">
+                                            <h4 className="font-medium truncate text-foreground group-hover:text-primary transition-colors">{task.title}</h4>
                                         </div>
-                                        <span className={`w-24 justify-center inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
-                                            {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
-                                        </span>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/50 group-hover:text-primary transition-colors"><path d="m9 18 6-6-6-6" /></svg>
+
+                                        <div className="hidden sm:block w-[120px] shrink-0 text-sm text-foreground/80 tabular-nums">
+                                            {dayjs(task.startDate).format('MMM D, YYYY')}
+                                        </div>
+                                        <div className="hidden sm:block w-[140px] shrink-0 text-sm text-foreground/80 tabular-nums">
+                                            {dayjs(task.startDate).add(task.duration, 'day').format('MMM D, YYYY')}
+                                        </div>
+                                        <div className="hidden sm:block w-[120px] shrink-0 text-sm text-muted-foreground tabular-nums">
+                                            {task.duration} {t('taskEdit.days')}
+                                        </div>
+                                        <div className="hidden sm:block w-[100px] shrink-0 text-center font-semibold text-sm tabular-nums text-muted-foreground group-hover:text-foreground transition-colors">
+                                            {task.progress}%
+                                        </div>
+
+                                        <div className="flex items-center justify-between sm:justify-center shrink-0 sm:w-[120px] pl-4 sm:pl-0 sm:pr-8">
+                                            {/* Sub content on mobile shows duration alongside dates */}
+                                            <div className="sm:hidden text-xs text-muted-foreground flex gap-2">
+                                                <span className="font-semibold text-foreground">{task.progress}%</span>
+                                                <span className="opacity-50">•</span>
+                                                <span>{dayjs(task.startDate).format('MMM D')} - {dayjs(task.startDate).add(task.duration, 'day').format('MMM D')}</span>
+                                            </div>
+                                            <span className={`w-28 justify-center inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
+                                                {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
+                                            </span>
+                                        </div>
+
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:block">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/30 group-hover:text-primary transition-colors"><path d="m9 18 6-6-6-6" /></svg>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                         {totalPages > 1 && (
                             <div className="flex justify-center items-center gap-4 pt-6">
@@ -447,53 +477,78 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                 {timeframe === 'all' ? t('tasks.entireProject') : `${timeframe} ${dayjs(filterDate + '-01').format('MMMM YYYY')}`} • {minDate.format('MMM D, YYYY')} - {maxDate.format('MMM D, YYYY')}
                             </div>
                         </div>
-                        <div className="p-6 overflow-x-auto">
-                            <div className="min-w-[800px] overflow-hidden relative">
-                                {/* Vertical background grid lines */}
-                                <div className="absolute top-6 bottom-0 w-full pointer-events-none z-0">
-                                    {timelineMarkers.map((m, idx) => (
-                                        <div key={`grid-${idx}`} className="absolute top-0 bottom-0 border-l border-muted-foreground/20" style={{ left: `${m.percent}%` }}></div>
-                                    ))}
+                        <div className="flex flex-row relative items-stretch">
+                            {/* Left Panel */}
+                            <div className="hidden lg:flex w-[300px] shrink-0 bg-card border-r flex-col z-20 py-6">
+                                {/* Header matching timeline */}
+                                <div className="flex items-end pb-1 h-6 mb-4 border-b px-5 text-[10px] font-medium text-muted-foreground uppercase">
+                                    <div className="flex-1 truncate pr-2">{t('taskEdit.title')}</div>
+                                    <div className="w-20 text-right shrink-0">{t('taskEdit.status')}</div>
                                 </div>
-
-                                {/* Timeline markers */}
-                                <div className="flex relative h-6 mb-4 border-b">
-                                    <div className="absolute h-full text-[10px] font-medium text-muted-foreground left-0">
-                                        {minDate.format('MMM D, YYYY')}
-                                    </div>
-                                    <div className="absolute h-full text-[10px] font-medium text-muted-foreground right-0">
-                                        {maxDate.format('MMM D, YYYY')}
-                                    </div>
-                                    {timelineMarkers.map((m, idx) => (
-                                        <div key={idx} className="absolute h-full border-l border-border text-[10px] font-medium text-muted-foreground pl-1" style={{ left: `${m.percent}%` }}>
-                                            {m.label}
+                                <div className="space-y-2 pb-2 px-5">
+                                    {filteredTasks.map((task: any) => (
+                                        <div key={`sidebar-${task.id}`} className="h-10 flex items-center text-sm group cursor-pointer" onClick={() => onEditTask(task.id)}>
+                                            <div className="flex-1 truncate font-medium text-foreground group-hover:text-primary pr-3" title={task.title}>{task.title}</div>
+                                            <div className="w-24 shrink-0 justify-end flex">
+                                                <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold border whitespace-nowrap ${getStatusBadgeClass(task.status)}`}>
+                                                    {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
+                                                </span>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
-                                {/* Task bars container (clips overrun) */}
-                                <div className="space-y-4 pb-2 relative z-10">
-                                    {filteredTasks.map((task: any) => {
-                                        const colors = getRoadmapColor(task.status);
-                                        return (
-                                            <DraggableTaskBar
-                                                key={task.id}
-                                                task={task}
-                                                minDate={minDate}
-                                                totalDays={totalDays}
-                                                colors={colors}
-                                                onUpdate={async (id, start, duration) => {
-                                                    await db.tasks.update(id, { startDate: start, duration });
-                                                }}
-                                                onClick={() => onEditTask(task.id)}
-                                            />
-                                        );
-                                    })}
+                            </div>
+
+                            {/* Right Timeline Panel */}
+                            <div className="flex-1 overflow-x-auto p-6">
+                                <div className="min-w-[800px] overflow-hidden relative">
+                                    {/* Vertical background grid lines */}
+                                    <div className="absolute top-6 bottom-0 w-full pointer-events-none z-0">
+                                        {timelineMarkers.map((m, idx) => (
+                                            <div key={`grid-${idx}`} className="absolute top-0 bottom-0 border-l border-muted-foreground/20" style={{ left: `${m.percent}%` }}></div>
+                                        ))}
+                                    </div>
+
+                                    {/* Timeline markers */}
+                                    <div className="flex relative h-6 mb-4 border-b">
+                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground left-0">
+                                            {minDate.format('MMM D, YYYY')}
+                                        </div>
+                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground right-0">
+                                            {maxDate.format('MMM D, YYYY')}
+                                        </div>
+                                        {timelineMarkers.map((m, idx) => (
+                                            <div key={idx} className="absolute h-full border-l border-border text-[10px] font-medium text-muted-foreground pl-1" style={{ left: `${m.percent}%` }}>
+                                                {m.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Task bars container (clips overrun) */}
+                                    <div className="space-y-2 pb-2 relative z-10">
+                                        {filteredTasks.map((task: any) => {
+                                            const colors = getRoadmapColor(task.status);
+                                            return (
+                                                <DraggableTaskBar
+                                                    key={task.id}
+                                                    task={task}
+                                                    minDate={minDate}
+                                                    totalDays={totalDays}
+                                                    colors={colors}
+                                                    onUpdate={async (id, start, duration) => {
+                                                        await db.tasks.update(id, { startDate: start, duration });
+                                                    }}
+                                                    onClick={() => onEditTask(task.id)}
+                                                />
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
+
             {showExportModal && (
                 <ExportModal
                     project={project}
