@@ -40,6 +40,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
     const [newDescription, setNewDescription] = useState('');
     const [newStartDate, setNewStartDate] = useState(dayjs().format('YYYY-MM-DD'));
     const [newDuration, setNewDuration] = useState('5');
+    const [newDurationUnit, setNewDurationUnit] = useState<'days' | 'weeks' | 'months'>('days');
     const [newProgress, setNewProgress] = useState('0');
     const [newStatus, setNewStatus] = useState<'backlog' | 'progress' | 'hold' | 'done'>('backlog');
 
@@ -120,13 +121,20 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
         e.preventDefault();
         if (!newTitle.trim()) return;
 
+        let calculatedDuration = parseInt(newDuration, 10) || 1;
+        if (newDurationUnit === 'months') {
+            calculatedDuration = dayjs(newStartDate).add(calculatedDuration, 'month').diff(dayjs(newStartDate), 'day');
+        } else if (newDurationUnit === 'weeks') {
+            calculatedDuration *= 7;
+        }
+
         await db.tasks.add({
             id: uuidv4(),
             projectId,
             title: newTitle.trim(),
             description: newDescription.trim(),
             startDate: newStartDate,
-            duration: parseInt(newDuration, 10) || 1,
+            duration: calculatedDuration,
             progress: parseInt(newProgress, 10) || 0,
             status: newStatus
         });
@@ -134,6 +142,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
         setNewTitle('');
         setNewDescription('');
         setNewProgress('0');
+        setNewDurationUnit('days');
         setNewStatus('backlog');
         setShowAddModal(false);
         // keep date and duration the same for easy adding of consecutive tasks
@@ -263,15 +272,26 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium mb-1 block">Duration (days)</label>
-                                    <input
-                                        required
-                                        type="number"
-                                        min="1"
-                                        value={newDuration}
-                                        onChange={(e) => setNewDuration(e.target.value)}
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                    />
+                                    <label className="text-sm font-medium mb-1 block">Duration</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            required
+                                            type="number"
+                                            min="1"
+                                            value={newDuration}
+                                            onChange={(e) => setNewDuration(e.target.value)}
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        />
+                                        <select
+                                            value={newDurationUnit}
+                                            onChange={(e) => setNewDurationUnit(e.target.value as any)}
+                                            className="flex h-10 w-32 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        >
+                                            <option value="days">Days</option>
+                                            <option value="weeks">Weeks</option>
+                                            <option value="months">Months</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                             <div className="pt-4 flex justify-end gap-3 border-t mt-6">
@@ -301,8 +321,8 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                     </div>
 
                                     <div className="flex items-center gap-4 shrink-0 text-sm">
-                                        <div className="hidden md:block text-muted-foreground tabular-nums">
-                                            {dayjs(task.startDate).format('MMM D, YYYY')} <span className="text-xs opacity-60 ml-1">({task.duration}d)</span>
+                                        <div className="hidden md:block text-muted-foreground tabular-nums min-w-[200px] text-right">
+                                            {dayjs(task.startDate).format('MMM D')} - {dayjs(task.startDate).add(task.duration, 'day').format('MMM D, YYYY')} <span className="text-xs opacity-60 ml-1">({task.duration}d)</span>
                                         </div>
                                         <span className={`w-24 justify-center inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
                                             {task.status || 'backlog'}
@@ -346,6 +366,13 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                         </div>
                         <div className="p-6 overflow-x-auto">
                             <div className="min-w-[800px] overflow-hidden relative">
+                                {/* Vertical background grid lines */}
+                                <div className="absolute top-6 bottom-0 w-full pointer-events-none z-0">
+                                    {[25, 50, 75, 100].map(percent => (
+                                        <div key={`grid-${percent}`} className="absolute top-0 bottom-0 border-l border-muted-foreground/10" style={{ left: `${percent}%` }}></div>
+                                    ))}
+                                </div>
+
                                 {/* Timeline markers */}
                                 <div className="flex relative h-6 mb-4 border-b">
                                     {[0, 25, 50, 75, 100].map(percent => (
@@ -355,7 +382,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                     ))}
                                 </div>
                                 {/* Task bars container (clips overrun) */}
-                                <div className="space-y-4 pb-2">
+                                <div className="space-y-4 pb-2 relative z-10">
                                     {filteredTasks.map((task: any) => {
                                         const taskStartDiff = dayjs(task.startDate).diff(minDate, 'day');
                                         const leftPercentRaw = (taskStartDiff / totalDays) * 100;

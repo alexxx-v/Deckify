@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db, useLiveQuery } from '@/db/schema';
 import { Button } from '@/components/ui/button';
+import dayjs from 'dayjs';
 
 export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () => void }) {
     // Initial fetch of the task using live query to keep it reactive if updated elsewhere
@@ -10,6 +11,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
     const [editDescription, setEditDescription] = useState('');
     const [editStartDate, setEditStartDate] = useState('');
     const [editDuration, setEditDuration] = useState('');
+    const [editDurationUnit, setEditDurationUnit] = useState<'days' | 'weeks' | 'months'>('days');
     const [editProgress, setEditProgress] = useState('0');
     const [editStatus, setEditStatus] = useState<'backlog' | 'progress' | 'hold' | 'done'>('backlog');
 
@@ -20,6 +22,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
             setEditDescription(task.description || '');
             setEditStartDate(task.startDate);
             setEditDuration(task.duration.toString());
+            setEditDurationUnit('days');
             setEditProgress(task.progress.toString());
             setEditStatus(task.status || 'backlog');
         }
@@ -29,11 +32,18 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
         e.preventDefault();
         if (!editTitle.trim()) return;
 
+        let calculatedDuration = parseInt(editDuration, 10) || 1;
+        if (editDurationUnit === 'months') {
+            calculatedDuration = dayjs(editStartDate).add(calculatedDuration, 'month').diff(dayjs(editStartDate), 'day');
+        } else if (editDurationUnit === 'weeks') {
+            calculatedDuration *= 7;
+        }
+
         await db.tasks.update(taskId, {
             title: editTitle.trim(),
             description: editDescription.trim(),
             startDate: editStartDate,
-            duration: parseInt(editDuration, 10) || 1,
+            duration: calculatedDuration,
             progress: parseInt(editProgress, 10) || 0,
             status: editStatus
         });
@@ -77,15 +87,26 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                             />
                         </div>
                         <div>
-                            <label className="text-sm font-medium mb-1.5 block">Duration (days)</label>
-                            <input
-                                required
-                                type="number"
-                                min="1"
-                                value={editDuration}
-                                onChange={(e) => setEditDuration(e.target.value)}
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            />
+                            <label className="text-sm font-medium mb-1.5 block">Duration</label>
+                            <div className="flex gap-2">
+                                <input
+                                    required
+                                    type="number"
+                                    min="1"
+                                    value={editDuration}
+                                    onChange={(e) => setEditDuration(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                />
+                                <select
+                                    value={editDurationUnit}
+                                    onChange={(e) => setEditDurationUnit(e.target.value as any)}
+                                    className="flex h-10 w-32 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    <option value="days">Days</option>
+                                    <option value="weeks">Weeks</option>
+                                    <option value="months">Months</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 

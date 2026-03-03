@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Project, Task } from '@/db/schema';
 import { pdf } from '@react-pdf/renderer';
@@ -11,13 +11,35 @@ interface ExportModalProps {
 }
 
 export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
-    const [period, setPeriod] = useState('Q1 January');
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
+    const currentQuarter = `Q${Math.floor((new Date().getMonth() + 3) / 3)}`;
+
+    const [periodType, setPeriodType] = useState<'month' | 'quarter' | 'year'>('month');
+    const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+    const [selectedQuarter, setSelectedQuarter] = useState(currentQuarter);
+    const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+
+    const [periodText, setPeriodText] = useState(`${project.name} ${currentMonth} ${currentYear}`);
     const [isGenerating, setIsGenerating] = useState(false);
+
+    useEffect(() => {
+        let p = '';
+        if (periodType === 'month') p = `${selectedMonth} ${selectedYear}`;
+        else if (periodType === 'quarter') p = `${selectedQuarter} ${selectedYear}`;
+        else if (periodType === 'year') p = `${selectedYear}`;
+
+        setPeriodText(`${project.name} ${p}`);
+    }, [periodType, selectedMonth, selectedQuarter, selectedYear, project.name]);
+
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const years = Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString());
 
     const handleExport = async () => {
         setIsGenerating(true);
         try {
-            const doc = <ProjectPresentation project={project} tasks={tasks} period={period} />;
+            const doc = <ProjectPresentation project={project} tasks={tasks} period={periodText} />;
             const asPdf = pdf();
             asPdf.updateContainer(doc);
             const blob = await asPdf.toBlob();
@@ -25,7 +47,8 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${project.name.replace(/\\s+/g, '_')}_Presentation.pdf`;
+            const fileName = periodText.trim().replace(/\s+/g, '_') + '.pdf';
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -52,15 +75,65 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
 
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">Reporting Period</label>
+                        <label className="block text-sm font-medium mb-1.5">Period Format</label>
+                        <div className="flex bg-muted p-1 rounded-lg w-fit mb-4">
+                            <button
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${periodType === 'month' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setPeriodType('month')}
+                            >
+                                Month
+                            </button>
+                            <button
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${periodType === 'quarter' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setPeriodType('quarter')}
+                            >
+                                Quarter
+                            </button>
+                            <button
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${periodType === 'year' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setPeriodType('year')}
+                            >
+                                Year
+                            </button>
+                        </div>
+
+                        <div className="flex gap-3 mb-4">
+                            {periodType === 'month' && (
+                                <select
+                                    value={selectedMonth}
+                                    onChange={(e) => setSelectedMonth(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    {months.map(m => <option key={m} value={m}>{m}</option>)}
+                                </select>
+                            )}
+                            {periodType === 'quarter' && (
+                                <select
+                                    value={selectedQuarter}
+                                    onChange={(e) => setSelectedQuarter(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    {quarters.map(q => <option key={q} value={q}>{q}</option>)}
+                                </select>
+                            )}
+                            <select
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(e.target.value)}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                {years.map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
+
+                        <label className="block text-sm font-medium mb-1">Generated Title</label>
                         <input
                             type="text"
-                            value={period}
-                            onChange={(e) => setPeriod(e.target.value)}
-                            placeholder="e.g. Q1 January"
+                            value={periodText}
+                            onChange={(e) => setPeriodText(e.target.value)}
+                            placeholder="Report Title"
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
-                        <p className="text-xs text-muted-foreground mt-1">This will appear on the title slide.</p>
+                        <p className="text-xs text-muted-foreground mt-1">This will appear on the title slide and be used as the file name.</p>
                     </div>
 
                     <div className="bg-muted p-4 rounded-lg flex gap-3 text-sm mt-4">
