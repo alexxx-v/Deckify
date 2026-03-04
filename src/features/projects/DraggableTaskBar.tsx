@@ -94,7 +94,7 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
     };
 
     return (
-        <div className="relative h-10 group" ref={barRef} style={{ touchAction: 'none' }}>
+        <div className="relative h-8 group" ref={barRef} style={{ touchAction: 'none' }}>
             <div
                 onPointerDown={handlePointerDownDrag}
                 className={`absolute top-1 bottom-1 rounded-md opacity-90 border backdrop-blur-sm shadow-sm flex items-center overflow-visible z-10 ${isDragging ? 'cursor-grabbing ring-2 ring-primary/50 shadow-md z-20 scale-[1.01]' : 'cursor-grab hover:opacity-100 hover:ring-1 mix-blend-normal'}`}

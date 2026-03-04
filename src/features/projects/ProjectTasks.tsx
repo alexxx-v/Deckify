@@ -257,13 +257,13 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
 
                     <div className="hidden sm:flex bg-muted p-1 rounded-lg">
                         <button
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                            className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                             onClick={() => setViewMode('list')}
                         >
                             {t('tasks.list')}
                         </button>
                         <button
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'roadmap' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                            className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${viewMode === 'roadmap' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                             onClick={() => setViewMode('roadmap')}
                         >
                             {t('tasks.roadmap')}
@@ -487,7 +487,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                 </div>
                                 <div className="space-y-2 pb-2 px-5">
                                     {filteredTasks.map((task: any) => (
-                                        <div key={`sidebar-${task.id}`} className="h-10 flex items-center text-sm group cursor-pointer" onClick={() => onEditTask(task.id)}>
+                                        <div key={`sidebar-${task.id}`} className="h-8 flex items-center text-sm group cursor-pointer" onClick={() => onEditTask(task.id)}>
                                             <div className="flex-1 truncate font-medium text-foreground group-hover:text-primary pr-3" title={task.title}>{task.title}</div>
                                             <div className="w-24 shrink-0 justify-end flex">
                                                 <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold border whitespace-nowrap ${getStatusBadgeClass(task.status)}`}>
