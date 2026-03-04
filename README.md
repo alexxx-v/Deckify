@@ -33,10 +33,18 @@ npm run electron:dev
 ```
 
 ### Production Build
-To create a production-ready application bundle (`.dmg` for Mac or `.exe` for Windows):
+To create a production-ready application bundle:
+
+**Для Mac (.dmg):**
 ```bash
 npm run electron:build
 ```
+
+**Для Windows 64-bit (.exe):**
+```bash
+npm run electron:build -- --win --x64
+```
+*(Прим: electron-builder может собрать приложение для Windows прямо с вашего Mac, он автоматически скачает нужные `win32-x64` бинарники для SQLite и скомпилирует установщик).*
 
 The output file will be generated in the `release/` directory.
 

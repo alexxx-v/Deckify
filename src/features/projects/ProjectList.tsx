@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { db } from '@/db/schema';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { db, useLiveQuery } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
+    const { t } = useTranslation();
     const [newProjectName, setNewProjectName] = useState('');
 
     const projects = useLiveQuery(() => db.projects.orderBy('createdAt').reverse().toArray());
@@ -23,11 +24,11 @@ export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
 
     const deleteProject = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        if (confirm('Are you sure you want to delete this project and all its tasks?')) {
+        if (confirm('Are you sure you want to delete this project? All associated tasks will be removed as well.')) {
             await db.projects.delete(id);
             // CASCADE DELETE TASKS:
-            const tasksToDelete = await db.tasks.where('projectId').equals(id).toArray();
-            const taskIds = tasksToDelete.map(t => t.id);
+            const tasksToDelete = await db.tasks.where('projectId').equals(id).toArray() as any[];
+            const taskIds = tasksToDelete.map((t: any) => t.id);
             await db.tasks.bulkDelete(taskIds);
         }
     }
@@ -35,30 +36,38 @@ export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
     return (
         <div className="space-y-6">
             <div className="bg-card border rounded-xl p-6 shadow-sm">
-                <h2 className="text-xl font-semibold mb-4">Create New Project</h2>
+                <h2 className="text-xl font-semibold mb-4">{t('projects.addTitle')}</h2>
                 <form onSubmit={addProject} className="flex gap-3">
                     <input
                         type="text"
                         value={newProjectName}
                         onChange={(e) => setNewProjectName(e.target.value)}
-                        placeholder="Project Name..."
+                        placeholder={t('projects.projectName')}
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     />
-                    <Button type="submit">Add Project</Button>
+                    <Button type="submit">{t('projects.submit')}</Button>
                 </form>
             </div>
 
             <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Your Projects</h2>
+                <h2 className="text-xl font-semibold">{t('projects.title')}</h2>
                 {projects?.length === 0 && (
-                    <p className="text-muted-foreground">No projects yet. Add one above!</p>
+                    <div className="flex flex-col items-center justify-center p-12 mt-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-2xl bg-muted/10 animate-in fade-in zoom-in duration-500">
+                        <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4 text-muted-foreground">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10h12" /><path d="M4 14h9" /><path d="M19 6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6Z" /></svg>
+                        </div>
+                        <h3 className="text-lg font-semibold tracking-tight text-foreground mb-1">{t('projects.noProjects')}</h3>
+                        <p className="text-sm text-muted-foreground max-w-sm text-balance">
+                            Cоздайте свой первый проект используя форму выше, чтобы начать планировать задачи и строить Roadmap.
+                        </p>
+                    </div>
                 )}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {projects?.map(project => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {projects?.map((project: any) => (
                         <div
                             key={project.id}
                             onClick={() => onSelect(project.id)}
-                            className="group cursor-pointer bg-card border rounded-xl p-5 shadow-sm hover:shadow-md transition-all hover:border-primary/50 relative"
+                            className="bg-card border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between group"
                         >
                             <h3 className="font-medium text-lg mb-1 pr-8">{project.name}</h3>
                             <p className="text-xs text-muted-foreground">

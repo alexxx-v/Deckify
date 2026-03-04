@@ -1,5 +1,4 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/db/schema';
+import { db, useLiveQuery } from '@/db/schema';
 
 export function Dashboard() {
     // Get all records for overall stats
@@ -8,11 +7,12 @@ export function Dashboard() {
 
     const totalCompanies = projects?.length || 0;
     const totalTasks = tasks?.length || 0;
-    const completedTasks = tasks?.filter(t => t.progress === 100).length || 0;
+    const completedTasksStr = tasks ? tasks.filter((t: any) => t.progress === 100).length : 0;
+    const allProgressSum = tasks ? tasks.reduce((sum: number, t: any) => sum + t.progress, 0) : 0;
 
     let overallProgress = 0;
     if (totalTasks > 0 && tasks) {
-        overallProgress = Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / totalTasks);
+        overallProgress = Math.round(allProgressSum / totalTasks);
     }
 
     return (
@@ -31,7 +31,7 @@ export function Dashboard() {
                 </div>
 
                 <div className="bg-card border rounded-xl p-6 shadow-sm flex flex-col items-center justify-center">
-                    <span className="text-4xl font-bold text-emerald-600 mb-2">{completedTasks}</span>
+                    <span className="text-4xl font-bold text-emerald-600 mb-2">{completedTasksStr}</span>
                     <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Completed Tasks</span>
                 </div>
 
@@ -47,24 +47,22 @@ export function Dashboard() {
                     <p className="text-muted-foreground">No projects added yet.</p>
                 ) : (
                     <div className="space-y-3">
-                        {projects?.slice(-5).reverse().map(p => {
-                            const projectTasks = tasks?.filter(t => t.projectId === p.id) || [];
-                            const pTaskCount = projectTasks.length;
-                            const pCompletedCount = projectTasks.filter(t => t.progress === 100).length;
-                            const pProgress = pTaskCount > 0
-                                ? Math.round(projectTasks.reduce((sum, t) => sum + t.progress, 0) / pTaskCount)
-                                : 0;
+                        {projects?.slice(-5).reverse().map((p: any) => {
+                            const pTasks = tasks ? tasks.filter((t: any) => t.projectId === p.id) : [];
+                            const pCompleted = pTasks.filter((t: any) => t.progress === 100).length;
+                            const pTotal = pTasks.length;
+                            const avgProgress = pTotal === 0 ? 0 : Math.round(pTasks.reduce((sum: number, t: any) => sum + t.progress, 0) / pTotal);
 
                             return (
                                 <div key={p.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 border-b last:border-0 gap-2">
-                                    <div className="flex flex-col">
-                                        <span className="font-medium text-foreground">{p.name}</span>
-                                        <span className="text-xs text-muted-foreground">{new Date(p.createdAt).toLocaleDateString()}</span>
+                                    <div className="flex justify-between w-full sm:w-auto overflow-hidden">
+                                        <h4 className="font-medium truncate">{p.name}</h4>
+                                        <span className="sm:hidden text-xs text-muted-foreground">{pCompleted}/{pTotal}</span>
                                     </div>
-                                    <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                                        <div className="flex flex-col sm:items-end">
-                                            <span>Tasks: {pCompletedCount} / {pTaskCount}</span>
-                                            {pTaskCount > 0 && <span>Progress: {pProgress}%</span>}
+                                    <div className="flex items-center gap-4 text-sm w-full sm:w-auto">
+                                        <div className="hidden sm:block text-muted-foreground tabular-nums">{pCompleted}/{pTotal} tasks</div>
+                                        <div className="flex-1 sm:w-32 h-2.5 bg-secondary rounded-full overflow-hidden">
+                                            <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${avgProgress}%` }}></div>
                                         </div>
                                     </div>
                                 </div>

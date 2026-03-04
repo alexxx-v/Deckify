@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Project, Task } from '@/db/schema';
 import { pdf } from '@react-pdf/renderer';
 import { ProjectPresentation } from './ProjectPresentation';
+import { useTranslation } from 'react-i18next';
+import dayjs from 'dayjs';
 
 interface ExportModalProps {
     project: Project;
@@ -11,13 +14,58 @@ interface ExportModalProps {
 }
 
 export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
-    const [period, setPeriod] = useState('Q1 January');
+    const { t } = useTranslation();
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
+    const currentQuarter = `Q${Math.floor((new Date().getMonth() + 3) / 3)}`;
+
+    const [periodType, setPeriodType] = useState<'month' | 'quarter' | 'year'>('month');
+    const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+    const [selectedQuarter, setSelectedQuarter] = useState(currentQuarter);
+    const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+
+    const [periodText, setPeriodText] = useState(`${project.name} ${currentMonth} ${currentYear}`);
     const [isGenerating, setIsGenerating] = useState(false);
+
+    useEffect(() => {
+        let p = '';
+        if (periodType === 'month') p = `${selectedMonth} ${selectedYear}`;
+        else if (periodType === 'quarter') p = `${selectedQuarter} ${selectedYear}`;
+        else if (periodType === 'year') p = `${selectedYear}`;
+
+        setPeriodText(`${project.name} ${p}`);
+    }, [periodType, selectedMonth, selectedQuarter, selectedYear, project.name]);
+
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const years = Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString());
 
     const handleExport = async () => {
         setIsGenerating(true);
         try {
-            const doc = <ProjectPresentation project={project} tasks={tasks} period={period} />;
+            let rangeStart = dayjs();
+            let rangeEnd = dayjs();
+
+            if (periodType === 'month') {
+                const monthIndex = months.indexOf(selectedMonth);
+                rangeStart = dayjs(new Date(parseInt(selectedYear, 10), monthIndex, 1)).startOf('month');
+                rangeEnd = rangeStart.clone().endOf('month');
+            } else if (periodType === 'quarter') {
+                const qIndex = parseInt(selectedQuarter.replace('Q', ''), 10) - 1;
+                rangeStart = dayjs(new Date(parseInt(selectedYear, 10), qIndex * 3, 1)).startOf('month');
+                rangeEnd = rangeStart.clone().add(2, 'month').endOf('month');
+            } else if (periodType === 'year') {
+                rangeStart = dayjs(new Date(parseInt(selectedYear, 10), 0, 1)).startOf('year');
+                rangeEnd = rangeStart.clone().endOf('year');
+            }
+
+            const filteredTasks = tasks.filter(t => {
+                const tStart = dayjs(t.startDate);
+                const tEnd = dayjs(t.startDate).add(t.duration, 'day');
+                return tStart.isBefore(rangeEnd) && tEnd.isAfter(rangeStart);
+            });
+
+            const doc = <ProjectPresentation project={project} tasks={filteredTasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} />;
             const asPdf = pdf();
             asPdf.updateContainer(doc);
             const blob = await asPdf.toBlob();
@@ -25,7 +73,8 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${project.name.replace(/\\s+/g, '_')}_Presentation.pdf`;
+            const fileName = periodText.trim().replace(/\s+/g, '_') + '.pdf';
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -40,42 +89,92 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
         }
     };
 
-    return (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-card w-full max-w-md rounded-xl shadow-lg border p-6">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold">Export Presentation</h2>
+    return createPortal(
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-card w-full max-w-md rounded-xl shadow-lg border p-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto flex flex-col">
+                <div className="flex justify-between items-center mb-6 shrink-0">
+                    <h2 className="text-xl font-bold">{t('export.title')}</h2>
                     <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-4 shrink-0">
                     <div>
-                        <label className="block text-sm font-medium mb-1">Reporting Period</label>
+                        <label className="block text-sm font-medium mb-1.5">{t('export.periodFormat')}</label>
+                        <div className="flex bg-muted p-1 rounded-lg w-fit mb-4">
+                            <button
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${periodType === 'month' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setPeriodType('month')}
+                            >
+                                {t('export.month')}
+                            </button>
+                            <button
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${periodType === 'quarter' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setPeriodType('quarter')}
+                            >
+                                {t('export.quarter')}
+                            </button>
+                            <button
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${periodType === 'year' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setPeriodType('year')}
+                            >
+                                {t('export.year')}
+                            </button>
+                        </div>
+
+                        <div className="flex gap-3 mb-4">
+                            {periodType === 'month' && (
+                                <select
+                                    value={selectedMonth}
+                                    onChange={(e) => setSelectedMonth(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    {months.map(m => <option key={m} value={m}>{m}</option>)}
+                                </select>
+                            )}
+                            {periodType === 'quarter' && (
+                                <select
+                                    value={selectedQuarter}
+                                    onChange={(e) => setSelectedQuarter(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    {quarters.map(q => <option key={q} value={q}>{q}</option>)}
+                                </select>
+                            )}
+                            <select
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(e.target.value)}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                {years.map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
+
+                        <label className="block text-sm font-medium mb-1">{t('export.generatedTitle')}</label>
                         <input
                             type="text"
-                            value={period}
-                            onChange={(e) => setPeriod(e.target.value)}
-                            placeholder="e.g. Q1 January"
+                            value={periodText}
+                            onChange={(e) => setPeriodText(e.target.value)}
+                            placeholder={t('export.titlePlaceholder')}
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
-                        <p className="text-xs text-muted-foreground mt-1">This will appear on the title slide.</p>
+                        <p className="text-xs text-muted-foreground mt-1">{t('export.titleHint')}</p>
                     </div>
 
                     <div className="bg-muted p-4 rounded-lg flex gap-3 text-sm mt-4">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary shrink-0"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
-                        <div>The PDF will contain 4 sections: Title, Overview, Task Details, and Roadmap.</div>
+                        <div>{t('export.pdfHint')}</div>
                     </div>
 
                     <div className="pt-4 flex justify-end gap-3">
-                        <Button variant="outline" onClick={onClose} disabled={isGenerating}>Cancel</Button>
+                        <Button variant="outline" onClick={onClose} disabled={isGenerating}>{t('export.cancel')}</Button>
                         <Button onClick={handleExport} disabled={isGenerating}>
-                            {isGenerating ? 'Generating...' : 'Download PDF'}
+                            {isGenerating ? t('export.generating') : t('export.download')}
                         </Button>
                     </div>
                 </div>
             </div>
         </div>
-    );
+        , document.body);
 }

@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { db } from '@/db/schema';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { db, useLiveQuery } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import dayjs from 'dayjs';
 import { ExportModal } from '../pdf/ExportModal';
+import { useTranslation } from 'react-i18next';
+import { DraggableTaskBar } from './DraggableTaskBar';
 
 const getStatusBadgeClass = (status?: string) => {
     switch (status) {
@@ -27,26 +29,41 @@ const getRoadmapColor = (status?: string) => {
 }
 
 export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: string, onBack: () => void, onEditTask: (taskId: string) => void }) {
+    const { t } = useTranslation();
     const [showExportModal, setShowExportModal] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
-    const [viewMode, setViewMode] = useState<'list' | 'roadmap'>('list');
-    const [timeframe, setTimeframe] = useState<'all' | 'month' | 'quarter' | 'year'>('all');
+    const [viewMode, setViewMode] = useState<'list' | 'roadmap'>(() => {
+        return (localStorage.getItem('deckify_viewMode') as any) || 'list';
+    });
+    const [timeframe, setTimeframe] = useState<'all' | 'month' | 'quarter' | 'year'>(() => {
+        return (localStorage.getItem('deckify_timeframe') as any) || 'month';
+    });
     const [filterDate, setFilterDate] = useState(dayjs().format('YYYY-MM'));
     const [currentPage, setCurrentPage] = useState(1);
     const [newTitle, setNewTitle] = useState('');
     const [newDescription, setNewDescription] = useState('');
     const [newStartDate, setNewStartDate] = useState(dayjs().format('YYYY-MM-DD'));
     const [newDuration, setNewDuration] = useState('5');
+    const [newDurationUnit, setNewDurationUnit] = useState<'days' | 'weeks' | 'months'>('days');
     const [newProgress, setNewProgress] = useState('0');
     const [newStatus, setNewStatus] = useState<'backlog' | 'progress' | 'hold' | 'done'>('backlog');
 
-    // Removed inline editing state
+    const [isEditingProjectName, setIsEditingProjectName] = useState(false);
+    const [editProjectName, setEditProjectName] = useState('');    // Removed inline editing state
+
+    useEffect(() => {
+        localStorage.setItem('deckify_viewMode', viewMode);
+    }, [viewMode]);
+
+    useEffect(() => {
+        localStorage.setItem('deckify_timeframe', timeframe);
+    }, [timeframe]);
 
     const project = useLiveQuery(() => db.projects.get(projectId));
     const tasks = useLiveQuery(() => db.tasks.where('projectId').equals(projectId).sortBy('startDate'));
 
     // Filter tasks by timeframe
-    const filteredTasks = (tasks || []).filter(t => {
+    const filteredTasks = (tasks || []).filter((t: any) => {
         if (timeframe === 'all') return true;
         const taskStart = dayjs(t.startDate);
         const taskEnd = dayjs(t.startDate).add(t.duration, 'day');
@@ -85,7 +102,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
     if (timeframe === 'all') {
         minDate = filteredTasks.length > 0 ? dayjs(filteredTasks[0].startDate) : dayjs();
         maxDate = minDate;
-        filteredTasks.forEach(t => {
+        filteredTasks.forEach((t: any) => {
             const end = dayjs(t.startDate).add(t.duration, 'day');
             if (end.isAfter(maxDate)) maxDate = end;
         });
@@ -105,9 +122,33 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
     }
     const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
 
+    const timelineMarkers: Array<{ label: string, percent: number }> = [];
+    let currentMarker = minDate.startOf('month');
+    if (currentMarker.isBefore(minDate) || currentMarker.isSame(minDate, 'day')) {
+        currentMarker = currentMarker.add(1, 'month');
+    }
+    while (currentMarker.isBefore(maxDate)) {
+        const daysOffset = currentMarker.diff(minDate, 'day');
+        const percent = (daysOffset / totalDays) * 100;
+        if (percent > 2 && percent < 98) {
+            timelineMarkers.push({
+                label: currentMarker.format('MMM YYYY'),
+                percent: percent
+            });
+        }
+        currentMarker = currentMarker.add(1, 'month');
+    }
+
     const addTask = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTitle.trim()) return;
+
+        let calculatedDuration = parseInt(newDuration, 10) || 1;
+        if (newDurationUnit === 'months') {
+            calculatedDuration = dayjs(newStartDate).add(calculatedDuration, 'month').diff(dayjs(newStartDate), 'day');
+        } else if (newDurationUnit === 'weeks') {
+            calculatedDuration *= 7;
+        }
 
         await db.tasks.add({
             id: uuidv4(),
@@ -115,7 +156,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
             title: newTitle.trim(),
             description: newDescription.trim(),
             startDate: newStartDate,
-            duration: parseInt(newDuration, 10) || 1,
+            duration: calculatedDuration,
             progress: parseInt(newProgress, 10) || 0,
             status: newStatus
         });
@@ -123,6 +164,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
         setNewTitle('');
         setNewDescription('');
         setNewProgress('0');
+        setNewDurationUnit('days');
         setNewStatus('backlog');
         setShowAddModal(false);
         // keep date and duration the same for easy adding of consecutive tasks
@@ -130,29 +172,73 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
 
     // Removed inline editing functions
 
-    const updateProgress = async (id: string, newProgressVal: number) => {
-        await db.tasks.update(id, { progress: newProgressVal });
+    const handleSaveProjectName = async () => {
+        if (!editProjectName.trim() || editProjectName === project?.name) {
+            setIsEditingProjectName(false);
+            return;
+        }
+        await db.projects.update(projectId, { name: editProjectName.trim() });
+        setIsEditingProjectName(false);
     };
 
-    const deleteTask = async (id: string) => {
-        if (confirm('Delete this task?')) {
-            await db.tasks.delete(id);
-        }
+    const handleEditProjectNameClick = () => {
+        setEditProjectName(project?.name || '');
+        setIsEditingProjectName(true);
     };
+
 
     if (!project) return <div>Loading project...</div>;
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={onBack}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-                    </Button>
-                    <h2 className="text-2xl font-bold">{project.name}</h2>
+            <div className="flex flex-col gap-6">
+                {/* Header Row: Title & Primary Actions */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button variant="outline" size="icon" onClick={onBack} className="shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                        </Button>
+                        {isEditingProjectName ? (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={editProjectName}
+                                    onChange={(e) => setEditProjectName(e.target.value)}
+                                    onBlur={handleSaveProjectName}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveProjectName();
+                                        if (e.key === 'Escape') setIsEditingProjectName(false);
+                                    }}
+                                    autoFocus
+                                    className="flex h-10 w-full sm:w-[300px] rounded-md border border-input bg-background px-3 py-2 text-xl font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                />
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2 group cursor-pointer" onClick={handleEditProjectNameClick} title="Edit Project Name">
+                                <h2 className="text-2xl font-bold line-clamp-1">{project.name}</h2>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground shrink-0"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <Button onClick={() => setShowAddModal(true)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            {t('tasks.addTask')}
+                        </Button>
+                        <Button
+                            variant="default"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            onClick={() => setShowExportModal(true)}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+                            {t('tasks.exportPdf')}
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                {/* Filter Row */}
+                <div className="flex flex-col sm:flex-row items-baseline sm:items-center justify-between gap-4">
                     <div className="hidden md:flex items-center gap-2 bg-muted p-1 rounded-lg">
                         <input
                             type="month"
@@ -163,81 +249,66 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                             className={`h-7 px-2 text-xs rounded-md border-0 bg-background shadow-sm focus:ring-0 ${timeframe === 'all' ? 'opacity-50 cursor-not-allowed' : ''}`}
                         />
                         <div className="h-4 w-px bg-border mx-1"></div>
-                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'all' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('all')}>All Time</button>
-                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'year' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('year')}>Year</button>
-                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'quarter' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('quarter')}>Quarter</button>
-                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'month' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('month')}>Month</button>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'all' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('all')}>{t('tasks.allTime')}</button>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'year' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('year')}>{t('tasks.year')}</button>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'quarter' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('quarter')}>{t('tasks.quarter')}</button>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'month' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('month')}>{t('tasks.month')}</button>
                     </div>
 
                     <div className="hidden sm:flex bg-muted p-1 rounded-lg">
                         <button
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                            className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                             onClick={() => setViewMode('list')}
                         >
-                            List
+                            {t('tasks.list')}
                         </button>
                         <button
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'roadmap' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                            className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${viewMode === 'roadmap' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                             onClick={() => setViewMode('roadmap')}
                         >
-                            Roadmap
+                            {t('tasks.roadmap')}
                         </button>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <Button onClick={() => setShowAddModal(true)}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            Add Task
-                        </Button>
-                        <Button
-                            variant="default"
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                            onClick={() => setShowExportModal(true)}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
-                            Export PDF
-                        </Button>
                     </div>
                 </div>
             </div>
 
-            {showAddModal && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-card w-full max-w-2xl rounded-xl shadow-lg border p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold">Add New Task</h2>
+            {showAddModal && createPortal(
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-card w-full max-w-2xl rounded-xl shadow-lg border p-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto flex flex-col">
+                        <div className="flex justify-between items-center mb-6 shrink-0">
+                            <h2 className="text-xl font-bold">{t('taskEdit.addTask')}</h2>
                             <button onClick={() => setShowAddModal(false)} className="text-muted-foreground hover:text-foreground">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         </div>
-                        <form onSubmit={addTask} className="space-y-4">
+                        <form onSubmit={addTask} className="space-y-4 shrink-0">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-sm font-medium mb-1 block">Title</label>
+                                    <label className="text-sm font-medium mb-1 block">{t('taskEdit.title')}</label>
                                     <input
                                         required
                                         type="text"
                                         value={newTitle}
                                         onChange={(e) => setNewTitle(e.target.value)}
-                                        placeholder="Task name"
+                                        placeholder={t('taskEdit.taskNamePlaceholder')}
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium mb-1 block">Status</label>
+                                    <label className="text-sm font-medium mb-1 block">{t('taskEdit.status')}</label>
                                     <select
                                         value={newStatus}
                                         onChange={(e) => setNewStatus(e.target.value as any)}
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     >
-                                        <option value="backlog">Backlog</option>
-                                        <option value="progress">In Progress</option>
-                                        <option value="hold">On Hold</option>
-                                        <option value="done">Done</option>
+                                        <option value="backlog">{t('taskEdit.backlog')}</option>
+                                        <option value="progress">{t('taskEdit.inProgress')}</option>
+                                        <option value="hold">{t('taskEdit.onHold')}</option>
+                                        <option value="done">{t('taskEdit.done')}</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium mb-1 block">Start Date</label>
+                                    <label className="text-sm font-medium mb-1 block">{t('taskEdit.startDate')}</label>
                                     <input
                                         required
                                         type="date"
@@ -247,84 +318,132 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                     />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="text-sm font-medium mb-1 block">Description (optional)</label>
+                                    <label className="text-sm font-medium mb-1 block">{t('taskEdit.descriptionOptional')}</label>
                                     <textarea
                                         value={newDescription}
                                         onChange={(e) => setNewDescription(e.target.value)}
-                                        placeholder="Add task details..."
+                                        placeholder={t('taskEdit.descriptionPlaceholder')}
                                         rows={3}
                                         className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium mb-1 block">Duration (days)</label>
-                                    <input
-                                        required
-                                        type="number"
-                                        min="1"
-                                        value={newDuration}
-                                        onChange={(e) => setNewDuration(e.target.value)}
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                    />
+                                    <label className="text-sm font-medium mb-1 block">{t('taskEdit.duration')}</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            required
+                                            type="number"
+                                            min="1"
+                                            value={newDuration}
+                                            onChange={(e) => setNewDuration(e.target.value)}
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        />
+                                        <select
+                                            value={newDurationUnit}
+                                            onChange={(e) => setNewDurationUnit(e.target.value as any)}
+                                            className="flex h-10 w-32 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        >
+                                            <option value="days">{t('taskEdit.days')}</option>
+                                            <option value="weeks">{t('taskEdit.weeks')}</option>
+                                            <option value="months">{t('taskEdit.months')}</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                             <div className="pt-4 flex justify-end gap-3 border-t mt-6">
-                                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
-                                <Button type="submit">Add Task</Button>
+                                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>{t('taskEdit.cancel')}</Button>
+                                <Button type="submit">{t('taskEdit.submitAdd')}</Button>
                             </div>
                         </form>
                     </div>
                 </div>
-            )}
+                , document.body)}
 
             <div className="mt-6">
                 {filteredTasks.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">No tasks found for this timeframe.</p>
+                    tasks.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-12 mt-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-2xl bg-muted/5 animate-in fade-in zoom-in duration-500">
+                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4 text-muted-foreground">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" x2="12" y1="18" y2="12" /><line x1="9" x2="15" y1="15" y2="15" /></svg>
+                            </div>
+                            <h3 className="text-lg font-semibold tracking-tight text-foreground mb-1">{t('tasks.noTasks')}</h3>
+                            <p className="text-sm text-muted-foreground max-w-sm text-balance mb-6">
+                                В этом проекте пока нет ни одной задачи. Создайте первую задачу, чтобы составить план!
+                            </p>
+                            <Button onClick={() => setShowAddModal(true)} variant="secondary" className="shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                {t('tasks.addTask')}
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center p-12 mt-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-2xl bg-muted/5 animate-in fade-in zoom-in duration-500">
+                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4 text-muted-foreground">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                            </div>
+                            <h3 className="text-lg font-semibold tracking-tight text-foreground mb-1">Ничего не найдено</h3>
+                            <p className="text-sm text-muted-foreground max-w-sm text-balance mb-6">
+                                Задач в выбранном периоде (с {minDate.format('MMM D')} по {maxDate.format('MMM D, YYYY')}) не найдено.
+                            </p>
+                            <Button onClick={() => setTimeframe('all')} variant="outline">
+                                Показать все задачи
+                            </Button>
+                        </div>
+                    )
                 ) : viewMode === 'list' ? (
                     <>
-                        <div className="space-y-3">
-                            {paginatedTasks.map(task => (
-                                <div key={task.id} className="bg-card border rounded-lg p-4 shadow-sm flex flex-col sm:flex-row sm:items-baseline justify-between gap-4">
-                                    <div className="flex-1">
-                                        <h4 className="font-semibold text-lg hover:underline cursor-pointer" onClick={() => onEditTask(task.id)}>{task.title}</h4>
-                                        <p className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
-                                            <span>Starts: {dayjs(task.startDate).format('MMM D, YYYY')} • Duration: {task.duration} days</span>
-                                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-sm text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
-                                                {task.status || 'backlog'}
-                                            </span>
-                                        </p>
-                                    </div>
+                        <div className="bg-card border rounded-xl shadow-sm relative overflow-hidden">
+                            {/* Table Header Row */}
+                            <div className="hidden sm:flex sm:items-center justify-between gap-x-4 px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b bg-muted/10">
+                                <div className="flex-1 pl-4 min-w-0 shrink-0">{t('taskEdit.title')}</div>
+                                <div className="w-[120px] shrink-0">{t('taskEdit.startDate')}</div>
+                                <div className="w-[140px] shrink-0">{t('taskEdit.endDate', 'Дата завершения')}</div>
+                                <div className="w-[120px] shrink-0">{t('taskEdit.duration')}</div>
+                                <div className="w-[100px] shrink-0 text-center">{t('taskEdit.progressStatus', 'Прогресс').replace(/\s*\(.*?\)/, '')}</div>
+                                <div className="w-[120px] shrink-0 text-center sm:pr-8">{t('taskEdit.status')}</div>
+                            </div>
 
-                                    <div className="flex items-center gap-4 w-full sm:w-auto self-center">
-                                        <div className="flex-1 sm:w-48 flex items-center gap-3">
-                                            <span className="text-sm font-medium w-9">{task.progress}%</span>
-                                            <input
-                                                type="range"
-                                                min="0" max="100" step="5"
-                                                value={task.progress}
-                                                onChange={(e) => updateProgress(task.id, parseInt(e.target.value, 10))}
-                                                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
-                                            />
+                            <div className="flex flex-col">
+                                {paginatedTasks.map((task: any, index: number) => (
+                                    <div
+                                        key={task.id}
+                                        onClick={() => onEditTask(task.id)}
+                                        className={`px-4 py-3 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-y-3 gap-x-4 group hover:bg-muted/50 transition-colors relative ${index !== paginatedTasks.length - 1 ? 'border-b border-border/50' : ''}`}
+                                    >
+                                        <div className="flex-1 flex items-center gap-4 min-w-0 pr-4 pl-4 shrink-0">
+                                            <h4 className="font-medium truncate text-foreground group-hover:text-primary transition-colors">{task.title}</h4>
                                         </div>
-                                        <div className="flex shrink-0">
-                                            <button
-                                                onClick={() => onEditTask(task.id)}
-                                                className="text-muted-foreground hover:text-primary p-2"
-                                                title="Edit Task"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
-                                            </button>
-                                            <button
-                                                onClick={() => deleteTask(task.id)}
-                                                className="text-muted-foreground hover:text-destructive p-2"
-                                                title="Delete Task"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
-                                            </button>
+
+                                        <div className="hidden sm:block w-[120px] shrink-0 text-sm text-foreground/80 tabular-nums">
+                                            {dayjs(task.startDate).format('MMM D, YYYY')}
+                                        </div>
+                                        <div className="hidden sm:block w-[140px] shrink-0 text-sm text-foreground/80 tabular-nums">
+                                            {dayjs(task.startDate).add(task.duration, 'day').format('MMM D, YYYY')}
+                                        </div>
+                                        <div className="hidden sm:block w-[120px] shrink-0 text-sm text-muted-foreground tabular-nums">
+                                            {task.duration} {t('taskEdit.days')}
+                                        </div>
+                                        <div className="hidden sm:block w-[100px] shrink-0 text-center font-semibold text-sm tabular-nums text-muted-foreground group-hover:text-foreground transition-colors">
+                                            {task.progress}%
+                                        </div>
+
+                                        <div className="flex items-center justify-between sm:justify-center shrink-0 sm:w-[120px] pl-4 sm:pl-0 sm:pr-8">
+                                            {/* Sub content on mobile shows duration alongside dates */}
+                                            <div className="sm:hidden text-xs text-muted-foreground flex gap-2">
+                                                <span className="font-semibold text-foreground">{task.progress}%</span>
+                                                <span className="opacity-50">•</span>
+                                                <span>{dayjs(task.startDate).format('MMM D')} - {dayjs(task.startDate).add(task.duration, 'day').format('MMM D')}</span>
+                                            </div>
+                                            <span className={`w-28 justify-center inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
+                                                {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
+                                            </span>
+                                        </div>
+
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:block">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/30 group-hover:text-primary transition-colors"><path d="m9 18 6-6-6-6" /></svg>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                         {totalPages > 1 && (
                             <div className="flex justify-center items-center gap-4 pt-6">
@@ -334,10 +453,10 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
                                 >
-                                    Previous
+                                    {t('tasks.previous')}
                                 </Button>
                                 <span className="text-sm font-medium text-muted-foreground">
-                                    Page {currentPage} of {totalPages}
+                                    {t('tasks.pageOf', { current: currentPage, total: totalPages })}
                                 </span>
                                 <Button
                                     variant="outline"
@@ -345,7 +464,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                     disabled={currentPage === totalPages}
                                 >
-                                    Next
+                                    {t('tasks.next')}
                                 </Button>
                             </div>
                         )}
@@ -353,56 +472,83 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                 ) : (
                     <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
                         <div className="px-6 py-4 border-b bg-muted/30 flex justify-between items-center">
-                            <h3 className="font-semibold px-4 pt-3 pb-2 text-foreground/80">Visual Roadmap</h3>
+                            <h3 className="font-semibold px-4 pt-3 pb-2 text-foreground/80">{t('tasks.visualRoadmap')}</h3>
                             <div className="text-sm text-muted-foreground font-medium capitalize">
-                                {timeframe === 'all' ? 'Entire Project' : `${timeframe} of ${dayjs(filterDate + '-01').format('MMMM YYYY')}`} • {minDate.format('MMM D, YYYY')} - {maxDate.format('MMM D, YYYY')}
+                                {timeframe === 'all' ? t('tasks.entireProject') : `${timeframe} ${dayjs(filterDate + '-01').format('MMMM YYYY')}`} • {minDate.format('MMM D, YYYY')} - {maxDate.format('MMM D, YYYY')}
                             </div>
                         </div>
-                        <div className="p-6 overflow-x-auto">
-                            <div className="min-w-[800px] overflow-hidden relative">
-                                {/* Timeline markers */}
-                                <div className="flex relative h-6 mb-4 border-b">
-                                    {[0, 25, 50, 75, 100].map(percent => (
-                                        <div key={percent} className="absolute h-full border-l text-[10px] font-medium text-muted-foreground pl-1" style={{ left: `${percent}%` }}>
-                                            {minDate.add((totalDays * percent) / 100, 'day').format('MMM D')}
+                        <div className="flex flex-row relative items-stretch">
+                            {/* Left Panel */}
+                            <div className="hidden lg:flex w-[300px] shrink-0 bg-card border-r flex-col z-20 py-6">
+                                {/* Header matching timeline */}
+                                <div className="flex items-end pb-1 h-6 mb-4 border-b px-5 text-[10px] font-medium text-muted-foreground uppercase">
+                                    <div className="flex-1 truncate pr-2">{t('taskEdit.title')}</div>
+                                    <div className="w-20 text-right shrink-0">{t('taskEdit.status')}</div>
+                                </div>
+                                <div className="space-y-2 pb-2 px-5">
+                                    {filteredTasks.map((task: any) => (
+                                        <div key={`sidebar-${task.id}`} className="h-8 flex items-center text-sm group cursor-pointer" onClick={() => onEditTask(task.id)}>
+                                            <div className="flex-1 truncate font-medium text-foreground group-hover:text-primary pr-3" title={task.title}>{task.title}</div>
+                                            <div className="w-24 shrink-0 justify-end flex">
+                                                <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold border whitespace-nowrap ${getStatusBadgeClass(task.status)}`}>
+                                                    {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
+                                                </span>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
-                                {/* Task bars container (clips overrun) */}
-                                <div className="space-y-4 pb-2">
-                                    {filteredTasks.map((task) => {
-                                        const taskStartDiff = dayjs(task.startDate).diff(minDate, 'day');
-                                        const leftPercentRaw = (taskStartDiff / totalDays) * 100;
-                                        const widthPercentRaw = (task.duration / totalDays) * 100;
-                                        const colors = getRoadmapColor(task.status);
+                            </div>
 
-                                        return (
-                                            <div key={task.id} className="relative h-10 group cursor-pointer" onClick={() => onEditTask(task.id)}>
-                                                <div
-                                                    className="absolute top-1 bottom-1 rounded-md opacity-80 hover:opacity-100 transition-opacity border backdrop-blur-sm shadow-sm flex items-center overflow-hidden"
-                                                    style={{
-                                                        left: `${leftPercentRaw}%`,
-                                                        width: `${widthPercentRaw}%`,
-                                                        backgroundColor: colors.bg,
-                                                        borderColor: colors.border
-                                                    }}
-                                                >
-                                                    {/* Progress fill inside bar */}
-                                                    <div className="absolute inset-y-0 left-0 transition-all" style={{ width: `${task.progress}%`, backgroundColor: colors.fill }}></div>
+                            {/* Right Timeline Panel */}
+                            <div className="flex-1 overflow-x-auto p-6">
+                                <div className="min-w-[800px] overflow-hidden relative">
+                                    {/* Vertical background grid lines */}
+                                    <div className="absolute top-6 bottom-0 w-full pointer-events-none z-0">
+                                        {timelineMarkers.map((m, idx) => (
+                                            <div key={`grid-${idx}`} className="absolute top-0 bottom-0 border-l border-muted-foreground/20" style={{ left: `${m.percent}%` }}></div>
+                                        ))}
+                                    </div>
 
-                                                    <div className="absolute inset-0 px-2 flex items-center text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-foreground shadow-sm">
-                                                        {task.title} ({task.progress}%)
-                                                    </div>
-                                                </div>
+                                    {/* Timeline markers */}
+                                    <div className="flex relative h-6 mb-4 border-b">
+                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground left-0">
+                                            {minDate.format('MMM D, YYYY')}
+                                        </div>
+                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground right-0">
+                                            {maxDate.format('MMM D, YYYY')}
+                                        </div>
+                                        {timelineMarkers.map((m, idx) => (
+                                            <div key={idx} className="absolute h-full border-l border-border text-[10px] font-medium text-muted-foreground pl-1" style={{ left: `${m.percent}%` }}>
+                                                {m.label}
                                             </div>
-                                        );
-                                    })}
+                                        ))}
+                                    </div>
+                                    {/* Task bars container (clips overrun) */}
+                                    <div className="space-y-2 pb-2 relative z-10">
+                                        {filteredTasks.map((task: any) => {
+                                            const colors = getRoadmapColor(task.status);
+                                            return (
+                                                <DraggableTaskBar
+                                                    key={task.id}
+                                                    task={task}
+                                                    minDate={minDate}
+                                                    totalDays={totalDays}
+                                                    colors={colors}
+                                                    onUpdate={async (id, start, duration) => {
+                                                        await db.tasks.update(id, { startDate: start, duration });
+                                                    }}
+                                                    onClick={() => onEditTask(task.id)}
+                                                />
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
+
             {showExportModal && (
                 <ExportModal
                     project={project}
