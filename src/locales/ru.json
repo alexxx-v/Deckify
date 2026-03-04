@@ -137,11 +137,14 @@
         "block_TASKS_LIST": "Список задач",
         "block_TASK_DETAIL": "Детали задач",
         "block_ROADMAP": "Дорожная карта",
+        "block_TEXT": "Текстовый блок",
         "prop_showSubtitle": "Показывать подзаголовок",
         "prop_showCompleted": "Показывать количество ГОТОВО",
         "prop_showProgress": "Показывать общий прогресс",
         "prop_includeDescription": "Включать описание",
         "prop_includeSteps": "Включать список шагов",
+        "prop_textTitle": "Заголовок блока",
+        "prop_textContent": "Текст",
         "defaultTemplate": "Стандартный шаблон"
     }
 }

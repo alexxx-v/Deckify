@@ -284,6 +284,20 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
         );
     }
 
+    if (block.type === 'TEXT') {
+        const { title, content } = block.props;
+        return (
+            <Page size="A4" orientation="landscape" style={styles.page}>
+                {title && <Text style={styles.header}>{title}</Text>}
+                <View style={{ flex: 1, backgroundColor: '#FFFFFF', padding: 24, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                    <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 1.6 }}>
+                        {content}
+                    </Text>
+                </View>
+            </Page>
+        );
+    }
+
     return null;
 }
 

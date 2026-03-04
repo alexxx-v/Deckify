@@ -137,11 +137,14 @@
         "block_TASKS_LIST": "Tasks Summary List",
         "block_TASK_DETAIL": "Task Details Pages",
         "block_ROADMAP": "Project Roadmap",
+        "block_TEXT": "Text Block",
         "prop_showSubtitle": "Show Subtitle",
         "prop_showCompleted": "Show completed count",
         "prop_showProgress": "Show overall progress",
         "prop_includeDescription": "Include descriptions",
         "prop_includeSteps": "Include task steps",
+        "prop_textTitle": "Block Title",
+        "prop_textContent": "Block Content",
         "defaultTemplate": "Default Template"
     }
 }

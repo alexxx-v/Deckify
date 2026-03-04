@@ -10,6 +10,7 @@ const AVAILABLE_BLOCKS: { type: TemplateBlockType, defaultProps: any }[] = [
     { type: 'TASKS_LIST', defaultProps: {} },
     { type: 'TASK_DETAIL', defaultProps: { includeDescription: true, includeSteps: true } },
     { type: 'ROADMAP', defaultProps: {} },
+    { type: 'TEXT', defaultProps: { title: 'Custom Section', content: 'Enter your text here...' } },
 ];
 
 export function TemplatesView() {
@@ -193,6 +194,7 @@ export function TemplatesView() {
                                             {block.type === 'TASKS_LIST' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" x2="21" y1="6" y2="6" /><line x1="8" x2="21" y1="12" y2="12" /><line x1="8" x2="21" y1="18" y2="18" /><line x1="3" x2="3.01" y1="6" y2="6" /><line x1="3" x2="3.01" y1="12" y2="12" /><line x1="3" x2="3.01" y1="18" y2="18" /></svg>}
                                             {block.type === 'TASK_DETAIL' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M7 7h10" /><path d="M7 12h10" /><path d="M7 17h10" /></svg>}
                                             {block.type === 'ROADMAP' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M7 10h6" /><path d="M11 14h8" /><path d="M5 6h4" /></svg>}
+                                            {block.type === 'TEXT' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="7" y2="7" /><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="14" y1="17" y2="17" /></svg>}
                                         </div>
                                         <span className="text-sm font-medium">{t(`templates.block_${block.type}` as any)}</span>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-auto text-muted-foreground opacity-50"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
@@ -353,6 +355,29 @@ export function TemplatesView() {
 
                                             {selectedBlock.type === 'ROADMAP' && (
                                                 <div className="text-sm text-muted-foreground">No configurable properties for this block yet.</div>
+                                            )}
+
+                                            {selectedBlock.type === 'TEXT' && (
+                                                <>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">{t('templates.prop_textTitle')}</label>
+                                                        <input
+                                                            type="text"
+                                                            value={selectedBlock.props.title || ''}
+                                                            onChange={(e) => updateBlockProp(selectedBlock.id, 'title', e.target.value)}
+                                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">{t('templates.prop_textContent')}</label>
+                                                        <textarea
+                                                            value={selectedBlock.props.content || ''}
+                                                            onChange={(e) => updateBlockProp(selectedBlock.id, 'content', e.target.value)}
+                                                            rows={6}
+                                                            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 resize-y"
+                                                        />
+                                                    </div>
+                                                </>
                                             )}
                                         </div>
                                     </div>
