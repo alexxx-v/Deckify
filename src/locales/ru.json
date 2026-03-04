@@ -2,6 +2,7 @@
     "sidebar": {
         "dashboard": "Дашборд",
         "projects": "Проекты",
+        "templates": "Шаблоны",
         "settings": "Настройки"
     },
     "dashboard": {
@@ -118,5 +119,29 @@
         "backlog": "БЭКЛОГ",
         "steps": "Этапы реализации",
         "currentStep": "текущий этап"
+    },
+    "templates": {
+        "title": "Шаблоны отчетов",
+        "createTemplate": "Создать шаблон",
+        "noTemplates": "Пока нет шаблонов. Создайте свой первый шаблон.",
+        "templateName": "Название шаблона",
+        "deleteConfirm": "Вы уверены, что хотите удалить этот шаблон?",
+        "blocks": "Доступные блоки",
+        "canvas": "Структура отчета",
+        "properties": "Свойства",
+        "addBlock": "Добавить блок",
+        "save": "Сохранить шаблон",
+        "select": "Выбрать шаблон",
+        "block_TITLE_PAGE": "Титульный лист",
+        "block_STATS": "Статистика",
+        "block_TASKS_LIST": "Список задач",
+        "block_TASK_DETAIL": "Детали задач",
+        "block_ROADMAP": "Дорожная карта",
+        "prop_showSubtitle": "Показывать подзаголовок",
+        "prop_showCompleted": "Показывать количество ГОТОВО",
+        "prop_showProgress": "Показывать общий прогресс",
+        "prop_includeDescription": "Включать описание",
+        "prop_includeSteps": "Включать список шагов",
+        "defaultTemplate": "Стандартный шаблон"
     }
 }

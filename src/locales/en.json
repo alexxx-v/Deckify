@@ -2,6 +2,7 @@
     "sidebar": {
         "dashboard": "Dashboard",
         "projects": "Projects",
+        "templates": "Templates",
         "settings": "Settings"
     },
     "dashboard": {
@@ -118,5 +119,29 @@
         "backlog": "BACKLOG",
         "steps": "Task Steps",
         "currentStep": "current step"
+    },
+    "templates": {
+        "title": "Report Templates",
+        "createTemplate": "Create Template",
+        "noTemplates": "No templates yet. Create your first template.",
+        "templateName": "Template Name",
+        "deleteConfirm": "Are you sure you want to delete this template?",
+        "blocks": "Available Blocks",
+        "canvas": "Template Layout",
+        "properties": "Properties",
+        "addBlock": "Add Block",
+        "save": "Save Template",
+        "select": "Select Template",
+        "block_TITLE_PAGE": "Title Page",
+        "block_STATS": "Statistics",
+        "block_TASKS_LIST": "Tasks Summary List",
+        "block_TASK_DETAIL": "Task Details Pages",
+        "block_ROADMAP": "Project Roadmap",
+        "prop_showSubtitle": "Show Subtitle",
+        "prop_showCompleted": "Show completed count",
+        "prop_showProgress": "Show overall progress",
+        "prop_includeDescription": "Include descriptions",
+        "prop_includeSteps": "Include task steps",
+        "defaultTemplate": "Default Template"
     }
 }

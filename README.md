@@ -19,6 +19,7 @@ A local-first application built with React, Vite, and Electron that allows users
   - Dynamically update real-time progress using interactive sliders from the list.
   - Comprehensive task editing via a dedicated, spacious sub-page for easier text entry.
 - **Automated PDF Export**:
+  - **Custom Export Templates**: Create and modify reusable PDF templates using a drag-and-drop block constructor natively within the app.
   - Generates presentations with a Title, Progress Overview stats.
   - **One Slide per Task**: Automatically renders each task on a separate slide containing its timeline, progress status, and detailed description.
   - **Roadmap Visualization**: Calculates the min and max dates of all tasks and renders a time-scaled visual roadmap.

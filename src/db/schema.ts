@@ -6,6 +6,22 @@ export interface Project {
     createdAt: number; // timestamp
 }
 
+export type TemplateBlockType = 'TITLE_PAGE' | 'STATS' | 'TASKS_LIST' | 'TASK_DETAIL' | 'ROADMAP' | 'TEXT';
+
+export interface TemplateBlock {
+    id: string; // unique block id inside the template
+    type: TemplateBlockType;
+    props: Record<string, any>;
+}
+
+export interface ExportTemplate {
+    id: string;
+    name: string;
+    blocks: string; // JSON string of TemplateBlock[]
+    createdAt: number; // timestamp
+    updatedAt: number; // timestamp
+}
+
 export type TaskStatus = 'backlog' | 'progress' | 'hold' | 'done';
 
 export interface Task {
@@ -60,6 +76,14 @@ export function initDb(dbPath: string): boolean {
                 duration INTEGER,
                 progress INTEGER,
                 status TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS templates (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                blocks TEXT,
+                createdAt INTEGER,
+                updatedAt INTEGER
             );
         `);
 
@@ -187,6 +211,35 @@ export const db = {
             if (!sqliteDb || ids.length === 0) return;
             const placeholders = ids.map(() => '?').join(',');
             sqliteDb.prepare(`DELETE FROM tasks WHERE id IN (${placeholders})`).run(...ids);
+            notifySubscribers();
+        }
+    },
+    templates: {
+        toArray: () => {
+            if (!sqliteDb) return [];
+            return sqliteDb.prepare(`SELECT * FROM templates ORDER BY createdAt DESC`).all();
+        },
+        get: (id: string) => {
+            if (!sqliteDb) return undefined;
+            return sqliteDb.prepare(`SELECT * FROM templates WHERE id = ?`).get(id);
+        },
+        add: async (t: ExportTemplate) => {
+            if (!sqliteDb) return;
+            sqliteDb.prepare(`INSERT INTO templates (id, name, blocks, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`).run(t.id, t.name, t.blocks, t.createdAt, t.updatedAt);
+            notifySubscribers();
+        },
+        update: async (id: string, obj: Partial<ExportTemplate>) => {
+            if (!sqliteDb) return;
+            const keys = Object.keys(obj);
+            if (keys.length === 0) return;
+            const setStr = keys.map(k => `${k} = ?`).join(', ');
+            const values = keys.map(k => (obj as any)[k]);
+            sqliteDb.prepare(`UPDATE templates SET ${setStr} WHERE id = ?`).run(...values, id);
+            notifySubscribers();
+        },
+        delete: async (id: string) => {
+            if (!sqliteDb) return;
+            sqliteDb.prepare(`DELETE FROM templates WHERE id = ?`).run(id);
             notifySubscribers();
         }
     }
