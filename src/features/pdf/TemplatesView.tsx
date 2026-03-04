@@ -231,42 +231,165 @@ export function TemplatesView() {
                                     <div
                                         key={block.id}
                                         onClick={() => setSelectedBlockId(block.id)}
-                                        className={`bg-card border rounded-xl p-4 flex items-center gap-4 transition-all cursor-pointer ${selectedBlockId === block.id ? 'border-indigo-500 ring-1 ring-indigo-500 shadow-md' : 'hover:border-indigo-300 shadow-sm'}`}
+                                        className={`bg-card border rounded-xl overflow-hidden transition-all cursor-pointer ${selectedBlockId === block.id ? 'border-indigo-500 ring-1 ring-indigo-500 shadow-md' : 'hover:border-indigo-300 shadow-sm'}`}
                                     >
-                                        <div className="flex flex-col gap-1 shrink-0">
-                                            <button
-                                                onClick={(e) => handleMoveBlock(e, index, 'up')}
-                                                disabled={index === 0}
-                                                className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
-                                            </button>
-                                            <button
-                                                onClick={(e) => handleMoveBlock(e, index, 'down')}
-                                                disabled={index === blocks.length - 1}
-                                                className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                                            </button>
-                                        </div>
-
-                                        <div className="flex-1">
-                                            <div className="font-semibold text-sm">{t(`templates.block_${block.type}` as any)}</div>
-                                            <div className="text-xs text-muted-foreground mt-1">
-                                                {Object.keys(block.props).length > 0 ? (
-                                                    <span>Configured</span>
-                                                ) : (
-                                                    <span>Default</span>
-                                                )}
+                                        {/* Block Header */}
+                                        <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-muted/20">
+                                            <div className="flex flex-col gap-0.5 shrink-0">
+                                                <button
+                                                    onClick={(e) => handleMoveBlock(e, index, 'up')}
+                                                    disabled={index === 0}
+                                                    className="p-0.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => handleMoveBlock(e, index, 'down')}
+                                                    disabled={index === blocks.length - 1}
+                                                    className="p-0.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                                </button>
                                             </div>
+                                            <div className="flex-1 text-xs font-semibold text-foreground/70 uppercase tracking-wider">{t(`templates.block_${block.type}` as any)}</div>
+                                            <button
+                                                onClick={(e) => handleDeleteBlock(e, block.id)}
+                                                className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive shrink-0"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                            </button>
                                         </div>
 
-                                        <button
-                                            onClick={(e) => handleDeleteBlock(e, block.id)}
-                                            className="p-2 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive shrink-0"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
-                                        </button>
+                                        {/* Block Preview */}
+                                        <div className="p-4">
+                                            {/* TITLE_PAGE preview */}
+                                            {block.type === 'TITLE_PAGE' && (
+                                                <div className="bg-muted/30 rounded-lg p-5 flex flex-col items-center justify-center" style={{ aspectRatio: '16/7' }}>
+                                                    <div className="w-2/3 h-3 bg-foreground/60 rounded-full mb-2" />
+                                                    {block.props.showSubtitle !== false && (
+                                                        <div className="w-1/3 h-2 bg-muted-foreground/30 rounded-full" />
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* STATS preview */}
+                                            {block.type === 'STATS' && (
+                                                <div className="bg-muted/30 rounded-lg p-4" style={{ aspectRatio: '16/7' }}>
+                                                    <div className="w-1/3 h-1.5 bg-foreground/40 rounded-full mb-3" />
+                                                    <div className="flex gap-3 justify-around">
+                                                        {block.props.showProgress !== false && (
+                                                            <div className="flex flex-col items-center gap-1.5">
+                                                                <div className="text-lg font-bold text-indigo-500">73%</div>
+                                                                <div className="w-12 h-1 bg-muted-foreground/20 rounded-full" />
+                                                            </div>
+                                                        )}
+                                                        {block.props.showCompleted !== false && (
+                                                            <div className="flex flex-col items-center gap-1.5">
+                                                                <div className="text-lg font-bold text-indigo-500">8</div>
+                                                                <div className="w-10 h-1 bg-muted-foreground/20 rounded-full" />
+                                                            </div>
+                                                        )}
+                                                        <div className="flex flex-col items-center gap-1.5">
+                                                            <div className="text-lg font-bold text-indigo-500">3</div>
+                                                            <div className="w-14 h-1 bg-muted-foreground/20 rounded-full" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* TASKS_LIST preview */}
+                                            {block.type === 'TASKS_LIST' && (
+                                                <div className="bg-muted/30 rounded-lg p-4" style={{ aspectRatio: '16/7' }}>
+                                                    <div className="w-1/3 h-1.5 bg-foreground/40 rounded-full mb-3" />
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="w-2/3 h-1.5 bg-muted-foreground/20 rounded-full" />
+                                                            <div className="w-12 h-4 bg-green-100 border border-green-200 rounded text-[7px] text-green-700 font-bold flex items-center justify-center">DONE</div>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="w-1/2 h-1.5 bg-muted-foreground/20 rounded-full" />
+                                                            <div className="w-12 h-4 bg-blue-100 border border-blue-200 rounded text-[7px] text-blue-700 font-bold flex items-center justify-center">WIP</div>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="w-3/5 h-1.5 bg-muted-foreground/20 rounded-full" />
+                                                            <div className="w-12 h-4 bg-gray-100 border border-gray-200 rounded text-[7px] text-gray-600 font-bold flex items-center justify-center">NEW</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* TASK_DETAIL preview */}
+                                            {block.type === 'TASK_DETAIL' && (
+                                                <div className="bg-muted/30 rounded-lg p-4" style={{ aspectRatio: '16/7' }}>
+                                                    <div className="w-2/5 h-2 bg-foreground/50 rounded-full mb-3" />
+                                                    <div className="flex gap-6 mb-3">
+                                                        <div className="flex flex-col gap-1"><div className="w-6 h-1 bg-muted-foreground/15 rounded-full" /><div className="w-10 h-1.5 bg-muted-foreground/25 rounded-full" /></div>
+                                                        <div className="flex flex-col gap-1"><div className="w-5 h-1 bg-muted-foreground/15 rounded-full" /><div className="w-8 h-1.5 bg-muted-foreground/25 rounded-full" /></div>
+                                                        <div className="flex flex-col gap-1"><div className="w-7 h-1 bg-muted-foreground/15 rounded-full" /><div className="w-12 h-4 bg-blue-100 border border-blue-200 rounded" /></div>
+                                                    </div>
+                                                    <div className="flex gap-3 items-center mb-2">
+                                                        <div className="flex-1 h-1.5 bg-muted-foreground/10 rounded-full overflow-hidden"><div className="h-full w-3/5 bg-indigo-400/50 rounded-full" /></div>
+                                                        <span className="text-[8px] text-muted-foreground font-medium">60%</span>
+                                                    </div>
+                                                    {block.props.includeDescription !== false && (
+                                                        <div className="flex gap-2 mt-1">
+                                                            <div className="flex-1 space-y-1">
+                                                                <div className="w-full h-1 bg-muted-foreground/10 rounded-full" />
+                                                                <div className="w-4/5 h-1 bg-muted-foreground/10 rounded-full" />
+                                                            </div>
+                                                            {block.props.includeSteps !== false && (
+                                                                <div className="w-1/3 flex flex-col gap-1 pl-2 border-l border-muted-foreground/10">
+                                                                    <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-foreground/40" /><div className="w-full h-1 bg-muted-foreground/10 rounded-full" /></div>
+                                                                    <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full border border-muted-foreground/30" /><div className="w-4/5 h-1 bg-muted-foreground/10 rounded-full" /></div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* ROADMAP preview */}
+                                            {block.type === 'ROADMAP' && (
+                                                <div className="bg-muted/30 rounded-lg p-4" style={{ aspectRatio: '16/7' }}>
+                                                    <div className="w-1/4 h-1.5 bg-foreground/40 rounded-full mb-3" />
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-16 h-1 bg-muted-foreground/15 rounded-full shrink-0" />
+                                                            <div className="flex-1 h-3 bg-muted-foreground/10 rounded relative">
+                                                                <div className="absolute top-0.5 h-2 rounded bg-green-400/50" style={{ left: '5%', width: '40%' }} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-16 h-1 bg-muted-foreground/15 rounded-full shrink-0" />
+                                                            <div className="flex-1 h-3 bg-muted-foreground/10 rounded relative">
+                                                                <div className="absolute top-0.5 h-2 rounded bg-blue-400/50" style={{ left: '20%', width: '50%' }} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-16 h-1 bg-muted-foreground/15 rounded-full shrink-0" />
+                                                            <div className="flex-1 h-3 bg-muted-foreground/10 rounded relative">
+                                                                <div className="absolute top-0.5 h-2 rounded bg-yellow-400/50" style={{ left: '50%', width: '35%' }} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* TEXT preview */}
+                                            {block.type === 'TEXT' && (
+                                                <div className="bg-muted/30 rounded-lg p-4" style={{ aspectRatio: '16/7' }}>
+                                                    {block.props.title && (
+                                                        <div className="w-2/5 h-2 bg-foreground/40 rounded-full mb-3 border-b border-muted-foreground/10 pb-2" />
+                                                    )}
+                                                    <div className="space-y-1.5 mt-1">
+                                                        <div className="w-full h-1 bg-muted-foreground/15 rounded-full" />
+                                                        <div className="w-11/12 h-1 bg-muted-foreground/15 rounded-full" />
+                                                        <div className="w-4/5 h-1 bg-muted-foreground/15 rounded-full" />
+                                                        <div className="w-9/12 h-1 bg-muted-foreground/15 rounded-full" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
