@@ -215,8 +215,36 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
         const sortedTasks = [...tasks].sort((a, b) => dayjs(a.startDate).valueOf() - dayjs(b.startDate).valueOf());
         if (sortedTasks.length === 0) return null;
 
-        const minDate = startDate ? dayjs(startDate) : dayjs(sortedTasks[0].startDate);
-        const maxDate = endDate ? dayjs(endDate) : dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
+        const dateRange = block.props.dateRange || 'export';
+
+        let minDate: dayjs.Dayjs;
+        let maxDate: dayjs.Dayjs;
+
+        if (dateRange === 'export') {
+            // Use the export period dates as-is
+            minDate = startDate ? dayjs(startDate) : dayjs(sortedTasks[0].startDate);
+            maxDate = endDate ? dayjs(endDate) : dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
+        } else if (dateRange === 'month') {
+            // Constrain to the export month
+            const base = startDate ? dayjs(startDate) : dayjs();
+            minDate = base.startOf('month');
+            maxDate = base.endOf('month');
+        } else if (dateRange === 'quarter') {
+            // Expand to the full quarter containing the export start month
+            const base = startDate ? dayjs(startDate) : dayjs();
+            const quarterStartMonth = Math.floor(base.month() / 3) * 3;
+            minDate = base.month(quarterStartMonth).startOf('month');
+            maxDate = minDate.add(2, 'month').endOf('month');
+        } else if (dateRange === 'year') {
+            // Expand to the full year
+            const base = startDate ? dayjs(startDate) : dayjs();
+            minDate = base.startOf('year');
+            maxDate = base.endOf('year');
+        } else {
+            minDate = startDate ? dayjs(startDate) : dayjs(sortedTasks[0].startDate);
+            maxDate = endDate ? dayjs(endDate) : dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
+        }
+
         const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
 
         const timelineMarkers: Array<{ label: string, percent: number }> = [];

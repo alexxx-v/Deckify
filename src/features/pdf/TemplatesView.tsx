@@ -9,7 +9,7 @@ const AVAILABLE_BLOCKS: { type: TemplateBlockType, defaultProps: any }[] = [
     { type: 'STATS', defaultProps: { showCompleted: true, showProgress: true } },
     { type: 'TASKS_LIST', defaultProps: {} },
     { type: 'TASK_DETAIL', defaultProps: { includeDescription: true, includeSteps: true } },
-    { type: 'ROADMAP', defaultProps: {} },
+    { type: 'ROADMAP', defaultProps: { dateRange: 'export' } },
     { type: 'TEXT', defaultProps: { title: 'Custom Section', content: 'Enter your text here...' } },
 ];
 
@@ -351,7 +351,12 @@ export function TemplatesView() {
                                             {/* ROADMAP preview */}
                                             {block.type === 'ROADMAP' && (
                                                 <div className="bg-muted/30 rounded-lg p-4" style={{ aspectRatio: '16/7' }}>
-                                                    <div className="w-1/4 h-1.5 bg-foreground/40 rounded-full mb-3" />
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <div className="w-1/4 h-1.5 bg-foreground/40 rounded-full" />
+                                                        <span className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider ml-auto">
+                                                            {t(`templates.dateRange_${block.props.dateRange || 'export'}` as any)}
+                                                        </span>
+                                                    </div>
                                                     <div className="space-y-2">
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-16 h-1 bg-muted-foreground/15 rounded-full shrink-0" />
@@ -477,7 +482,20 @@ export function TemplatesView() {
                                             )}
 
                                             {selectedBlock.type === 'ROADMAP' && (
-                                                <div className="text-sm text-muted-foreground">No configurable properties for this block yet.</div>
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-medium">{t('templates.prop_dateRange')}</label>
+                                                    <select
+                                                        value={selectedBlock.props.dateRange || 'export'}
+                                                        onChange={(e) => updateBlockProp(selectedBlock.id, 'dateRange', e.target.value)}
+                                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                    >
+                                                        <option value="export">{t('templates.dateRange_export')}</option>
+                                                        <option value="month">{t('templates.dateRange_month')}</option>
+                                                        <option value="quarter">{t('templates.dateRange_quarter')}</option>
+                                                        <option value="year">{t('templates.dateRange_year')}</option>
+                                                    </select>
+                                                    <p className="text-xs text-muted-foreground">{t('templates.dateRange_hint')}</p>
+                                                </div>
                                             )}
 
                                             {selectedBlock.type === 'TEXT' && (

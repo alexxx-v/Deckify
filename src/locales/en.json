@@ -145,6 +145,12 @@
         "prop_includeSteps": "Include task steps",
         "prop_textTitle": "Block Title",
         "prop_textContent": "Block Content",
+        "prop_dateRange": "Timeline Range",
+        "dateRange_export": "Same as export period",
+        "dateRange_month": "Month",
+        "dateRange_quarter": "Quarter",
+        "dateRange_year": "Year",
+        "dateRange_hint": "Determines the date range displayed on the roadmap timeline. 'Same as export period' uses the dates selected in the export dialog.",
         "defaultTemplate": "Default Template"
     }
 }

@@ -145,6 +145,12 @@
         "prop_includeSteps": "Включать список шагов",
         "prop_textTitle": "Заголовок блока",
         "prop_textContent": "Текст",
+        "prop_dateRange": "Диапазон таймлайна",
+        "dateRange_export": "Как в экспорте",
+        "dateRange_month": "Месяц",
+        "dateRange_quarter": "Квартал",
+        "dateRange_year": "Год",
+        "dateRange_hint": "Определяет временной диапазон на дорожной карте. 'Как в экспорте' использует период, выбранный в окне экспорта.",
         "defaultTemplate": "Стандартный шаблон"
     }
 }
