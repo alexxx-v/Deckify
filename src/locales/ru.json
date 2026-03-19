@@ -13,7 +13,13 @@
         "totalTasks": "Всего задач",
         "completed": "Завершено",
         "recentProjects": "Недавние проекты",
-        "viewAll": "Смотреть все"
+        "viewAll": "Смотреть все",
+        "overviewDashboard": "Дашборд",
+        "totalProjects": "Всего проектов",
+        "completedTasks": "Завершено задач",
+        "averageProgress": "Средний прогресс",
+        "noProjectsAdded": "Проекты пока не добавлены.",
+        "tasks": "задач"
     },
     "projects": {
         "title": "Проекты",
@@ -102,6 +108,8 @@
         "overallCompletion": "Общее завершение",
         "tasksCompleted": "Задач завершено",
         "tasksInProgress": "Задач в работе",
+        "totalTasks": "Всего задач",
+        "tasksOnHold": "Задач на паузе",
         "taskPrefix": "Задача",
         "startDate": "Дата начала",
         "duration": "Длительность",
@@ -145,6 +153,9 @@
         "prop_showSubtitle": "Показывать подзаголовок",
         "prop_showCompleted": "Показывать количество ГОТОВО",
         "prop_showProgress": "Показывать общий прогресс",
+        "prop_showTotalTasks": "Показывать 'Всего задач'",
+        "prop_showInProgress": "Показывать количество В РАБОТЕ",
+        "prop_showHoldTasks": "Показывать количество НА ПАУЗЕ",
         "prop_includeDescription": "Включать описание",
         "prop_includeSteps": "Включать список шагов",
         "prop_textTitle": "Заголовок блока",

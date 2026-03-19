@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { db, ExportTemplate, TemplateBlock, TemplateBlockType } from '@/db/schema';
 import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
+import MDEditor from '@uiw/react-md-editor';
 
 const AVAILABLE_BLOCKS: { type: TemplateBlockType, defaultProps: any }[] = [
     { type: 'TITLE_PAGE', defaultProps: { showSubtitle: true } },
-    { type: 'STATS', defaultProps: { showCompleted: true, showProgress: true } },
+    { type: 'STATS', defaultProps: { showCompleted: true, showProgress: true, showTotalTasks: true, showInProgress: true, showHoldTasks: true } },
     { type: 'TASKS_LIST', defaultProps: {} },
     { type: 'TASK_DETAIL', defaultProps: { includeDescription: true, includeSteps: true } },
     { type: 'ROADMAP', defaultProps: { dateRange: 'export' } },
@@ -64,7 +65,7 @@ export function TemplatesView() {
             name: `${t('templates.title')} - ${new Date().toLocaleDateString()}`,
             blocks: JSON.stringify([
                 { id: uuidv4(), type: 'TITLE_PAGE', props: { showSubtitle: true } },
-                { id: uuidv4(), type: 'STATS', props: { showCompleted: true, showProgress: true } },
+                { id: uuidv4(), type: 'STATS', props: { showCompleted: true, showProgress: true, showTotalTasks: true, showInProgress: true, showHoldTasks: true } },
                 { id: uuidv4(), type: 'TASKS_LIST', props: {} }
             ]),
             createdAt: Date.now(),
@@ -212,7 +213,7 @@ export function TemplatesView() {
                         </div>
 
                         {/* Center Canvas: Layout Editor */}
-                        <div className="flex-1 flex flex-col bg-[#F9FAFB] min-w-0">
+                        <div className="w-[550px] shrink-0 flex flex-col bg-[#F9FAFB]">
                             <div className="p-4 border-b bg-background flex items-center justify-between gap-4 shrink-0">
                                 <input
                                     type="text"
@@ -245,7 +246,7 @@ export function TemplatesView() {
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-8">
-                                <div className="max-w-xl mx-auto space-y-3">
+                                <div className="max-w-md mx-auto space-y-3">
                                     {blocks.length === 0 && (
                                         <div className="text-center p-8 border-2 border-dashed rounded-xl border-muted-foreground/20 text-muted-foreground">
                                             {t('templates.blocks')}
@@ -300,7 +301,13 @@ export function TemplatesView() {
                                                 {block.type === 'STATS' && (
                                                     <div className="bg-muted/30 rounded-lg p-4" style={{ aspectRatio: '16/7' }}>
                                                         <div className="w-1/3 h-1.5 bg-foreground/40 rounded-full mb-3" />
-                                                        <div className="flex gap-3 justify-around">
+                                                        <div className="flex gap-4 justify-around flex-wrap mt-4">
+                                                            {block.props.showTotalTasks !== false && (
+                                                                <div className="flex flex-col items-center gap-1.5">
+                                                                    <div className="text-lg font-bold text-indigo-500">11</div>
+                                                                    <div className="w-10 h-1 bg-muted-foreground/20 rounded-full" />
+                                                                </div>
+                                                            )}
                                                             {block.props.showProgress !== false && (
                                                                 <div className="flex flex-col items-center gap-1.5">
                                                                     <div className="text-lg font-bold text-indigo-500">73%</div>
@@ -313,10 +320,18 @@ export function TemplatesView() {
                                                                     <div className="w-10 h-1 bg-muted-foreground/20 rounded-full" />
                                                                 </div>
                                                             )}
-                                                            <div className="flex flex-col items-center gap-1.5">
-                                                                <div className="text-lg font-bold text-indigo-500">3</div>
-                                                                <div className="w-14 h-1 bg-muted-foreground/20 rounded-full" />
-                                                            </div>
+                                                            {block.props.showInProgress !== false && (
+                                                                <div className="flex flex-col items-center gap-1.5">
+                                                                    <div className="text-lg font-bold text-indigo-500">3</div>
+                                                                    <div className="w-14 h-1 bg-muted-foreground/20 rounded-full" />
+                                                                </div>
+                                                            )}
+                                                            {block.props.showHoldTasks !== false && (
+                                                                <div className="flex flex-col items-center gap-1.5">
+                                                                    <div className="text-lg font-bold text-indigo-500">0</div>
+                                                                    <div className="w-8 h-1 bg-muted-foreground/20 rounded-full" />
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
@@ -426,7 +441,7 @@ export function TemplatesView() {
                         </div>
 
                         {/* Right Panel: Block Properties */}
-                        <div className="w-80 border-l bg-background flex flex-col shrink-0">
+                        <div className="flex-1 border-l bg-background flex flex-col min-w-0">
                             <div className="p-4 border-b bg-muted/20">
                                 <h3 className="font-semibold text-sm">{t('templates.properties')}</h3>
                             </div>
@@ -456,7 +471,7 @@ export function TemplatesView() {
                                                 )}
 
                                                 {selectedBlock.type === 'STATS' && (
-                                                    <>
+                                                    <div className="space-y-3">
                                                         <label className="flex items-center gap-3 cursor-pointer">
                                                             <input
                                                                 type="checkbox"
@@ -475,7 +490,34 @@ export function TemplatesView() {
                                                             />
                                                             <span className="text-sm">{t('templates.prop_showProgress')}</span>
                                                         </label>
-                                                    </>
+                                                        <label className="flex items-center gap-3 cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedBlock.props.showTotalTasks ?? true}
+                                                                onChange={(e) => updateBlockProp(selectedBlock.id, 'showTotalTasks', e.target.checked)}
+                                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                                                            />
+                                                            <span className="text-sm">{t('templates.prop_showTotalTasks')}</span>
+                                                        </label>
+                                                        <label className="flex items-center gap-3 cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedBlock.props.showInProgress ?? true}
+                                                                onChange={(e) => updateBlockProp(selectedBlock.id, 'showInProgress', e.target.checked)}
+                                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                                                            />
+                                                            <span className="text-sm">{t('templates.prop_showInProgress')}</span>
+                                                        </label>
+                                                        <label className="flex items-center gap-3 cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedBlock.props.showHoldTasks ?? true}
+                                                                onChange={(e) => updateBlockProp(selectedBlock.id, 'showHoldTasks', e.target.checked)}
+                                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                                                            />
+                                                            <span className="text-sm">{t('templates.prop_showHoldTasks')}</span>
+                                                        </label>
+                                                    </div>
                                                 )}
 
                                                 {selectedBlock.type === 'TASKS_LIST' && (
@@ -533,13 +575,13 @@ export function TemplatesView() {
                                                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                                             />
                                                         </div>
-                                                        <div className="space-y-2">
+                                                        <div className="space-y-2 mt-4" data-color-mode="light">
                                                             <label className="text-sm font-medium">{t('templates.prop_textContent')}</label>
-                                                            <textarea
+                                                            <MDEditor
                                                                 value={selectedBlock.props.content || ''}
-                                                                onChange={(e) => updateBlockProp(selectedBlock.id, 'content', e.target.value)}
-                                                                rows={6}
-                                                                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 resize-y"
+                                                                onChange={(val) => updateBlockProp(selectedBlock.id, 'content', val || '')}
+                                                                height={300}
+                                                                enableScroll={false}
                                                             />
                                                         </div>
                                                     </>

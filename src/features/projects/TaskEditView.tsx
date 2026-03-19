@@ -8,6 +8,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import MDEditor from '@uiw/react-md-editor';
 
 function SortableStepItem({ step, onUpdate, onDelete, t }: { step: TaskStep, onUpdate: (step: TaskStep) => void, onDelete: () => void, t: any }) {
     const {
@@ -219,13 +220,13 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                         </select>
                     </div>
 
-                    <div>
+                    <div data-color-mode="light">
                         <label className="text-sm font-medium mb-1.5 block">{t('taskEdit.descriptionLabel')}</label>
-                        <textarea
+                        <MDEditor
                             value={editDescription}
-                            onChange={(e) => setEditDescription(e.target.value)}
-                            rows={6}
-                            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+                            onChange={(val) => setEditDescription(val || '')}
+                            height={300}
+                            enableScroll={false}
                         />
                     </div>
 

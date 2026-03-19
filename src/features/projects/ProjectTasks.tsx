@@ -392,57 +392,61 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                 ) : viewMode === 'list' ? (
                     <>
                         <div className="bg-card border rounded-xl shadow-sm relative overflow-hidden">
-                            {/* Table Header Row */}
-                            <div className="hidden sm:flex sm:items-center justify-between gap-x-4 px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b bg-muted/10">
-                                <div className="flex-1 pl-4 min-w-0 shrink-0">{t('taskEdit.title')}</div>
-                                <div className="w-[120px] shrink-0">{t('taskEdit.startDate')}</div>
-                                <div className="w-[140px] shrink-0">{t('taskEdit.endDate', 'Дата завершения')}</div>
-                                <div className="w-[120px] shrink-0">{t('taskEdit.duration')}</div>
-                                <div className="w-[100px] shrink-0 text-center">{t('taskEdit.progressStatus', 'Прогресс').replace(/\s*\(.*?\)/, '')}</div>
-                                <div className="w-[120px] shrink-0 text-center sm:pr-8">{t('taskEdit.status')}</div>
-                            </div>
-
-                            <div className="flex flex-col">
-                                {paginatedTasks.map((task: any, index: number) => (
-                                    <div
-                                        key={task.id}
-                                        onClick={() => onEditTask(task.id)}
-                                        className={`px-4 py-3 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-y-3 gap-x-4 group hover:bg-muted/50 transition-colors relative ${index !== paginatedTasks.length - 1 ? 'border-b border-border/50' : ''}`}
-                                    >
-                                        <div className="flex-1 flex items-center gap-4 min-w-0 pr-4 pl-4 shrink-0">
-                                            <h4 className="font-medium truncate text-foreground group-hover:text-primary transition-colors">{task.title}</h4>
-                                        </div>
-
-                                        <div className="hidden sm:block w-[120px] shrink-0 text-sm text-foreground/80 tabular-nums">
-                                            {dayjs(task.startDate).format('MMM D, YYYY')}
-                                        </div>
-                                        <div className="hidden sm:block w-[140px] shrink-0 text-sm text-foreground/80 tabular-nums">
-                                            {dayjs(task.startDate).add(task.duration, 'day').format('MMM D, YYYY')}
-                                        </div>
-                                        <div className="hidden sm:block w-[120px] shrink-0 text-sm text-muted-foreground tabular-nums">
-                                            {task.duration} {t('taskEdit.days')}
-                                        </div>
-                                        <div className="hidden sm:block w-[100px] shrink-0 text-center font-semibold text-sm tabular-nums text-muted-foreground group-hover:text-foreground transition-colors">
-                                            {task.progress}%
-                                        </div>
-
-                                        <div className="flex items-center justify-between sm:justify-center shrink-0 sm:w-[120px] pl-4 sm:pl-0 sm:pr-8">
-                                            {/* Sub content on mobile shows duration alongside dates */}
-                                            <div className="sm:hidden text-xs text-muted-foreground flex gap-2">
-                                                <span className="font-semibold text-foreground">{task.progress}%</span>
-                                                <span className="opacity-50">•</span>
-                                                <span>{dayjs(task.startDate).format('MMM D')} - {dayjs(task.startDate).add(task.duration, 'day').format('MMM D')}</span>
-                                            </div>
-                                            <span className={`w-28 justify-center inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
-                                                {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
-                                            </span>
-                                        </div>
-
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:block">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/30 group-hover:text-primary transition-colors"><path d="m9 18 6-6-6-6" /></svg>
-                                        </div>
+                            <div className="overflow-x-auto">
+                                <div className="min-w-[800px]">
+                                    {/* Table Header Row */}
+                                    <div className="hidden sm:flex sm:items-center gap-x-2 px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b bg-muted/10">
+                                        <div className="flex-1 w-0 min-w-[200px] pl-4">{t('taskEdit.title')}</div>
+                                        <div className="w-[120px] shrink-0">{t('taskEdit.startDate')}</div>
+                                        <div className="w-[120px] shrink-0">{t('taskEdit.endDate', 'Дата завершения')}</div>
+                                        <div className="w-[100px] shrink-0">{t('taskEdit.duration')}</div>
+                                        <div className="w-[100px] shrink-0 text-center">{t('taskEdit.progressStatus', 'Прогресс').replace(/\s*\(.*?\)/, '')}</div>
+                                        <div className="w-[130px] shrink-0 text-center pr-8">{t('taskEdit.status')}</div>
                                     </div>
-                                ))}
+
+                                    <div className="flex flex-col">
+                                        {paginatedTasks.map((task: any, index: number) => (
+                                            <div
+                                                key={task.id}
+                                                onClick={() => onEditTask(task.id)}
+                                                className={`px-4 py-3 cursor-pointer flex flex-col sm:flex-row sm:items-center gap-y-3 gap-x-2 group hover:bg-muted/50 transition-colors relative ${index !== paginatedTasks.length - 1 ? 'border-b border-border/50' : ''}`}
+                                            >
+                                                <div className="flex-1 w-0 min-w-[200px] flex items-center gap-4 pl-4 pr-4">
+                                                    <h4 className="font-medium truncate text-foreground group-hover:text-primary transition-colors">{task.title}</h4>
+                                                </div>
+
+                                                <div className="hidden sm:block w-[120px] shrink-0 text-sm text-foreground/80 tabular-nums">
+                                                    {dayjs(task.startDate).format('MMM D, YYYY')}
+                                                </div>
+                                                <div className="hidden sm:block w-[120px] shrink-0 text-sm text-foreground/80 tabular-nums">
+                                                    {dayjs(task.startDate).add(task.duration, 'day').format('MMM D, YYYY')}
+                                                </div>
+                                                <div className="hidden sm:block w-[100px] shrink-0 text-sm text-muted-foreground tabular-nums">
+                                                    {task.duration} {t('taskEdit.days')}
+                                                </div>
+                                                <div className="hidden sm:block w-[100px] shrink-0 text-center font-semibold text-sm tabular-nums text-muted-foreground group-hover:text-foreground transition-colors">
+                                                    {task.progress}%
+                                                </div>
+
+                                                <div className="flex items-center justify-between sm:justify-center shrink-0 w-[130px] pl-4 sm:pl-0 sm:pr-8">
+                                                    {/* Sub content on mobile shows duration alongside dates */}
+                                                    <div className="sm:hidden text-xs text-muted-foreground flex gap-2">
+                                                        <span className="font-semibold text-foreground">{task.progress}%</span>
+                                                        <span className="opacity-50">•</span>
+                                                        <span>{dayjs(task.startDate).format('MMM D')} - {dayjs(task.startDate).add(task.duration, 'day').format('MMM D')}</span>
+                                                    </div>
+                                                    <span className={`w-28 justify-center inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
+                                                        {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
+                                                    </span>
+                                                </div>
+
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:block">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/30 group-hover:text-primary transition-colors"><path d="m9 18 6-6-6-6" /></svg>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         {totalPages > 1 && (

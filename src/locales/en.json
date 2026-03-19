@@ -13,7 +13,13 @@
         "totalTasks": "Total Tasks",
         "completed": "Completed",
         "recentProjects": "Recent Projects",
-        "viewAll": "View All"
+        "viewAll": "View All",
+        "overviewDashboard": "Overview Dashboard",
+        "totalProjects": "Total Projects",
+        "completedTasks": "Completed Tasks",
+        "averageProgress": "Average Progress",
+        "noProjectsAdded": "No projects added yet.",
+        "tasks": "tasks"
     },
     "projects": {
         "title": "Projects",
@@ -102,6 +108,8 @@
         "overallCompletion": "Overall Completion",
         "tasksCompleted": "Tasks Completed",
         "tasksInProgress": "Tasks in Progress",
+        "totalTasks": "Total Tasks",
+        "tasksOnHold": "Tasks on Hold",
         "taskPrefix": "Task",
         "startDate": "Start Date",
         "duration": "Duration",
@@ -145,6 +153,9 @@
         "prop_showSubtitle": "Show Subtitle",
         "prop_showCompleted": "Show completed count",
         "prop_showProgress": "Show overall progress",
+        "prop_showTotalTasks": "Show 'Total Tasks'",
+        "prop_showInProgress": "Show 'Tasks in Progress'",
+        "prop_showHoldTasks": "Show 'Tasks on Hold'",
         "prop_includeDescription": "Include descriptions",
         "prop_includeSteps": "Include task steps",
         "prop_textTitle": "Block Title",

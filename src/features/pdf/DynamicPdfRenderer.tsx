@@ -38,6 +38,51 @@ const styles = StyleSheet.create({
     roadmapBar: { position: 'absolute', height: 12, top: 4, backgroundColor: '#4F46E5', borderRadius: 4 }
 });
 
+const renderMarkdownContent = (text: string, baseFontSize = 14) => {
+    if (!text) return null;
+    const lines = text.split('\n');
+    return lines.map((line, lineIdx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <View key={lineIdx} style={{ height: baseFontSize * 0.8 }} />;
+        
+        // Headers
+        if (trimmed.startsWith('# ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 10, fontWeight: 'bold', color: '#111827', marginTop: baseFontSize * 0.8, marginBottom: baseFontSize * 0.5 }}>{trimmed.substring(2)}</Text>;
+        if (trimmed.startsWith('## ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 6, fontWeight: 'bold', color: '#111827', marginTop: baseFontSize * 0.7, marginBottom: baseFontSize * 0.4 }}>{trimmed.substring(3)}</Text>;
+        if (trimmed.startsWith('### ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 2, fontWeight: 'bold', color: '#1f2937', marginTop: baseFontSize * 0.6, marginBottom: baseFontSize * 0.3 }}>{trimmed.substring(4)}</Text>;
+        
+        // Lists
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+            const listContent = trimmed.substring(2);
+            const parts = listContent.split(/(\*\*.*?\*\*)/g).filter(Boolean);
+            
+            return (
+                <View key={lineIdx} style={{ flexDirection: 'row', marginBottom: baseFontSize * 0.4, paddingLeft: 12 }}>
+                    <Text style={{ width: 12, fontSize: baseFontSize, color: '#4B5563', paddingTop: 0 }}>•</Text>
+                    <Text style={{ flex: 1, fontSize: baseFontSize, color: '#4B5563', lineHeight: 1.5 }}>
+                        {parts.map((p, i) => {
+                            if (p.startsWith('**') && p.endsWith('**')) return <Text key={i} style={{ fontWeight: 'bold', color: '#111827' }}>{p.slice(2, -2)}</Text>;
+                            return p;
+                        })}
+                    </Text>
+                </View>
+            );
+        }
+        
+        // Paragraphs with Bold
+        const parts = line.split(/(\*\*.*?\*\*)/g).filter(Boolean);
+        return (
+            <Text key={lineIdx} style={{ fontSize: baseFontSize, color: '#4B5563', lineHeight: 1.6, marginBottom: baseFontSize * 0.6 }}>
+                {parts.map((part, pIdx) => {
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                        return <Text key={pIdx} style={{ fontWeight: 'bold', color: '#111827' }}>{part.slice(2, -2)}</Text>;
+                    }
+                    return part;
+                })}
+            </Text>
+        );
+    });
+};
+
 interface BlockRendererProps {
     block: TemplateBlock;
     project: Project;
@@ -62,15 +107,24 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
     }
 
     if (block.type === 'STATS') {
-        const { showCompleted, showProgress } = block.props;
-        const completedTasks = tasks.filter(t => t.progress === 100).length;
+        const { showCompleted = true, showProgress = true, showTotalTasks = true, showInProgress = true, showHoldTasks = true } = block.props;
+        
         const totalTasks = tasks.length;
+        const completedTasks = tasks.filter(t => t.progress === 100 || t.status === 'done').length;
+        const holdTasks = tasks.filter(t => t.status === 'hold').length;
+        const inProgressTasks = totalTasks - completedTasks - holdTasks;
         const overallProgress = totalTasks === 0 ? 0 : Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / totalTasks);
 
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
                 <Text style={styles.header}>{i18n.t('pdf.progressOverview')}</Text>
                 <View style={styles.statsContainer}>
+                    {showTotalTasks && (
+                        <View style={styles.statBox}>
+                            <Text style={styles.statNumber}>{totalTasks}</Text>
+                            <Text style={styles.statLabel}>{i18n.t('pdf.totalTasks')}</Text>
+                        </View>
+                    )}
                     {showProgress && (
                         <View style={styles.statBox}>
                             <Text style={styles.statNumber}>{overallProgress}%</Text>
@@ -83,10 +137,18 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                             <Text style={styles.statLabel}>{i18n.t('pdf.tasksCompleted')}</Text>
                         </View>
                     )}
-                    <View style={styles.statBox}>
-                        <Text style={styles.statNumber}>{totalTasks - completedTasks}</Text>
-                        <Text style={styles.statLabel}>{i18n.t('pdf.tasksInProgress')}</Text>
-                    </View>
+                    {showInProgress && (
+                        <View style={styles.statBox}>
+                            <Text style={styles.statNumber}>{inProgressTasks}</Text>
+                            <Text style={styles.statLabel}>{i18n.t('pdf.tasksInProgress')}</Text>
+                        </View>
+                    )}
+                    {showHoldTasks && (
+                        <View style={styles.statBox}>
+                            <Text style={styles.statNumber}>{holdTasks}</Text>
+                            <Text style={styles.statLabel}>{i18n.t('pdf.tasksOnHold')}</Text>
+                        </View>
+                    )}
                 </View>
             </Page>
         );
@@ -171,7 +233,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                                             <View style={{ flex: showSteps ? 3 : 1, paddingRight: showSteps ? 20 : 0 }}>
                                                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827', marginBottom: 8 }}>{i18n.t('pdf.description')}</Text>
                                                 <View style={{ backgroundColor: '#F9FAFB', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
-                                                    <Text style={{ fontSize: 12, color: '#4B5563', lineHeight: 1.5 }}>{task.description}</Text>
+                                                    {renderMarkdownContent(task.description || '', 12)}
                                                 </View>
                                             </View>
                                         )}
@@ -314,13 +376,12 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
 
     if (block.type === 'TEXT') {
         const { title, content } = block.props;
+
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
                 {title && <Text style={styles.header}>{title}</Text>}
                 <View style={{ flex: 1, backgroundColor: '#FFFFFF', padding: 24, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
-                    <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 1.6 }}>
-                        {content}
-                    </Text>
+                    {renderMarkdownContent(content)}
                 </View>
             </Page>
         );
