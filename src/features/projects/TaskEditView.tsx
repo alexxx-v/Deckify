@@ -135,111 +135,62 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
     if (!task) return <div>Loading...</div>;
 
     return (
-        <div className="space-y-6 max-w-2xl mx-auto">
-            <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={onBack}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-                </Button>
-                <h2 className="text-2xl font-bold">{t('taskEdit.editTask')}</h2>
+        <div className="space-y-6 w-full animate-in fade-in duration-300">
+            {/* Header: Back, Title, Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <Button variant="outline" size="icon" onClick={onBack} className="shrink-0 bg-background/50 backdrop-blur-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                    </Button>
+                    <h2 className="text-2xl font-bold tracking-tight">{t('taskEdit.editTask')}</h2>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Button type="button" variant="ghost" onClick={onBack}>{t('taskEdit.cancel')}</Button>
+                    <Button type="submit" form="task-edit-form" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm ring-1 ring-indigo-600/20">{t('taskEdit.submitSave')}</Button>
+                </div>
             </div>
 
-            <div className="bg-card border rounded-xl p-6 shadow-sm">
-                <form onSubmit={handleSave} className="space-y-5">
-                    <div>
-                        <label className="text-sm font-medium mb-1.5 block">{t('taskEdit.title')}</label>
-                        <input
-                            required
-                            type="text"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <form id="task-edit-form" onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start pb-10">
+                {/* Left Column (Main Content) */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-card border rounded-xl p-6 shadow-sm space-y-6">
                         <div>
-                            <label className="text-sm font-medium mb-1.5 block">{t('taskEdit.startDate')}</label>
+                            <label className="text-sm font-semibold mb-2 block">{t('taskEdit.title')}</label>
                             <input
                                 required
-                                type="date"
-                                value={editStartDate}
-                                onChange={(e) => setEditStartDate(e.target.value)}
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                type="text"
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                className="flex h-11 w-full rounded-md border border-input bg-card px-4 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-shadow font-medium"
                             />
                         </div>
-                        <div>
-                            <label className="text-sm font-medium mb-1.5 block">{t('taskEdit.duration')}</label>
-                            <div className="flex gap-2">
-                                <input
-                                    required
-                                    type="number"
-                                    min="1"
-                                    value={editDuration}
-                                    onChange={(e) => setEditDuration(e.target.value)}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+                        <div data-color-mode="light" className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold block">{t('taskEdit.descriptionLabel')}</label>
+                            <div className="border rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 transition-shadow">
+                                <MDEditor
+                                    value={editDescription}
+                                    onChange={(val) => setEditDescription(val || '')}
+                                    minHeight={350}
+                                    preview="edit"
+                                    className="!border-0"
+                                    visibleDragbar={false}
                                 />
-                                <select
-                                    value={editDurationUnit}
-                                    onChange={(e) => setEditDurationUnit(e.target.value as any)}
-                                    className="flex h-10 w-32 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                >
-                                    <option value="days">{t('taskEdit.days')}</option>
-                                    <option value="weeks">{t('taskEdit.weeks')}</option>
-                                    <option value="months">{t('taskEdit.months')}</option>
-                                </select>
                             </div>
                         </div>
                     </div>
 
-                    <div>
-                        <label className="text-sm font-medium mb-1.5 block">
-                            {t('taskEdit.progressStatus', { progress: editProgress })}
-                        </label>
-                        <div className="flex items-center gap-4 border rounded-md p-3 bg-muted/20">
-                            <input
-                                type="range"
-                                min="0" max="100" step="5"
-                                value={editProgress}
-                                onChange={(e) => setEditProgress(e.target.value)}
-                                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium mb-1.5 block">{t('taskEdit.status')}</label>
-                        <select
-                            value={editStatus}
-                            onChange={(e) => setEditStatus(e.target.value as any)}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                            <option value="backlog">{t('taskEdit.backlog')}</option>
-                            <option value="progress">{t('taskEdit.inProgress')}</option>
-                            <option value="hold">{t('taskEdit.onHold')}</option>
-                            <option value="done">{t('taskEdit.done')}</option>
-                        </select>
-                    </div>
-
-                    <div data-color-mode="light">
-                        <label className="text-sm font-medium mb-1.5 block">{t('taskEdit.descriptionLabel')}</label>
-                        <MDEditor
-                            value={editDescription}
-                            onChange={(val) => setEditDescription(val || '')}
-                            height={300}
-                            enableScroll={false}
-                        />
-                    </div>
-
-                    <div className="border-t pt-5 mt-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <label className="text-sm font-medium block">{t('taskEdit.steps')}</label>
+                    <div className="bg-card border rounded-xl p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-4 border-b pb-4">
+                            <label className="text-base font-semibold block">{t('taskEdit.steps')}</label>
                             <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setEditSteps([...editSteps, { id: uuidv4(), text: '', completed: false }])}
+                                className="bg-background/50"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                                 {t('taskEdit.addStep')}
                             </Button>
                         </div>
@@ -272,19 +223,86 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                                 </SortableContext>
                             </DndContext>
                             {editSteps.length === 0 && (
-                                <div className="text-center py-6 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
+                                <div className="text-center py-8 px-4 text-sm text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
                                     No steps added yet. Add steps to create a timeline in your PDF.
                                 </div>
                             )}
                         </div>
                     </div>
+                </div>
 
-                    <div className="pt-4 flex justify-end gap-3 border-t">
-                        <Button type="button" variant="outline" onClick={onBack}>{t('taskEdit.cancel')}</Button>
-                        <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">{t('taskEdit.submitSave')}</Button>
+                {/* Right Column (Sidebar / Metadata) */}
+                <div className="space-y-6 lg:sticky lg:top-6">
+                    <div className="bg-card border rounded-xl p-6 shadow-sm space-y-6">
+                        <h3 className="font-semibold text-base border-b pb-4 block">{t('templates.properties')}</h3>
+                        
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.status')}</label>
+                            <select
+                                value={editStatus}
+                                onChange={(e) => setEditStatus(e.target.value as any)}
+                                className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
+                            >
+                                <option value="backlog">{t('taskEdit.backlog')}</option>
+                                <option value="progress">{t('taskEdit.inProgress')}</option>
+                                <option value="hold">{t('taskEdit.onHold')}</option>
+                                <option value="done">{t('taskEdit.done')}</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.startDate')}</label>
+                            <input
+                                required
+                                type="date"
+                                value={editStartDate}
+                                onChange={(e) => setEditStartDate(e.target.value)}
+                                className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.duration')}</label>
+                            <div className="flex gap-2">
+                                <input
+                                    required
+                                    type="number"
+                                    min="1"
+                                    value={editDuration}
+                                    onChange={(e) => setEditDuration(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
+                                />
+                                <select
+                                    value={editDurationUnit}
+                                    onChange={(e) => setEditDurationUnit(e.target.value as any)}
+                                    className="flex h-10 w-32 rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
+                                >
+                                    <option value="days">{t('taskEdit.days')}</option>
+                                    <option value="weeks">{t('taskEdit.weeks')}</option>
+                                    <option value="months">{t('taskEdit.months')}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="pt-2">
+                            <div className="flex items-center justify-between mb-3">
+                                <label className="text-sm font-semibold text-muted-foreground">
+                                    {t('taskEdit.progressStatus', { progress: editProgress })}
+                                </label>
+                            </div>
+                            <div className="flex items-center gap-4 rounded-md p-1">
+                                <input
+                                    type="range"
+                                    min="0" max="100" step="5"
+                                    value={editProgress}
+                                    onChange={(e) => setEditProgress(e.target.value)}
+                                    className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                                />
+                            </div>
+                        </div>
                     </div>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     );
 }

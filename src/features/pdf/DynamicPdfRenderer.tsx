@@ -43,12 +43,12 @@ const renderMarkdownContent = (text: string, baseFontSize = 14) => {
     const lines = text.split('\n');
     return lines.map((line, lineIdx) => {
         const trimmed = line.trim();
-        if (!trimmed) return <View key={lineIdx} style={{ height: baseFontSize * 0.8 }} />;
+        if (!trimmed) return <View key={lineIdx} style={{ height: baseFontSize * 0.3 }} />;
         
         // Headers
-        if (trimmed.startsWith('# ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 10, fontWeight: 'bold', color: '#111827', marginTop: baseFontSize * 0.8, marginBottom: baseFontSize * 0.5 }}>{trimmed.substring(2)}</Text>;
-        if (trimmed.startsWith('## ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 6, fontWeight: 'bold', color: '#111827', marginTop: baseFontSize * 0.7, marginBottom: baseFontSize * 0.4 }}>{trimmed.substring(3)}</Text>;
-        if (trimmed.startsWith('### ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 2, fontWeight: 'bold', color: '#1f2937', marginTop: baseFontSize * 0.6, marginBottom: baseFontSize * 0.3 }}>{trimmed.substring(4)}</Text>;
+        if (trimmed.startsWith('# ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 8, fontWeight: 'bold', color: '#111827', marginTop: baseFontSize * 0.5, marginBottom: baseFontSize * 0.2 }}>{trimmed.substring(2)}</Text>;
+        if (trimmed.startsWith('## ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 4, fontWeight: 'bold', color: '#111827', marginTop: baseFontSize * 0.4, marginBottom: baseFontSize * 0.2 }}>{trimmed.substring(3)}</Text>;
+        if (trimmed.startsWith('### ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 1, fontWeight: 'bold', color: '#1f2937', marginTop: baseFontSize * 0.3, marginBottom: baseFontSize * 0.2 }}>{trimmed.substring(4)}</Text>;
         
         // Lists
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
@@ -56,9 +56,9 @@ const renderMarkdownContent = (text: string, baseFontSize = 14) => {
             const parts = listContent.split(/(\*\*.*?\*\*)/g).filter(Boolean);
             
             return (
-                <View key={lineIdx} style={{ flexDirection: 'row', marginBottom: baseFontSize * 0.4, paddingLeft: 12 }}>
+                <View key={lineIdx} style={{ flexDirection: 'row', marginBottom: baseFontSize * 0.1, paddingLeft: 12 }}>
                     <Text style={{ width: 12, fontSize: baseFontSize, color: '#4B5563', paddingTop: 0 }}>•</Text>
-                    <Text style={{ flex: 1, fontSize: baseFontSize, color: '#4B5563', lineHeight: 1.5 }}>
+                    <Text style={{ flex: 1, fontSize: baseFontSize, color: '#4B5563', lineHeight: 1.2 }}>
                         {parts.map((p, i) => {
                             if (p.startsWith('**') && p.endsWith('**')) return <Text key={i} style={{ fontWeight: 'bold', color: '#111827' }}>{p.slice(2, -2)}</Text>;
                             return p;
@@ -71,7 +71,7 @@ const renderMarkdownContent = (text: string, baseFontSize = 14) => {
         // Paragraphs with Bold
         const parts = line.split(/(\*\*.*?\*\*)/g).filter(Boolean);
         return (
-            <Text key={lineIdx} style={{ fontSize: baseFontSize, color: '#4B5563', lineHeight: 1.6, marginBottom: baseFontSize * 0.6 }}>
+            <Text key={lineIdx} style={{ fontSize: baseFontSize, color: '#4B5563', lineHeight: 1.25, marginBottom: baseFontSize * 0.2 }}>
                 {parts.map((part, pIdx) => {
                     if (part.startsWith('**') && part.endsWith('**')) {
                         return <Text key={pIdx} style={{ fontWeight: 'bold', color: '#111827' }}>{part.slice(2, -2)}</Text>;
@@ -182,40 +182,40 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
             <>
                 {tasks.map((task) => (
                     <Page key={task.id} size="A4" orientation="landscape" style={styles.page}>
-                        <View style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 16, marginBottom: 24 }}>
-                            <Text style={{ fontSize: 26, color: '#111827', fontWeight: 'bold' }}>
+                        <View style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 10, marginBottom: 12 }}>
+                            <Text style={{ fontSize: 20, color: '#111827', fontWeight: 'bold' }}>
                                 {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
                             </Text>
                         </View>
 
                         <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, paddingRight: 40 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, paddingRight: 40 }}>
                                 <View>
-                                    <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.startDate')}</Text>
-                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>{dayjs(task.startDate).format('MMMM D, YYYY')}</Text>
+                                    <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.startDate')}</Text>
+                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }}>{dayjs(task.startDate).format('MMMM D, YYYY')}</Text>
                                 </View>
                                 <View>
-                                    <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.duration')}</Text>
-                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>{task.duration} {task.duration === 1 ? i18n.t('pdf.durationDay') : i18n.t('pdf.durationDays')}</Text>
+                                    <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.duration')}</Text>
+                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }}>{task.duration} {task.duration === 1 ? i18n.t('pdf.durationDay') : i18n.t('pdf.durationDays')}</Text>
                                 </View>
                                 <View>
-                                    <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.targetDate')}</Text>
-                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>{dayjs(task.startDate).add(task.duration, 'day').format('MMMM D, YYYY')}</Text>
+                                    <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.targetDate')}</Text>
+                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }}>{dayjs(task.startDate).add(task.duration, 'day').format('MMMM D, YYYY')}</Text>
                                 </View>
                                 <View>
-                                    <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.status')}</Text>
-                                    <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, borderColor: getPdfStatusColor(task.status).border, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4 }}>
-                                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: getPdfStatusColor(task.status).text, textTransform: 'uppercase' }}>
+                                    <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.status')}</Text>
+                                    <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, borderColor: getPdfStatusColor(task.status).border, borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: getPdfStatusColor(task.status).text, textTransform: 'uppercase' }}>
                                             {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
                                         </Text>
                                     </View>
                                 </View>
                             </View>
 
-                            <View style={{ marginBottom: 20, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#374151', marginRight: 16 }}>{i18n.t('pdf.progressStatus')}: <Text style={{ color: '#4F46E5' }}>{task.progress}%</Text></Text>
-                                <View style={{ flex: 1, height: 8, backgroundColor: '#E5E7EB', borderRadius: 4 }}>
-                                    <View style={{ height: '100%', backgroundColor: getPdfStatusColor(task.status).bar, borderRadius: 4, width: `${task.progress}%` }} />
+                            <View style={{ marginBottom: 16, backgroundColor: '#FFFFFF', padding: 8, paddingHorizontal: 12, borderRadius: 6, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#374151', marginRight: 12 }}>{i18n.t('pdf.progressStatus')}: <Text style={{ color: '#4F46E5' }}>{task.progress}%</Text></Text>
+                                <View style={{ flex: 1, height: 6, backgroundColor: '#E5E7EB', borderRadius: 3 }}>
+                                    <View style={{ height: '100%', backgroundColor: getPdfStatusColor(task.status).bar, borderRadius: 3, width: `${task.progress}%` }} />
                                 </View>
                             </View>
 
