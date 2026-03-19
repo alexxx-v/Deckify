@@ -171,7 +171,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                                 <MDEditor
                                     value={editDescription}
                                     onChange={(val) => setEditDescription(val || '')}
-                                    minHeight={350}
+                                    height={560}
                                     preview="edit"
                                     className="!border-0"
                                     visibleDragbar={false}
@@ -235,7 +235,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                 <div className="space-y-6 lg:sticky lg:top-6">
                     <div className="bg-card border rounded-xl p-6 shadow-sm space-y-6">
                         <h3 className="font-semibold text-base border-b pb-4 block">{t('templates.properties')}</h3>
-                        
+
                         <div>
                             <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.status')}</label>
                             <select
@@ -260,7 +260,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                                 className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
                             />
                         </div>
-                        
+
                         <div>
                             <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.duration')}</label>
                             <div className="flex gap-2">

@@ -227,19 +227,62 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
 
                                 if (!hasDesc && !showSteps) return null;
 
+                                // --- Dynamic font size for description ---
+                                // A4 landscape: 842×595pt, page padding 40pt each side → available height ~515pt
+                                // Fixed UI above description: title ~32pt + meta ~28pt + progress ~28pt + gaps ~16pt ≈ 104pt
+                                // Section header "Описание" + padding ≈ 24pt, description box padding 20pt
+                                // So available for description text lines ≈ 515 - 104 - 44 = ~367pt
+                                const AVAILABLE_HEIGHT_FOR_TEXT = 367;
+
+                                // Estimate effective line count of the description
+                                const estimateLines = (text: string, fSize: number): number => {
+                                    // Approximate chars per line based on available column width.
+                                    // A4 landscape content width ≈ 762pt; with steps col taking ~40%, desc col ~60% → ~457pt
+                                    // At fSize pt, approx chars per line = 457 / (fSize * 0.55)
+                                    const colWidth = showSteps ? 457 : 762;
+                                    const charsPerLine = Math.max(20, Math.floor(colWidth / (fSize * 0.55)));
+                                    let lineCount = 0;
+                                    (text || '').split('\n').forEach(rawLine => {
+                                        const trimmed = rawLine.trim();
+                                        if (!trimmed) { lineCount += 0.4; return; } // blank line = small gap
+                                        // Headers are bigger, so they count a bit more
+                                        const isH1 = trimmed.startsWith('# ');
+                                        const isH2 = trimmed.startsWith('## ');
+                                        const isH3 = trimmed.startsWith('### ');
+                                        const sizeMultiplier = isH1 ? 1.7 : isH2 ? 1.4 : isH3 ? 1.15 : 1;
+                                        const effectiveChars = trimmed.length;
+                                        const wrappedLines = Math.ceil(effectiveChars / (charsPerLine / sizeMultiplier));
+                                        lineCount += Math.max(1, wrappedLines) * sizeMultiplier;
+                                    });
+                                    return lineCount;
+                                };
+
+                                // Binary-search for the largest font size that fits
+                                let bestFontSize = 7;
+                                for (let fs = 12; fs >= 7; fs--) {
+                                    // lineHeight multiplier matches rendering (1.25 for text, 1.2 for lists)
+                                    const lineHeight = fs * 1.25;
+                                    const totalHeight = estimateLines(task.description || '', fs) * lineHeight;
+                                    if (totalHeight <= AVAILABLE_HEIGHT_FOR_TEXT) {
+                                        bestFontSize = fs;
+                                        break;
+                                    }
+                                }
+                                const descFontSize = bestFontSize;
+
                                 return (
-                                    <View style={{ flexDirection: 'row', width: '100%', marginBottom: 20 }}>
+                                    <View style={{ flexDirection: 'row', width: '100%' }}>
                                         {hasDesc && (
                                             <View style={{ flex: showSteps ? 3 : 1, paddingRight: showSteps ? 20 : 0 }}>
-                                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827', marginBottom: 8 }}>{i18n.t('pdf.description')}</Text>
-                                                <View style={{ backgroundColor: '#F9FAFB', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
-                                                    {renderMarkdownContent(task.description || '', 12)}
+                                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#111827', marginBottom: 6 }}>{i18n.t('pdf.description')}</Text>
+                                                <View style={{ backgroundColor: '#F9FAFB', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                                                    {renderMarkdownContent(task.description || '', descFontSize)}
                                                 </View>
                                             </View>
                                         )}
                                         {showSteps && (
                                             <View style={{ flex: hasDesc ? 2 : 1 }}>
-                                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>{i18n.t('pdf.steps')}</Text>
+                                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#111827', marginBottom: 6 }}>{i18n.t('pdf.steps')}</Text>
                                                 <View style={{ marginLeft: 30 }}>
                                                     {steps.map((step, stepIdx) => {
                                                         const isCompleted = step.completed;
@@ -250,12 +293,12 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                                                         return (
                                                             <View key={step.id || stepIdx} style={{ flexDirection: 'row' }} wrap={false}>
                                                                 <View style={{ width: 20, alignItems: 'center', position: 'relative' }}>
-                                                                    <Text style={{ position: 'absolute', left: -25, top: 0, fontSize: 12, fontWeight: 'bold', color: isCompleted || isCurrent ? '#111827' : '#9CA3AF' }}>{(stepIdx + 1).toString().padStart(2, '0')}</Text>
+                                                                    <Text style={{ position: 'absolute', left: -25, top: 0, fontSize: 11, fontWeight: 'bold', color: isCompleted || isCurrent ? '#111827' : '#9CA3AF' }}>{(stepIdx + 1).toString().padStart(2, '0')}</Text>
                                                                     {!isLast && <View style={{ position: 'absolute', top: 12, bottom: -4, width: 2, backgroundColor: isCompleted ? '#111827' : '#E5E7EB', zIndex: 0 }} />}
                                                                     <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: isCompleted || isCurrent ? '#111827' : '#FFFFFF', borderColor: isCompleted || isCurrent ? '#111827' : '#D1D5DB', borderWidth: 2, zIndex: 1, marginTop: 2 }} />
                                                                 </View>
-                                                                <View style={{ flex: 1, paddingLeft: 10, paddingBottom: 15, flexDirection: 'row', alignItems: 'flex-start' }}>
-                                                                    <Text style={{ fontSize: 14, color: isCompleted || isCurrent ? '#111827' : '#6B7280', fontWeight: isCurrent ? 'bold' : 'normal' }}>{step.text}</Text>
+                                                                <View style={{ flex: 1, paddingLeft: 10, paddingBottom: 12, flexDirection: 'row', alignItems: 'flex-start' }}>
+                                                                    <Text style={{ fontSize: 12, color: isCompleted || isCurrent ? '#111827' : '#6B7280', fontWeight: isCurrent ? 'bold' : 'normal' }}>{step.text}</Text>
                                                                 </View>
                                                             </View>
                                                         );
