@@ -1,3 +1,4 @@
+import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 import { Project, Task, TaskStatus, TemplateBlock } from '@/db/schema';
 import dayjs from 'dayjs';
@@ -39,130 +40,155 @@ const styles = StyleSheet.create({
 });
 
 // ─── HTML → react-pdf renderer ───────────────────────────────────────────────
-// Parses a subset of HTML produced by Tiptap and renders it as @react-pdf/renderer primitives.
+// Uses DOMParser (available in Electron) to build a proper DOM tree, then
+// recursively converts it to @react-pdf/renderer primitives.
 // Falls back to legacy markdown parsing for old tasks that still contain Markdown text.
 
 const isHtmlContent = (text: string): boolean => /^\s*<[a-z][\s\S]*>/i.test(text);
 
-interface RenderCtx { fontSize: number }
+interface RenderCtx { fontSize: number; indent?: number }
 
-function renderInlineHtml(html: string, ctx: RenderCtx) {
-    // Very small inline parser: handles <strong>, <em>, <s>, <code>
-    const parts: React.ReactNode[] = [];
-    const re = /<(strong|em|s|code)>([\s\S]*?)<\/\1>|([^<]+)/g;
-    let m: RegExpExecArray | null;
-    let idx = 0;
-    while ((m = re.exec(html)) !== null) {
-        if (m[3] !== undefined) {
-            // Plain text
-            parts.push(<Text key={idx++}>{m[3]}</Text>);
-        } else {
-            const tag = m[1];
-            const inner = m[2];
-            if (tag === 'strong') parts.push(<Text key={idx++} style={{ fontWeight: 'bold', color: '#111827' }}>{inner}</Text>);
-            else if (tag === 'em') parts.push(<Text key={idx++} style={{ fontStyle: 'italic' }}>{inner}</Text>);
-            else if (tag === 's') parts.push(<Text key={idx++} style={{ textDecoration: 'line-through', opacity: 0.65 }}>{inner}</Text>);
-            else if (tag === 'code') parts.push(<Text key={idx++} style={{ fontFamily: 'Courier', fontSize: ctx.fontSize - 1, backgroundColor: '#F3F4F6' }}>{inner}</Text>);
-            else parts.push(<Text key={idx++}>{inner}</Text>);
+/** Render inline child nodes of an element (text, strong, em, s, code) */
+function renderInlineChildren(node: Element, ctx: RenderCtx): React.ReactNode[] {
+    const result: React.ReactNode[] = [];
+    node.childNodes.forEach((child, i) => {
+        if (child.nodeType === Node.TEXT_NODE) {
+            const t = child.textContent || '';
+            if (t) result.push(<React.Fragment key={i}>{t}</React.Fragment>);
+            return;
         }
-    }
-    return parts;
+        if (child.nodeType !== Node.ELEMENT_NODE) return;
+        const el = child as Element;
+        const tag = el.tagName.toLowerCase();
+        const text = el.textContent || '';
+        if (tag === 'strong') result.push(<Text key={i} style={{ fontWeight: 'bold', color: '#111827' }}>{renderInlineChildren(el, ctx)}</Text>);
+        else if (tag === 'em') result.push(<Text key={i} style={{ fontStyle: 'italic' }}>{text}</Text>);
+        else if (tag === 's') result.push(<Text key={i} style={{ textDecoration: 'line-through', opacity: 0.65 }}>{text}</Text>);
+        else if (tag === 'code') result.push(<Text key={i} style={{ fontFamily: 'Courier', fontSize: ctx.fontSize - 1 }}>{text}</Text>);
+        else result.push(<React.Fragment key={i}>{renderInlineChildren(el, ctx)}</React.Fragment>);
+    });
+    return result;
 }
 
-function renderHtmlNodes(html: string, ctx: RenderCtx): React.ReactNode[] {
-    const nodes: React.ReactNode[] = [];
-    // Strip outer wrapper if Tiptap wraps in <div>
-    const body = html.replace(/^<div[^>]*>([\s\S]*)<\/div>$/i, '$1').trim();
+/** Render a list (ul / ol) element, supports nesting */
+function renderList(el: Element, ctx: RenderCtx, outerKey: number): React.ReactNode {
+    const isOl = el.tagName.toLowerCase() === 'ol';
+    const isTask = el.getAttribute('data-type') === 'taskList';
+    const indent = ctx.indent ?? 0;
+    const items: React.ReactNode[] = [];
+    let counter = 0;
 
-    // Match block-level elements
-    const blockRe = /<(h[1-3]|p|ul|ol|blockquote|pre|hr)([^>]*)>([\s\S]*?)<\/\1>|<hr\s*\/?>/gi;
-    let m: RegExpExecArray | null;
-    let key = 0;
+    el.children && Array.from(el.children).forEach((li, i) => {
+        if (li.tagName.toLowerCase() !== 'li') return;
+        counter++;
 
-    while ((m = blockRe.exec(body)) !== null) {
-        const tag = m[1]?.toLowerCase();
-        const inner = m[3] || '';
-
-        if (tag === 'h1') {
-            nodes.push(
-                <Text key={key++} style={{ fontSize: ctx.fontSize + 8, fontWeight: 'bold', color: '#111827', marginTop: ctx.fontSize * 0.5, marginBottom: ctx.fontSize * 0.2 }}>
-                    {inner.replace(/<[^>]+>/g, '')}
-                </Text>
-            );
-        } else if (tag === 'h2') {
-            nodes.push(
-                <Text key={key++} style={{ fontSize: ctx.fontSize + 4, fontWeight: 'bold', color: '#111827', marginTop: ctx.fontSize * 0.4, marginBottom: ctx.fontSize * 0.2 }}>
-                    {inner.replace(/<[^>]+>/g, '')}
-                </Text>
-            );
-        } else if (tag === 'h3') {
-            nodes.push(
-                <Text key={key++} style={{ fontSize: ctx.fontSize + 1, fontWeight: 'bold', color: '#1f2937', marginTop: ctx.fontSize * 0.3, marginBottom: ctx.fontSize * 0.2 }}>
-                    {inner.replace(/<[^>]+>/g, '')}
-                </Text>
-            );
-        } else if (tag === 'p') {
-            const trimmed = inner.trim();
-            if (!trimmed) {
-                nodes.push(<View key={key++} style={{ height: ctx.fontSize * 0.3 }} />);
-            } else {
-                nodes.push(
-                    <Text key={key++} style={{ fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.25, marginBottom: ctx.fontSize * 0.2 }}>
-                        {renderInlineHtml(inner, ctx)}
-                    </Text>
-                );
+        // Separate direct inline/paragraph content from nested lists
+        const directNodes: Node[] = [];
+        const nestedLists: Element[] = [];
+        li.childNodes.forEach(c => {
+            if (c.nodeType === Node.ELEMENT_NODE) {
+                const tag = (c as Element).tagName.toLowerCase();
+                if (tag === 'ul' || tag === 'ol') { nestedLists.push(c as Element); return; }
             }
-        } else if (tag === 'ul' || tag === 'ol') {
-            // Check if it's a task list
-            const isTask = inner.includes('data-type="taskItem"') || inner.includes('data-checked');
-            const liRe = /<li([^>]*)>([\s\S]*?)<\/li>/gi;
-            let li: RegExpExecArray | null;
-            let liIdx = 0;
-            while ((li = liRe.exec(inner)) !== null) {
-                const liAttrs = li[1];
-                const liContent = li[2].replace(/<[^>]*label[^>]*>[\s\S]*?<\/label>/gi, ''); // strip checkbox label
-                const plainText = liContent.replace(/<[^>]+>/g, '').trim();
-                const isChecked = /data-checked="true"/.test(liAttrs);
+            directNodes.push(c);
+        });
 
-                if (isTask) {
-                    nodes.push(
-                        <View key={key++} style={{ flexDirection: 'row', marginBottom: ctx.fontSize * 0.1, paddingLeft: 4 }}>
-                            <Text style={{ width: 16, fontSize: ctx.fontSize, color: isChecked ? '#4F46E5' : '#D1D5DB' }}>{isChecked ? '☑' : '☐'}</Text>
-                            <Text style={{ flex: 1, fontSize: ctx.fontSize, color: isChecked ? '#9CA3AF' : '#4B5563', lineHeight: 1.2, textDecoration: isChecked ? 'line-through' : 'none' }}>{plainText}</Text>
-                        </View>
-                    );
-                } else {
-                    const bullet = tag === 'ul' ? '•' : `${++liIdx}.`;
-                    nodes.push(
-                        <View key={key++} style={{ flexDirection: 'row', marginBottom: ctx.fontSize * 0.1, paddingLeft: 12 }}>
-                            <Text style={{ width: tag === 'ul' ? 12 : 18, fontSize: ctx.fontSize, color: '#4B5563' }}>{bullet}</Text>
-                            <Text style={{ flex: 1, fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.2 }}>
-                                {renderInlineHtml(liContent.replace(/<\/?p>/g, ''), ctx)}
-                            </Text>
-                        </View>
-                    );
-                }
-            }
-        } else if (tag === 'blockquote') {
-            nodes.push(
-                <View key={key++} style={{ borderLeftWidth: 2, borderLeftColor: '#D1D5DB', paddingLeft: 8, marginVertical: ctx.fontSize * 0.2 }}>
-                    <Text style={{ fontSize: ctx.fontSize - 1, color: '#6B7280', fontStyle: 'italic' }}>
-                        {inner.replace(/<[^>]+>/g, '')}
-                    </Text>
+        // Build a temporary element to extract inline content
+        const tempEl = document.createElement('span');
+        directNodes.forEach(n => tempEl.appendChild(n.cloneNode(true)));
+
+        if (isTask) {
+            const checked = li.getAttribute('data-checked') === 'true';
+            const content = tempEl.textContent?.trim() || '';
+            items.push(
+                <View key={i} style={{ flexDirection: 'row', marginBottom: ctx.fontSize * 0.1, paddingLeft: indent * 12 + 4 }}>
+                    <Text style={{ width: 16, fontSize: ctx.fontSize, color: checked ? '#4F46E5' : '#9CA3AF' }}>{checked ? '☑' : '☐'}</Text>
+                    <Text style={{ flex: 1, fontSize: ctx.fontSize, color: checked ? '#9CA3AF' : '#4B5563', lineHeight: 1.2, textDecoration: checked ? 'line-through' : 'none' }}>{content}</Text>
                 </View>
             );
-        } else if (tag === 'pre') {
-            nodes.push(
-                <View key={key++} style={{ backgroundColor: '#F3F4F6', padding: 6, borderRadius: 4, marginVertical: ctx.fontSize * 0.2 }}>
-                    <Text style={{ fontSize: ctx.fontSize - 2, fontFamily: 'Courier', color: '#374151' }}>
-                        {inner.replace(/<[^>]+>/g, '')}
-                    </Text>
+        } else {
+            const bullet = isOl ? `${counter}.` : '•';
+            const bulletWidth = isOl ? 20 : 12;
+            items.push(
+                <View key={i}>
+                    <View style={{ flexDirection: 'row', marginBottom: ctx.fontSize * 0.05, paddingLeft: indent * 12 + 8 }}>
+                        <Text style={{ width: bulletWidth, fontSize: ctx.fontSize, color: '#4B5563' }}>{bullet}</Text>
+                        <Text style={{ flex: 1, fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.2 }}>
+                            {renderInlineChildren(tempEl, ctx)}
+                        </Text>
+                    </View>
+                    {nestedLists.map((nested, j) => (
+                        <React.Fragment key={`n-${j}`}>
+                            {renderList(nested, { ...ctx, indent: indent + 1 }, j)}
+                        </React.Fragment>
+                    ))}
                 </View>
             );
-        } else if (tag === 'hr' || m[0] === '<hr>') {
-            nodes.push(<View key={key++} style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginVertical: ctx.fontSize * 0.3 }} />);
         }
+    });
+    return <View key={outerKey}>{items}</View>;
+}
+
+/** Render a single block element */
+function renderBlockEl(el: Element, ctx: RenderCtx, key: number): React.ReactNode | null {
+    const tag = el.tagName.toLowerCase();
+
+    if (tag === 'h1') return (
+        <Text key={key} style={{ fontSize: ctx.fontSize + 8, fontWeight: 'bold', color: '#111827', marginTop: ctx.fontSize * 0.5, marginBottom: ctx.fontSize * 0.2 }}>
+            {renderInlineChildren(el, ctx)}
+        </Text>
+    );
+    if (tag === 'h2') return (
+        <Text key={key} style={{ fontSize: ctx.fontSize + 4, fontWeight: 'bold', color: '#111827', marginTop: ctx.fontSize * 0.4, marginBottom: ctx.fontSize * 0.2 }}>
+            {renderInlineChildren(el, ctx)}
+        </Text>
+    );
+    if (tag === 'h3') return (
+        <Text key={key} style={{ fontSize: ctx.fontSize + 1, fontWeight: 'bold', color: '#1f2937', marginTop: ctx.fontSize * 0.3, marginBottom: ctx.fontSize * 0.2 }}>
+            {renderInlineChildren(el, ctx)}
+        </Text>
+    );
+    if (tag === 'p') {
+        if (!el.textContent?.trim()) return <View key={key} style={{ height: ctx.fontSize * 0.3 }} />;
+        return (
+            <Text key={key} style={{ fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.25, marginBottom: ctx.fontSize * 0.2 }}>
+                {renderInlineChildren(el, ctx)}
+            </Text>
+        );
     }
+    if (tag === 'ul' || tag === 'ol') return renderList(el, ctx, key);
+    if (tag === 'blockquote') return (
+        <View key={key} style={{ borderLeftWidth: 2, borderLeftColor: '#D1D5DB', paddingLeft: 8, marginVertical: ctx.fontSize * 0.2 }}>
+            <Text style={{ fontSize: ctx.fontSize - 1, color: '#6B7280', fontStyle: 'italic' }}>{el.textContent}</Text>
+        </View>
+    );
+    if (tag === 'pre') return (
+        <View key={key} style={{ backgroundColor: '#F3F4F6', padding: 6, borderRadius: 4, marginVertical: ctx.fontSize * 0.2 }}>
+            <Text style={{ fontSize: ctx.fontSize - 2, fontFamily: 'Courier', color: '#374151' }}>{el.textContent}</Text>
+        </View>
+    );
+    if (tag === 'hr') return <View key={key} style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginVertical: ctx.fontSize * 0.3 }} />;
+
+    // Fallback: try to render as paragraph
+    const text = el.textContent?.trim();
+    if (text) return <Text key={key} style={{ fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.25 }}>{text}</Text>;
+    return null;
+}
+
+/** Parse HTML string via DOMParser and render to react-pdf nodes */
+function renderHtmlNodes(html: string, ctx: RenderCtx): React.ReactNode[] {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const nodes: React.ReactNode[] = [];
+    let key = 0;
+    doc.body.childNodes.forEach(node => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const result = renderBlockEl(node as Element, ctx, key++);
+            if (result) nodes.push(result);
+        } else if (node.nodeType === Node.TEXT_NODE) {
+            const t = node.textContent?.trim();
+            if (t) nodes.push(<Text key={key++} style={{ fontSize: ctx.fontSize, color: '#4B5563' }}>{t}</Text>);
+        }
+    });
     return nodes;
 }
 
