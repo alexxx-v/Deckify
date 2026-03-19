@@ -38,8 +38,138 @@ const styles = StyleSheet.create({
     roadmapBar: { position: 'absolute', height: 12, top: 4, backgroundColor: '#4F46E5', borderRadius: 4 }
 });
 
+// ─── HTML → react-pdf renderer ───────────────────────────────────────────────
+// Parses a subset of HTML produced by Tiptap and renders it as @react-pdf/renderer primitives.
+// Falls back to legacy markdown parsing for old tasks that still contain Markdown text.
+
+const isHtmlContent = (text: string): boolean => /^\s*<[a-z][\s\S]*>/i.test(text);
+
+interface RenderCtx { fontSize: number }
+
+function renderInlineHtml(html: string, ctx: RenderCtx) {
+    // Very small inline parser: handles <strong>, <em>, <s>, <code>
+    const parts: React.ReactNode[] = [];
+    const re = /<(strong|em|s|code)>([\s\S]*?)<\/\1>|([^<]+)/g;
+    let m: RegExpExecArray | null;
+    let idx = 0;
+    while ((m = re.exec(html)) !== null) {
+        if (m[3] !== undefined) {
+            // Plain text
+            parts.push(<Text key={idx++}>{m[3]}</Text>);
+        } else {
+            const tag = m[1];
+            const inner = m[2];
+            if (tag === 'strong') parts.push(<Text key={idx++} style={{ fontWeight: 'bold', color: '#111827' }}>{inner}</Text>);
+            else if (tag === 'em') parts.push(<Text key={idx++} style={{ fontStyle: 'italic' }}>{inner}</Text>);
+            else if (tag === 's') parts.push(<Text key={idx++} style={{ textDecoration: 'line-through', opacity: 0.65 }}>{inner}</Text>);
+            else if (tag === 'code') parts.push(<Text key={idx++} style={{ fontFamily: 'Courier', fontSize: ctx.fontSize - 1, backgroundColor: '#F3F4F6' }}>{inner}</Text>);
+            else parts.push(<Text key={idx++}>{inner}</Text>);
+        }
+    }
+    return parts;
+}
+
+function renderHtmlNodes(html: string, ctx: RenderCtx): React.ReactNode[] {
+    const nodes: React.ReactNode[] = [];
+    // Strip outer wrapper if Tiptap wraps in <div>
+    const body = html.replace(/^<div[^>]*>([\s\S]*)<\/div>$/i, '$1').trim();
+
+    // Match block-level elements
+    const blockRe = /<(h[1-3]|p|ul|ol|blockquote|pre|hr)([^>]*)>([\s\S]*?)<\/\1>|<hr\s*\/?>/gi;
+    let m: RegExpExecArray | null;
+    let key = 0;
+
+    while ((m = blockRe.exec(body)) !== null) {
+        const tag = m[1]?.toLowerCase();
+        const inner = m[3] || '';
+
+        if (tag === 'h1') {
+            nodes.push(
+                <Text key={key++} style={{ fontSize: ctx.fontSize + 8, fontWeight: 'bold', color: '#111827', marginTop: ctx.fontSize * 0.5, marginBottom: ctx.fontSize * 0.2 }}>
+                    {inner.replace(/<[^>]+>/g, '')}
+                </Text>
+            );
+        } else if (tag === 'h2') {
+            nodes.push(
+                <Text key={key++} style={{ fontSize: ctx.fontSize + 4, fontWeight: 'bold', color: '#111827', marginTop: ctx.fontSize * 0.4, marginBottom: ctx.fontSize * 0.2 }}>
+                    {inner.replace(/<[^>]+>/g, '')}
+                </Text>
+            );
+        } else if (tag === 'h3') {
+            nodes.push(
+                <Text key={key++} style={{ fontSize: ctx.fontSize + 1, fontWeight: 'bold', color: '#1f2937', marginTop: ctx.fontSize * 0.3, marginBottom: ctx.fontSize * 0.2 }}>
+                    {inner.replace(/<[^>]+>/g, '')}
+                </Text>
+            );
+        } else if (tag === 'p') {
+            const trimmed = inner.trim();
+            if (!trimmed) {
+                nodes.push(<View key={key++} style={{ height: ctx.fontSize * 0.3 }} />);
+            } else {
+                nodes.push(
+                    <Text key={key++} style={{ fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.25, marginBottom: ctx.fontSize * 0.2 }}>
+                        {renderInlineHtml(inner, ctx)}
+                    </Text>
+                );
+            }
+        } else if (tag === 'ul' || tag === 'ol') {
+            // Check if it's a task list
+            const isTask = inner.includes('data-type="taskItem"') || inner.includes('data-checked');
+            const liRe = /<li([^>]*)>([\s\S]*?)<\/li>/gi;
+            let li: RegExpExecArray | null;
+            let liIdx = 0;
+            while ((li = liRe.exec(inner)) !== null) {
+                const liAttrs = li[1];
+                const liContent = li[2].replace(/<[^>]*label[^>]*>[\s\S]*?<\/label>/gi, ''); // strip checkbox label
+                const plainText = liContent.replace(/<[^>]+>/g, '').trim();
+                const isChecked = /data-checked="true"/.test(liAttrs);
+
+                if (isTask) {
+                    nodes.push(
+                        <View key={key++} style={{ flexDirection: 'row', marginBottom: ctx.fontSize * 0.1, paddingLeft: 4 }}>
+                            <Text style={{ width: 16, fontSize: ctx.fontSize, color: isChecked ? '#4F46E5' : '#D1D5DB' }}>{isChecked ? '☑' : '☐'}</Text>
+                            <Text style={{ flex: 1, fontSize: ctx.fontSize, color: isChecked ? '#9CA3AF' : '#4B5563', lineHeight: 1.2, textDecoration: isChecked ? 'line-through' : 'none' }}>{plainText}</Text>
+                        </View>
+                    );
+                } else {
+                    const bullet = tag === 'ul' ? '•' : `${++liIdx}.`;
+                    nodes.push(
+                        <View key={key++} style={{ flexDirection: 'row', marginBottom: ctx.fontSize * 0.1, paddingLeft: 12 }}>
+                            <Text style={{ width: tag === 'ul' ? 12 : 18, fontSize: ctx.fontSize, color: '#4B5563' }}>{bullet}</Text>
+                            <Text style={{ flex: 1, fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.2 }}>
+                                {renderInlineHtml(liContent.replace(/<\/?p>/g, ''), ctx)}
+                            </Text>
+                        </View>
+                    );
+                }
+            }
+        } else if (tag === 'blockquote') {
+            nodes.push(
+                <View key={key++} style={{ borderLeftWidth: 2, borderLeftColor: '#D1D5DB', paddingLeft: 8, marginVertical: ctx.fontSize * 0.2 }}>
+                    <Text style={{ fontSize: ctx.fontSize - 1, color: '#6B7280', fontStyle: 'italic' }}>
+                        {inner.replace(/<[^>]+>/g, '')}
+                    </Text>
+                </View>
+            );
+        } else if (tag === 'pre') {
+            nodes.push(
+                <View key={key++} style={{ backgroundColor: '#F3F4F6', padding: 6, borderRadius: 4, marginVertical: ctx.fontSize * 0.2 }}>
+                    <Text style={{ fontSize: ctx.fontSize - 2, fontFamily: 'Courier', color: '#374151' }}>
+                        {inner.replace(/<[^>]+>/g, '')}
+                    </Text>
+                </View>
+            );
+        } else if (tag === 'hr' || m[0] === '<hr>') {
+            nodes.push(<View key={key++} style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginVertical: ctx.fontSize * 0.3 }} />);
+        }
+    }
+    return nodes;
+}
+
+// Legacy Markdown parser (kept for backward compatibility with old tasks)
 const renderMarkdownContent = (text: string, baseFontSize = 14) => {
     if (!text) return null;
+    if (isHtmlContent(text)) return renderHtmlNodes(text, { fontSize: baseFontSize });
     const lines = text.split('\n');
     return lines.map((line, lineIdx) => {
         const trimmed = line.trim();

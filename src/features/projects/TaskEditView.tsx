@@ -8,7 +8,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import MDEditor from '@uiw/react-md-editor';
+import { RichTextEditor } from '@/components/RichTextEditor';
 
 function SortableStepItem({ step, onUpdate, onDelete, t }: { step: TaskStep, onUpdate: (step: TaskStep) => void, onDelete: () => void, t: any }) {
     const {
@@ -165,16 +165,13 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                             />
                         </div>
 
-                        <div data-color-mode="light" className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2">
                             <label className="text-sm font-semibold block">{t('taskEdit.descriptionLabel')}</label>
                             <div className="border rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 transition-shadow">
-                                <MDEditor
+                                <RichTextEditor
                                     value={editDescription}
-                                    onChange={(val) => setEditDescription(val || '')}
-                                    height={560}
-                                    preview="edit"
-                                    className="!border-0"
-                                    visibleDragbar={false}
+                                    onChange={setEditDescription}
+                                    minHeight={256}
                                 />
                             </div>
                         </div>
