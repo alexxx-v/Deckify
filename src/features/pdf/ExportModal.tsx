@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { Project, Task } from '@/db/schema';
+import { Project, Task, db, ExportTemplate } from '@/db/schema';
 import { pdf } from '@react-pdf/renderer';
 import { ProjectPresentation } from './ProjectPresentation';
+import { DynamicPdfRenderer } from './DynamicPdfRenderer';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 
@@ -26,6 +27,17 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
 
     const [periodText, setPeriodText] = useState(`${project.name} ${currentMonth} ${currentYear}`);
     const [isGenerating, setIsGenerating] = useState(false);
+
+    const [templates, setTemplates] = useState<ExportTemplate[]>([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+
+    useEffect(() => {
+        const loaded = db.templates.toArray() as ExportTemplate[];
+        setTemplates(loaded);
+        if (loaded.length > 0) {
+            setSelectedTemplateId(loaded[0].id);
+        }
+    }, []);
 
     useEffect(() => {
         let p = '';
@@ -65,7 +77,11 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
                 return tStart.isBefore(rangeEnd) && tEnd.isAfter(rangeStart);
             });
 
-            const doc = <ProjectPresentation project={project} tasks={filteredTasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} />;
+            const template = templates.find(t => t.id === selectedTemplateId);
+            const doc = template
+                ? <DynamicPdfRenderer project={project} tasks={filteredTasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} blocksJson={template.blocks} />
+                : <ProjectPresentation project={project} tasks={filteredTasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} />;
+
             const asPdf = pdf();
             asPdf.updateContainer(doc);
             const blob = await asPdf.toBlob();
@@ -159,7 +175,22 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
                             placeholder={t('export.titlePlaceholder')}
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
-                        <p className="text-xs text-muted-foreground mt-1">{t('export.titleHint')}</p>
+                        <p className="text-xs text-muted-foreground mt-1 mb-4">{t('export.titleHint')}</p>
+
+                        {templates.length > 0 && (
+                            <>
+                                <label className="block text-sm font-medium mb-1">{t('templates.select') || 'Select Template'}</label>
+                                <select
+                                    value={selectedTemplateId}
+                                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    {templates.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                            </>
+                        )}
                     </div>
 
                     <div className="bg-muted p-4 rounded-lg flex gap-3 text-sm mt-4">

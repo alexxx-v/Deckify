@@ -236,6 +236,10 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                 <Text style={styles.header}>{i18n.t('pdf.progressOverview')}</Text>
                 <View style={styles.statsContainer}>
                     <View style={styles.statBox}>
+                        <Text style={styles.statNumber}>{totalTasks}</Text>
+                        <Text style={styles.statLabel}>{i18n.t('pdf.totalTasks')}</Text>
+                    </View>
+                    <View style={styles.statBox}>
                         <Text style={styles.statNumber}>{overallProgress}%</Text>
                         <Text style={styles.statLabel}>{i18n.t('pdf.overallCompletion')}</Text>
                     </View>
@@ -244,8 +248,12 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                         <Text style={styles.statLabel}>{i18n.t('pdf.tasksCompleted')}</Text>
                     </View>
                     <View style={styles.statBox}>
-                        <Text style={styles.statNumber}>{totalTasks - completedTasks}</Text>
+                        <Text style={styles.statNumber}>{totalTasks - completedTasks - tasks.filter(t => t.status === 'hold').length}</Text>
                         <Text style={styles.statLabel}>{i18n.t('pdf.tasksInProgress')}</Text>
+                    </View>
+                    <View style={styles.statBox}>
+                        <Text style={styles.statNumber}>{tasks.filter(t => t.status === 'hold').length}</Text>
+                        <Text style={styles.statLabel}>{i18n.t('pdf.tasksOnHold')}</Text>
                     </View>
                 </View>
                 <View style={{ marginTop: 10, flex: 1 }}>

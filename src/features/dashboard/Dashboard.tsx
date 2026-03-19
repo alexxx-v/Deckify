@@ -1,6 +1,8 @@
 import { db, useLiveQuery } from '@/db/schema';
+import { useTranslation } from 'react-i18next';
 
 export function Dashboard() {
+    const { t } = useTranslation();
     // Get all records for overall stats
     const projects = useLiveQuery(() => db.projects.toArray());
     const tasks = useLiveQuery(() => db.tasks.toArray());
@@ -17,34 +19,34 @@ export function Dashboard() {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold mb-6">Overview Dashboard</h2>
+            <h2 className="text-2xl font-bold mb-6">{t('dashboard.overviewDashboard', 'Overview Dashboard')}</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-card border rounded-xl p-6 shadow-sm flex flex-col items-center justify-center">
                     <span className="text-4xl font-bold text-indigo-600 mb-2">{totalCompanies}</span>
-                    <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Total Projects</span>
+                    <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">{t('dashboard.totalProjects', 'Total Projects')}</span>
                 </div>
 
                 <div className="bg-card border rounded-xl p-6 shadow-sm flex flex-col items-center justify-center">
                     <span className="text-4xl font-bold text-indigo-600 mb-2">{totalTasks}</span>
-                    <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Total Tasks</span>
+                    <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">{t('dashboard.totalTasks', 'Total Tasks')}</span>
                 </div>
 
                 <div className="bg-card border rounded-xl p-6 shadow-sm flex flex-col items-center justify-center">
                     <span className="text-4xl font-bold text-emerald-600 mb-2">{completedTasksStr}</span>
-                    <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Completed Tasks</span>
+                    <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">{t('dashboard.completedTasks', 'Completed Tasks')}</span>
                 </div>
 
                 <div className="bg-card border rounded-xl p-6 shadow-sm flex flex-col items-center justify-center">
                     <span className="text-4xl font-bold text-indigo-600 mb-2">{overallProgress}%</span>
-                    <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Average Progress</span>
+                    <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">{t('dashboard.averageProgress', 'Average Progress')}</span>
                 </div>
             </div>
 
             <div className="bg-card border rounded-xl p-6 shadow-sm mt-8">
-                <h3 className="text-lg font-semibold mb-4">Recent Projects</h3>
+                <h3 className="text-lg font-semibold mb-4">{t('dashboard.recentProjects', 'Recent Projects')}</h3>
                 {projects?.length === 0 ? (
-                    <p className="text-muted-foreground">No projects added yet.</p>
+                    <p className="text-muted-foreground">{t('dashboard.noProjectsAdded', 'No projects added yet.')}</p>
                 ) : (
                     <div className="space-y-3">
                         {projects?.slice(-5).reverse().map((p: any) => {
@@ -60,7 +62,7 @@ export function Dashboard() {
                                         <span className="sm:hidden text-xs text-muted-foreground">{pCompleted}/{pTotal}</span>
                                     </div>
                                     <div className="flex items-center gap-4 text-sm w-full sm:w-auto">
-                                        <div className="hidden sm:block text-muted-foreground tabular-nums">{pCompleted}/{pTotal} tasks</div>
+                                        <div className="hidden sm:block text-muted-foreground tabular-nums">{pCompleted}/{pTotal} {t('dashboard.tasks', 'tasks')}</div>
                                         <div className="flex-1 sm:w-32 h-2.5 bg-secondary rounded-full overflow-hidden">
                                             <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${avgProgress}%` }}></div>
                                         </div>

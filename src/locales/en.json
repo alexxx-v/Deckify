@@ -2,6 +2,7 @@
     "sidebar": {
         "dashboard": "Dashboard",
         "projects": "Projects",
+        "templates": "Templates",
         "settings": "Settings"
     },
     "dashboard": {
@@ -12,7 +13,13 @@
         "totalTasks": "Total Tasks",
         "completed": "Completed",
         "recentProjects": "Recent Projects",
-        "viewAll": "View All"
+        "viewAll": "View All",
+        "overviewDashboard": "Overview Dashboard",
+        "totalProjects": "Total Projects",
+        "completedTasks": "Completed Tasks",
+        "averageProgress": "Average Progress",
+        "noProjectsAdded": "No projects added yet.",
+        "tasks": "tasks"
     },
     "projects": {
         "title": "Projects",
@@ -101,6 +108,8 @@
         "overallCompletion": "Overall Completion",
         "tasksCompleted": "Tasks Completed",
         "tasksInProgress": "Tasks in Progress",
+        "totalTasks": "Total Tasks",
+        "tasksOnHold": "Tasks on Hold",
         "taskPrefix": "Task",
         "startDate": "Start Date",
         "duration": "Duration",
@@ -118,5 +127,45 @@
         "backlog": "BACKLOG",
         "steps": "Task Steps",
         "currentStep": "current step"
+    },
+    "templates": {
+        "title": "Report Templates",
+        "createTemplate": "Create Template",
+        "noTemplates": "No templates yet. Create your first template.",
+        "templateName": "Template Name",
+        "deleteConfirm": "Are you sure you want to delete this template?",
+        "blocks": "Available Blocks",
+        "canvas": "Template Layout",
+        "properties": "Properties",
+        "addBlock": "Add Block",
+        "save": "Save Template",
+        "saving": "Saving...",
+        "saved": "Saved!",
+        "savedNotification": "Template saved successfully",
+        "deleteTemplate": "Delete",
+        "select": "Select Template",
+        "block_TITLE_PAGE": "Title Page",
+        "block_STATS": "Statistics",
+        "block_TASKS_LIST": "Tasks Summary List",
+        "block_TASK_DETAIL": "Task Details Pages",
+        "block_ROADMAP": "Project Roadmap",
+        "block_TEXT": "Text Block",
+        "prop_showSubtitle": "Show Subtitle",
+        "prop_showCompleted": "Show completed count",
+        "prop_showProgress": "Show overall progress",
+        "prop_showTotalTasks": "Show 'Total Tasks'",
+        "prop_showInProgress": "Show 'Tasks in Progress'",
+        "prop_showHoldTasks": "Show 'Tasks on Hold'",
+        "prop_includeDescription": "Include descriptions",
+        "prop_includeSteps": "Include task steps",
+        "prop_textTitle": "Block Title",
+        "prop_textContent": "Block Content",
+        "prop_dateRange": "Timeline Range",
+        "dateRange_export": "Same as export period",
+        "dateRange_month": "Month",
+        "dateRange_quarter": "Quarter",
+        "dateRange_year": "Year",
+        "dateRange_hint": "Determines the date range displayed on the roadmap timeline. 'Same as export period' uses the dates selected in the export dialog.",
+        "defaultTemplate": "Default Template"
     }
 }
