@@ -186,7 +186,6 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
         setIsEditingProjectName(true);
     };
 
-
     if (!project) return <div>Loading project...</div>;
 
     return (
@@ -194,7 +193,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
             <div className="flex flex-col gap-6">
                 {/* Header Row: Title & Primary Actions */}
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         <Button variant="outline" size="icon" onClick={onBack} className="shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                         </Button>

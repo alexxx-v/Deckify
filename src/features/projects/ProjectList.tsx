@@ -22,14 +22,13 @@ export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
         setNewProjectName('');
     };
 
-    const deleteProject = async (e: React.MouseEvent, id: string) => {
+    const deleteProject = async (e: React.MouseEvent, id: string, name: string) => {
         e.stopPropagation();
-        if (confirm('Are you sure you want to delete this project? All associated tasks will be removed as well.')) {
-            await db.projects.delete(id);
-            // CASCADE DELETE TASKS:
+        if (confirm(t('tasks.deleteProjectConfirm', { name }))) {
             const tasksToDelete = await db.tasks.where('projectId').equals(id).toArray() as any[];
             const taskIds = tasksToDelete.map((t: any) => t.id);
-            await db.tasks.bulkDelete(taskIds);
+            if (taskIds.length > 0) await db.tasks.bulkDelete(taskIds);
+            await db.projects.delete(id);
         }
     }
 
@@ -67,7 +66,7 @@ export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
                         <div
                             key={project.id}
                             onClick={() => onSelect(project.id)}
-                            className="bg-card border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between group"
+                            className="relative bg-card border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between group"
                         >
                             <h3 className="font-medium text-lg mb-1 pr-8">{project.name}</h3>
                             <p className="text-xs text-muted-foreground">
@@ -75,9 +74,9 @@ export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
                             </p>
 
                             <button
-                                onClick={(e) => deleteProject(e, project.id)}
-                                className="absolute top-4 right-4 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Delete Project"
+                                onClick={(e) => deleteProject(e, project.id, project.name)}
+                                className="absolute top-4 right-4 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10"
+                                title={t('tasks.deleteProject')}
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
                             </button>

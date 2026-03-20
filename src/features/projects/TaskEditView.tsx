@@ -110,6 +110,13 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
 
     const [saved, setSaved] = useState(false);
 
+    const handleDeleteTask = async () => {
+        if (window.confirm(t('taskEdit.deleteTaskConfirm'))) {
+            await db.tasks.delete(taskId);
+            onBack();
+        }
+    };
+
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editTitle.trim()) return;
@@ -148,6 +155,10 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                     <h2 className="text-2xl font-bold tracking-tight">{t('taskEdit.editTask')}</h2>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Button type="button" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleDeleteTask}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                        {t('taskEdit.deleteTask')}
+                    </Button>
                     <Button type="button" variant="ghost" onClick={onBack}>{t('taskEdit.cancel')}</Button>
                     <Button
                         type="submit"

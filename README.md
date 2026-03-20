@@ -13,9 +13,10 @@ A local-first application built with React, Vite, and Electron that allows users
 ## Features
 - **Sidebar Navigation**: Quickly switch between the Dashboard, Projects List, and Settings.
 - **Overview Dashboard**: View high-level statistics of your total projects, task counts, and average completion rate.
-- **Project Management**: Create and delete workspaces (projects).
+- **Project Management**: Create and delete workspaces (projects). Deleting a project also removes all its tasks; a confirmation prompt is shown before deletion.
 - **Task Tracking**:
   - Add tasks via a dedicated modal interface with title, description, start date, and duration.
+  - Delete tasks safely via a confirmation prompt within the task edit view.
   - **Dual Views**: Toggle seamlessly between a tabular 'List' view (with built-in pagination) and a beautiful interactive 'Roadmap' timeline view.
   - Dynamically update real-time progress using interactive sliders from the list.
   - Comprehensive task editing via a dedicated, full-width page featuring a two-column layout that separates the main content (description, steps) from metadata. The description field uses a Tiptap rich-text editor with a custom toolbar (headings, bold, italic, lists, task-list, blockquote, code). The editor auto-resizes to fit content with a minimum height of 256px. Descriptions are stored as HTML and rendered correctly in both the app and PDF exports.
