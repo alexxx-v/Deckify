@@ -108,6 +108,8 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
         }
     }, [task]);
 
+    const [saved, setSaved] = useState(false);
+
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editTitle.trim()) return;
@@ -129,7 +131,8 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
             steps: JSON.stringify(editSteps)
         });
 
-        onBack();
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
     };
 
     if (!task) return <div>Loading...</div>;
@@ -146,7 +149,18 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                 </div>
                 <div className="flex items-center gap-3">
                     <Button type="button" variant="ghost" onClick={onBack}>{t('taskEdit.cancel')}</Button>
-                    <Button type="submit" form="task-edit-form" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm ring-1 ring-indigo-600/20">{t('taskEdit.submitSave')}</Button>
+                    <Button
+                        type="submit"
+                        form="task-edit-form"
+                        className={`shadow-sm ring-1 transition-all text-white ${saved ? 'bg-green-600 hover:bg-green-700 ring-green-600/20' : 'bg-indigo-600 hover:bg-indigo-700 ring-indigo-600/20'}`}
+                    >
+                        {saved ? (
+                            <span className="flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                {t('taskEdit.saved', 'Сохранено')}
+                            </span>
+                        ) : t('taskEdit.submitSave')}
+                    </Button>
                 </div>
             </div>
 
