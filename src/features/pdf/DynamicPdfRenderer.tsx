@@ -450,7 +450,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                                                             <View key={step.id || stepIdx} style={{ flexDirection: 'row' }} wrap={false}>
                                                                 <View style={{ width: 20, alignItems: 'center', position: 'relative' }}>
                                                                     <Text style={{ position: 'absolute', left: -25, top: 0, fontSize: 11, fontWeight: 'bold', color: isCompleted || isCurrent ? '#111827' : '#9CA3AF' }}>{(stepIdx + 1).toString().padStart(2, '0')}</Text>
-                                                                    {!isLast && <View style={{ position: 'absolute', top: 12, bottom: -4, width: 2, backgroundColor: isCompleted ? '#111827' : '#E5E7EB', zIndex: 0 }} />}
+                                                                    {!isLast && <View style={{ position: 'absolute', top: 16, bottom: -4, width: 2, backgroundColor: isCompleted ? '#111827' : '#E5E7EB', zIndex: 0 }} />}
                                                                     <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: isCompleted || isCurrent ? '#111827' : '#FFFFFF', borderColor: isCompleted || isCurrent ? '#111827' : '#D1D5DB', borderWidth: 2, zIndex: 1, marginTop: 2 }} />
                                                                 </View>
                                                                 <View style={{ flex: 1, paddingLeft: 10, paddingBottom: 12, flexDirection: 'row', alignItems: 'flex-start' }}>
