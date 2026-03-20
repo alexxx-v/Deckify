@@ -7,7 +7,7 @@ A local-first application built with React, Vite, and Electron that allows users
 -   **Styling**: Tailwind CSS, shadcn/ui components
 -   **Desktop Wrapper**: Electron.js
 -   **Storage**: Local-First via IndexedDB (Dexie.js). Designed with a Data Access Layer to easily migrate to PostgreSQL later.
--   **Rich Text Editor**: Tiptap (ProseMirror-based), with a custom toolbar. Task descriptions are stored as HTML.
+-   **Rich Text Editor**: Tiptap (ProseMirror-based), with a custom toolbar. Used in both task description editing and in PDF template TEXT blocks. Content is stored as HTML.
 -   **PDF Generation**: `@react-pdf/renderer` for declarative, vector-based PDF generation directly in the browser/app.
 
 ## Features
@@ -20,7 +20,7 @@ A local-first application built with React, Vite, and Electron that allows users
   - Dynamically update real-time progress using interactive sliders from the list.
   - Comprehensive task editing via a dedicated, full-width page featuring a two-column layout that separates the main content (description, steps) from metadata. The description field uses a Tiptap rich-text editor with a custom toolbar (headings, bold, italic, lists, task-list, blockquote, code). The editor auto-resizes to fit content with a minimum height of 256px. Descriptions are stored as HTML and rendered correctly in both the app and PDF exports.
 - **Automated PDF Export**:
-  - **Custom Export Templates**: Create and modify reusable PDF templates using a drag-and-drop block constructor natively within the app.
+  - **Custom Export Templates**: Create and modify reusable PDF templates using a block constructor natively within the app. TEXT blocks use the Tiptap rich-text editor (same as task descriptions); content is stored as HTML and rendered in the final PDF.
   - Generates presentations with a Title, Progress Overview stats.
   - **One Slide per Task**: Automatically renders each task on a separate slide containing its timeline, progress status, and detailed description.
   - **Roadmap Visualization**: Calculates the min and max dates of all tasks and renders a time-scaled visual roadmap.

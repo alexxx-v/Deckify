@@ -431,7 +431,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                                         {hasDesc && (
                                             <View style={{ flex: showSteps ? 3 : 1, paddingRight: showSteps ? 20 : 0 }}>
                                                 <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#111827', marginBottom: 6 }}>{i18n.t('pdf.description')}</Text>
-                                                <View style={{ backgroundColor: '#F9FAFB', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                                                <View style={{ backgroundColor: '#FFFFFF', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
                                                     {renderMarkdownContent(task.description || '', descFontSize)}
                                                 </View>
                                             </View>
