@@ -313,7 +313,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
     if (block.type === 'TASKS_LIST') {
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
-                <Text style={styles.header}>{i18n.t('pdf.progressOverview')} - List</Text>
+                <Text style={styles.header}>{i18n.t('pdf.progressOverview')}</Text>
                 <View style={{ marginTop: 10, flex: 1 }}>
                     {tasks.map((task, idx) => (
                         <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center' }}>

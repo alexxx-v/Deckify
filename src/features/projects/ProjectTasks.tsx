@@ -157,7 +157,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
             description: newDescription.trim(),
             startDate: newStartDate,
             duration: calculatedDuration,
-            progress: parseInt(newProgress, 10) || 0,
+            progress: newStatus === 'done' ? 100 : (parseInt(newProgress, 10) || 0),
             status: newStatus
         });
 
@@ -297,7 +297,13 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                     <label className="text-sm font-medium mb-1 block">{t('taskEdit.status')}</label>
                                     <select
                                         value={newStatus}
-                                        onChange={(e) => setNewStatus(e.target.value as any)}
+                                        onChange={(e) => {
+                                            const status = e.target.value as any;
+                                            setNewStatus(status);
+                                            if (status === 'done') {
+                                                setNewProgress('100');
+                                            }
+                                        }}
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     >
                                         <option value="backlog">{t('taskEdit.backlog')}</option>

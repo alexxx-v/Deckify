@@ -133,7 +133,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
             description: editDescription.trim(),
             startDate: editStartDate,
             duration: calculatedDuration,
-            progress: parseInt(editProgress, 10) || 0,
+            progress: editStatus === 'done' ? 100 : (parseInt(editProgress, 10) || 0),
             status: editStatus,
             steps: JSON.stringify(editSteps)
         });
@@ -262,7 +262,13 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                             <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.status')}</label>
                             <select
                                 value={editStatus}
-                                onChange={(e) => setEditStatus(e.target.value as any)}
+                                onChange={(e) => {
+                                    const nextStatus = e.target.value as any;
+                                    setEditStatus(nextStatus);
+                                    if (nextStatus === 'done') {
+                                        setEditProgress('100');
+                                    }
+                                }}
                                 className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
                             >
                                 <option value="backlog">{t('taskEdit.backlog')}</option>
@@ -318,7 +324,8 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                                     min="0" max="100" step="5"
                                     value={editProgress}
                                     onChange={(e) => setEditProgress(e.target.value)}
-                                    className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                                    disabled={editStatus === 'done'}
+                                    className={`w-full h-2 bg-secondary rounded-lg appearance-none accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${editStatus === 'done' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                                 />
                             </div>
                         </div>
