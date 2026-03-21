@@ -193,11 +193,6 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
                         )}
                     </div>
 
-                    <div className="bg-muted p-4 rounded-lg flex gap-3 text-sm mt-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary shrink-0"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
-                        <div>{t('export.pdfHint')}</div>
-                    </div>
-
                     <div className="pt-4 flex justify-end gap-3">
                         <Button variant="outline" onClick={onClose} disabled={isGenerating}>{t('export.cancel')}</Button>
                         <Button onClick={handleExport} disabled={isGenerating}>

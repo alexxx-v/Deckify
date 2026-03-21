@@ -141,3 +141,153 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ─── Tiptap RichTextEditor ──────────────────────────────────────────────── */
+
+.rich-text-editor {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Editable area */
+.rich-text-editor__content .ProseMirror {
+  min-height: var(--rte-min-height, 256px);
+  padding: 12px 16px;
+  outline: none;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: hsl(var(--foreground));
+}
+
+/* Placeholder */
+.rich-text-editor__content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  height: 0;
+}
+
+/* Typography */
+.rich-text-editor__content .ProseMirror h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 1rem 0 0.4rem;
+  color: hsl(var(--foreground));
+  line-height: 1.3;
+}
+.rich-text-editor__content .ProseMirror h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0.85rem 0 0.35rem;
+  color: hsl(var(--foreground));
+}
+.rich-text-editor__content .ProseMirror h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.7rem 0 0.3rem;
+  color: hsl(var(--foreground));
+}
+.rich-text-editor__content .ProseMirror p {
+  margin: 0 0 0.45rem;
+}
+.rich-text-editor__content .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+.rich-text-editor__content .ProseMirror strong {
+  font-weight: 600;
+}
+.rich-text-editor__content .ProseMirror em {
+  font-style: italic;
+}
+.rich-text-editor__content .ProseMirror s {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* Code */
+.rich-text-editor__content .ProseMirror code {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+  padding: 0.15em 0.35em;
+  font-size: 0.82em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.rich-text-editor__content .ProseMirror pre {
+  background: hsl(var(--muted));
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+}
+.rich-text-editor__content .ProseMirror pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.82em;
+}
+
+/* Blockquote */
+.rich-text-editor__content .ProseMirror blockquote {
+  border-left: 3px solid hsl(var(--muted-foreground) / 0.4);
+  margin: 0.5rem 0;
+  padding-left: 12px;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+/* Lists */
+.rich-text-editor__content .ProseMirror ul,
+.rich-text-editor__content .ProseMirror ol {
+  margin: 0.3rem 0 0.5rem 1.3rem;
+  padding: 0;
+}
+.rich-text-editor__content .ProseMirror li {
+  margin-bottom: 0.15rem;
+}
+.rich-text-editor__content .ProseMirror ul {
+  list-style-type: disc;
+}
+.rich-text-editor__content .ProseMirror ol {
+  list-style-type: decimal;
+}
+
+/* Task list */
+.rich-text-editor__content .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  margin-left: 0;
+  padding: 0;
+}
+.rich-text-editor__content .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.rich-text-editor__content .ProseMirror ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.rich-text-editor__content .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #4F46E5;
+  cursor: pointer;
+}
+.rich-text-editor__content .ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+.rich-text-editor__content .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+/* HR */
+.rich-text-editor__content .ProseMirror hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 0.75rem 0;
+}
+
+/* Selection */
+.rich-text-editor__content .ProseMirror ::selection {
+  background: hsl(239 84% 67% / 0.2);
+}

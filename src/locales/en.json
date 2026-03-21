@@ -46,7 +46,9 @@
         "noTasks": "No tasks found for this timeframe.",
         "previous": "Previous",
         "next": "Next",
-        "pageOf": "Page {{current}} of {{total}}"
+        "pageOf": "Page {{current}} of {{total}}",
+        "deleteProject": "Delete Project",
+        "deleteProjectConfirm": "Are you sure you want to delete \"{{name}}\"? All tasks in this project will also be deleted. This action cannot be undone."
     },
     "taskEdit": {
         "addTask": "Add New Task",
@@ -74,7 +76,9 @@
         "steps": "Task Steps",
         "addStep": "Add Step",
         "stepPlaceholder": "Describe the step...",
-        "deleteStep": "Delete step"
+        "deleteStep": "Delete step",
+        "deleteTask": "Delete Task",
+        "deleteTaskConfirm": "Are you sure you want to delete this task? This action cannot be undone."
     },
     "export": {
         "title": "Export Presentation",

@@ -157,7 +157,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
             description: newDescription.trim(),
             startDate: newStartDate,
             duration: calculatedDuration,
-            progress: parseInt(newProgress, 10) || 0,
+            progress: newStatus === 'done' ? 100 : (parseInt(newProgress, 10) || 0),
             status: newStatus
         });
 
@@ -186,7 +186,6 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
         setIsEditingProjectName(true);
     };
 
-
     if (!project) return <div>Loading project...</div>;
 
     return (
@@ -194,7 +193,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
             <div className="flex flex-col gap-6">
                 {/* Header Row: Title & Primary Actions */}
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         <Button variant="outline" size="icon" onClick={onBack} className="shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                         </Button>
@@ -298,7 +297,13 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                                     <label className="text-sm font-medium mb-1 block">{t('taskEdit.status')}</label>
                                     <select
                                         value={newStatus}
-                                        onChange={(e) => setNewStatus(e.target.value as any)}
+                                        onChange={(e) => {
+                                            const status = e.target.value as any;
+                                            setNewStatus(status);
+                                            if (status === 'done') {
+                                                setNewProgress('100');
+                                            }
+                                        }}
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     >
                                         <option value="backlog">{t('taskEdit.backlog')}</option>

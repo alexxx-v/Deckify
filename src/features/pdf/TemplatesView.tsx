@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { db, ExportTemplate, TemplateBlock, TemplateBlockType } from '@/db/schema';
 import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
-import MDEditor from '@uiw/react-md-editor';
+import { RichTextEditor } from '@/components/RichTextEditor';
 
 const AVAILABLE_BLOCKS: { type: TemplateBlockType, defaultProps: any }[] = [
     { type: 'TITLE_PAGE', defaultProps: { showSubtitle: true } },
@@ -575,13 +575,13 @@ export function TemplatesView() {
                                                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                                             />
                                                         </div>
-                                                        <div className="space-y-2 mt-4" data-color-mode="light">
+                                                        <div className="space-y-2 mt-4">
                                                             <label className="text-sm font-medium">{t('templates.prop_textContent')}</label>
-                                                            <MDEditor
+                                                            <RichTextEditor
                                                                 value={selectedBlock.props.content || ''}
-                                                                onChange={(val) => updateBlockProp(selectedBlock.id, 'content', val || '')}
-                                                                height={300}
-                                                                enableScroll={false}
+                                                                onChange={(html) => updateBlockProp(selectedBlock.id, 'content', html)}
+                                                                minHeight={250}
+                                                                placeholder="Введите текст секции…"
                                                             />
                                                         </div>
                                                     </>

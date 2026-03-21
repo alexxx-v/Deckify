@@ -1,3 +1,4 @@
+import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 import { Project, Task, TaskStatus, TemplateBlock } from '@/db/schema';
 import dayjs from 'dayjs';
@@ -38,8 +39,163 @@ const styles = StyleSheet.create({
     roadmapBar: { position: 'absolute', height: 12, top: 4, backgroundColor: '#4F46E5', borderRadius: 4 }
 });
 
+// ─── HTML → react-pdf renderer ───────────────────────────────────────────────
+// Uses DOMParser (available in Electron) to build a proper DOM tree, then
+// recursively converts it to @react-pdf/renderer primitives.
+// Falls back to legacy markdown parsing for old tasks that still contain Markdown text.
+
+const isHtmlContent = (text: string): boolean => /^\s*<[a-z][\s\S]*>/i.test(text);
+
+interface RenderCtx { fontSize: number; indent?: number }
+
+/** Render inline child nodes of an element (text, strong, em, s, code) */
+function renderInlineChildren(node: Element, ctx: RenderCtx): React.ReactNode[] {
+    const result: React.ReactNode[] = [];
+    node.childNodes.forEach((child, i) => {
+        if (child.nodeType === Node.TEXT_NODE) {
+            const t = child.textContent || '';
+            if (t) result.push(<React.Fragment key={i}>{t}</React.Fragment>);
+            return;
+        }
+        if (child.nodeType !== Node.ELEMENT_NODE) return;
+        const el = child as Element;
+        const tag = el.tagName.toLowerCase();
+        const text = el.textContent || '';
+        if (tag === 'strong') result.push(<Text key={i} style={{ fontWeight: 'bold', color: '#111827' }}>{renderInlineChildren(el, ctx)}</Text>);
+        else if (tag === 'em') result.push(<Text key={i} style={{ fontStyle: 'italic' }}>{text}</Text>);
+        else if (tag === 's') result.push(<Text key={i} style={{ textDecoration: 'line-through', opacity: 0.65 }}>{text}</Text>);
+        else if (tag === 'code') result.push(<Text key={i} style={{ fontFamily: 'Courier', fontSize: ctx.fontSize - 1 }}>{text}</Text>);
+        else result.push(<React.Fragment key={i}>{renderInlineChildren(el, ctx)}</React.Fragment>);
+    });
+    return result;
+}
+
+/** Render a list (ul / ol) element, supports nesting */
+function renderList(el: Element, ctx: RenderCtx, outerKey: number): React.ReactNode {
+    const isOl = el.tagName.toLowerCase() === 'ol';
+    const isTask = el.getAttribute('data-type') === 'taskList';
+    const indent = ctx.indent ?? 0;
+    const items: React.ReactNode[] = [];
+    let counter = 0;
+
+    el.children && Array.from(el.children).forEach((li, i) => {
+        if (li.tagName.toLowerCase() !== 'li') return;
+        counter++;
+
+        // Separate direct inline/paragraph content from nested lists
+        const directNodes: Node[] = [];
+        const nestedLists: Element[] = [];
+        li.childNodes.forEach(c => {
+            if (c.nodeType === Node.ELEMENT_NODE) {
+                const tag = (c as Element).tagName.toLowerCase();
+                if (tag === 'ul' || tag === 'ol') { nestedLists.push(c as Element); return; }
+            }
+            directNodes.push(c);
+        });
+
+        // Build a temporary element to extract inline content
+        const tempEl = document.createElement('span');
+        directNodes.forEach(n => tempEl.appendChild(n.cloneNode(true)));
+
+        if (isTask) {
+            const checked = li.getAttribute('data-checked') === 'true';
+            const content = tempEl.textContent?.trim() || '';
+            items.push(
+                <View key={i} style={{ flexDirection: 'row', marginBottom: ctx.fontSize * 0.1, paddingLeft: indent * 12 + 4 }}>
+                    <Text style={{ width: 16, fontSize: ctx.fontSize, color: checked ? '#4F46E5' : '#9CA3AF' }}>{checked ? '☑' : '☐'}</Text>
+                    <Text style={{ flex: 1, fontSize: ctx.fontSize, color: checked ? '#9CA3AF' : '#4B5563', lineHeight: 1.2, textDecoration: checked ? 'line-through' : 'none' }}>{content}</Text>
+                </View>
+            );
+        } else {
+            const bullet = isOl ? `${counter}.` : '•';
+            const bulletWidth = isOl ? 20 : 12;
+            items.push(
+                <View key={i}>
+                    <View style={{ flexDirection: 'row', marginBottom: ctx.fontSize * 0.05, paddingLeft: indent * 12 + 8 }}>
+                        <Text style={{ width: bulletWidth, fontSize: ctx.fontSize, color: '#4B5563' }}>{bullet}</Text>
+                        <Text style={{ flex: 1, fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.2 }}>
+                            {renderInlineChildren(tempEl, ctx)}
+                        </Text>
+                    </View>
+                    {nestedLists.map((nested, j) => (
+                        <React.Fragment key={`n-${j}`}>
+                            {renderList(nested, { ...ctx, indent: indent + 1 }, j)}
+                        </React.Fragment>
+                    ))}
+                </View>
+            );
+        }
+    });
+    return <View key={outerKey}>{items}</View>;
+}
+
+/** Render a single block element */
+function renderBlockEl(el: Element, ctx: RenderCtx, key: number): React.ReactNode | null {
+    const tag = el.tagName.toLowerCase();
+
+    if (tag === 'h1') return (
+        <Text key={key} style={{ fontSize: ctx.fontSize + 8, fontWeight: 'bold', color: '#111827', marginTop: ctx.fontSize * 0.5, marginBottom: ctx.fontSize * 0.2 }}>
+            {renderInlineChildren(el, ctx)}
+        </Text>
+    );
+    if (tag === 'h2') return (
+        <Text key={key} style={{ fontSize: ctx.fontSize + 4, fontWeight: 'bold', color: '#111827', marginTop: ctx.fontSize * 0.4, marginBottom: ctx.fontSize * 0.2 }}>
+            {renderInlineChildren(el, ctx)}
+        </Text>
+    );
+    if (tag === 'h3') return (
+        <Text key={key} style={{ fontSize: ctx.fontSize + 1, fontWeight: 'bold', color: '#1f2937', marginTop: ctx.fontSize * 0.3, marginBottom: ctx.fontSize * 0.2 }}>
+            {renderInlineChildren(el, ctx)}
+        </Text>
+    );
+    if (tag === 'p') {
+        if (!el.textContent?.trim()) return <View key={key} style={{ height: ctx.fontSize * 0.3 }} />;
+        return (
+            <Text key={key} style={{ fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.25, marginBottom: ctx.fontSize * 0.2 }}>
+                {renderInlineChildren(el, ctx)}
+            </Text>
+        );
+    }
+    if (tag === 'ul' || tag === 'ol') return renderList(el, ctx, key);
+    if (tag === 'blockquote') return (
+        <View key={key} style={{ borderLeftWidth: 2, borderLeftColor: '#D1D5DB', paddingLeft: 8, marginVertical: ctx.fontSize * 0.2 }}>
+            <Text style={{ fontSize: ctx.fontSize - 1, color: '#6B7280', fontStyle: 'italic' }}>{el.textContent}</Text>
+        </View>
+    );
+    if (tag === 'pre') return (
+        <View key={key} style={{ backgroundColor: '#F3F4F6', padding: 6, borderRadius: 4, marginVertical: ctx.fontSize * 0.2 }}>
+            <Text style={{ fontSize: ctx.fontSize - 2, fontFamily: 'Courier', color: '#374151' }}>{el.textContent}</Text>
+        </View>
+    );
+    if (tag === 'hr') return <View key={key} style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginVertical: ctx.fontSize * 0.3 }} />;
+
+    // Fallback: try to render as paragraph
+    const text = el.textContent?.trim();
+    if (text) return <Text key={key} style={{ fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.25 }}>{text}</Text>;
+    return null;
+}
+
+/** Parse HTML string via DOMParser and render to react-pdf nodes */
+function renderHtmlNodes(html: string, ctx: RenderCtx): React.ReactNode[] {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const nodes: React.ReactNode[] = [];
+    let key = 0;
+    doc.body.childNodes.forEach(node => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const result = renderBlockEl(node as Element, ctx, key++);
+            if (result) nodes.push(result);
+        } else if (node.nodeType === Node.TEXT_NODE) {
+            const t = node.textContent?.trim();
+            if (t) nodes.push(<Text key={key++} style={{ fontSize: ctx.fontSize, color: '#4B5563' }}>{t}</Text>);
+        }
+    });
+    return nodes;
+}
+
+// Legacy Markdown parser (kept for backward compatibility with old tasks)
 const renderMarkdownContent = (text: string, baseFontSize = 14) => {
     if (!text) return null;
+    if (isHtmlContent(text)) return renderHtmlNodes(text, { fontSize: baseFontSize });
     const lines = text.split('\n');
     return lines.map((line, lineIdx) => {
         const trimmed = line.trim();
@@ -157,7 +313,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
     if (block.type === 'TASKS_LIST') {
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
-                <Text style={styles.header}>{i18n.t('pdf.progressOverview')} - List</Text>
+                <Text style={styles.header}>{i18n.t('pdf.progressOverview')}</Text>
                 <View style={{ marginTop: 10, flex: 1 }}>
                     {tasks.map((task, idx) => (
                         <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center' }}>
@@ -275,7 +431,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                                         {hasDesc && (
                                             <View style={{ flex: showSteps ? 3 : 1, paddingRight: showSteps ? 20 : 0 }}>
                                                 <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#111827', marginBottom: 6 }}>{i18n.t('pdf.description')}</Text>
-                                                <View style={{ backgroundColor: '#F9FAFB', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                                                <View style={{ backgroundColor: '#FFFFFF', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
                                                     {renderMarkdownContent(task.description || '', descFontSize)}
                                                 </View>
                                             </View>
@@ -294,7 +450,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                                                             <View key={step.id || stepIdx} style={{ flexDirection: 'row' }} wrap={false}>
                                                                 <View style={{ width: 20, alignItems: 'center', position: 'relative' }}>
                                                                     <Text style={{ position: 'absolute', left: -25, top: 0, fontSize: 11, fontWeight: 'bold', color: isCompleted || isCurrent ? '#111827' : '#9CA3AF' }}>{(stepIdx + 1).toString().padStart(2, '0')}</Text>
-                                                                    {!isLast && <View style={{ position: 'absolute', top: 12, bottom: -4, width: 2, backgroundColor: isCompleted ? '#111827' : '#E5E7EB', zIndex: 0 }} />}
+                                                                    {!isLast && <View style={{ position: 'absolute', top: 16, bottom: -4, width: 2, backgroundColor: isCompleted ? '#111827' : '#E5E7EB', zIndex: 0 }} />}
                                                                     <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: isCompleted || isCurrent ? '#111827' : '#FFFFFF', borderColor: isCompleted || isCurrent ? '#111827' : '#D1D5DB', borderWidth: 2, zIndex: 1, marginTop: 2 }} />
                                                                 </View>
                                                                 <View style={{ flex: 1, paddingLeft: 10, paddingBottom: 12, flexDirection: 'row', alignItems: 'flex-start' }}>
