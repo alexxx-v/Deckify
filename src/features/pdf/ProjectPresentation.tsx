@@ -13,6 +13,21 @@ const getPdfStatusColor = (status?: TaskStatus) => {
     }
 };
 
+const getRoadmapPeriodLabel = (minDate: dayjs.Dayjs, maxDate: dayjs.Dayjs): string => {
+    const diffDays = maxDate.diff(minDate, 'day');
+    if (diffDays <= 45) {
+        const monthRu = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][minDate.month()];
+        return `${monthRu} ${minDate.year()}`;
+    }
+    if (diffDays <= 100) {
+        const q = Math.floor(minDate.month() / 3) + 1;
+        return `Q${q} ${minDate.year()}`;
+    }
+    const startYear = minDate.year();
+    const endYear = maxDate.year();
+    return startYear === endYear ? `Год ${startYear}` : `Год ${startYear}-${endYear}`;
+};
+
 // Register fonts
 Font.register({
     family: 'Roboto',
@@ -422,7 +437,7 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
             {/* Slide 4: Roadmap */}
             {sortedTasks.length > 0 && (
                 <Page size="A4" orientation="landscape" style={styles.page}>
-                    <Text style={styles.header}>{i18n.t('pdf.projectRoadmap')}</Text>
+                    <Text style={styles.header}>{i18n.t('pdf.projectRoadmap')} - {getRoadmapPeriodLabel(minDate, maxDate)}</Text>
                     <View style={styles.roadmapContainer}>
                         <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 8, marginBottom: 8 }}>
                             <View style={{ width: 180, justifyContent: 'flex-end', paddingBottom: 2 }}>

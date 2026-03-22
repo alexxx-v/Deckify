@@ -170,6 +170,11 @@
         "dateRange_quarter": "Квартал",
         "dateRange_year": "Год",
         "dateRange_hint": "Определяет временной диапазон на дорожной карте. 'Как в экспорте' использует период, выбранный в окне экспорта.",
+        "prop_specificMonth": "Месяц",
+        "prop_specificQuarter": "Квартал",
+        "prop_specificYear": "Год",
+        "currentPeriodExport": "Текущий (по экспорту)",
+        "currentPeriodExt": "Текущий",
         "defaultTemplate": "Стандартный шаблон"
     }
 }

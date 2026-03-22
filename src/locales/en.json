@@ -170,6 +170,11 @@
         "dateRange_quarter": "Quarter",
         "dateRange_year": "Year",
         "dateRange_hint": "Determines the date range displayed on the roadmap timeline. 'Same as export period' uses the dates selected in the export dialog.",
+        "prop_specificMonth": "Month",
+        "prop_specificQuarter": "Quarter",
+        "prop_specificYear": "Year",
+        "currentPeriodExport": "Current (from export)",
+        "currentPeriodExt": "Current",
         "defaultTemplate": "Default Template"
     }
 }

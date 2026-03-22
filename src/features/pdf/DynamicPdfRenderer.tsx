@@ -14,6 +14,21 @@ const getPdfStatusColor = (status?: TaskStatus) => {
     }
 };
 
+const getRoadmapPeriodLabel = (minDate: dayjs.Dayjs, maxDate: dayjs.Dayjs): string => {
+    const diffDays = maxDate.diff(minDate, 'day');
+    if (diffDays <= 45) {
+        const monthRu = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][minDate.month()];
+        return `${monthRu} ${minDate.year()}`;
+    }
+    if (diffDays <= 100) {
+        const q = Math.floor(minDate.month() / 3) + 1;
+        return `Q${q} ${minDate.year()}`;
+    }
+    const startYear = minDate.year();
+    const endYear = maxDate.year();
+    return startYear === endYear ? `Год ${startYear}` : `Год ${startYear}-${endYear}`;
+};
+
 Font.register({
     family: 'Roboto',
     fonts: [
@@ -486,21 +501,29 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
             minDate = startDate ? dayjs(startDate) : dayjs(sortedTasks[0].startDate);
             maxDate = endDate ? dayjs(endDate) : dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
         } else if (dateRange === 'month') {
-            // Constrain to the export month
+            // Constrain to the export month or specifically chosen month
             const base = startDate ? dayjs(startDate) : dayjs();
-            minDate = base.startOf('month');
-            maxDate = base.endOf('month');
+            const y = block.props.specificYear ? parseInt(block.props.specificYear) : base.year();
+            const m = block.props.specificMonth !== undefined && block.props.specificMonth !== '' ? parseInt(block.props.specificMonth) : base.month();
+            minDate = dayjs(new Date(y, m, 1)).startOf('month');
+            maxDate = minDate.clone().endOf('month');
         } else if (dateRange === 'quarter') {
-            // Expand to the full quarter containing the export start month
+            // Expand to the full quarter containing the start month or specifically chosen quarter
             const base = startDate ? dayjs(startDate) : dayjs();
-            const quarterStartMonth = Math.floor(base.month() / 3) * 3;
-            minDate = base.month(quarterStartMonth).startOf('month');
-            maxDate = minDate.add(2, 'month').endOf('month');
+            const y = block.props.specificYear ? parseInt(block.props.specificYear) : base.year();
+            let quarterStartMonth = Math.floor(base.month() / 3) * 3;
+            if (block.props.specificQuarter) {
+                const q = parseInt(block.props.specificQuarter);
+                quarterStartMonth = (q - 1) * 3;
+            }
+            minDate = dayjs(new Date(y, quarterStartMonth, 1)).startOf('month');
+            maxDate = minDate.clone().add(2, 'month').endOf('month');
         } else if (dateRange === 'year') {
-            // Expand to the full year
+            // Expand to the full year or specifically chosen year
             const base = startDate ? dayjs(startDate) : dayjs();
-            minDate = base.startOf('year');
-            maxDate = base.endOf('year');
+            const y = block.props.specificYear ? parseInt(block.props.specificYear) : base.year();
+            minDate = dayjs(new Date(y, 0, 1)).startOf('year');
+            maxDate = dayjs(new Date(y, 0, 1)).endOf('year');
         } else {
             minDate = startDate ? dayjs(startDate) : dayjs(sortedTasks[0].startDate);
             maxDate = endDate ? dayjs(endDate) : dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
@@ -525,7 +548,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
 
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
-                <Text style={styles.header}>{i18n.t('pdf.projectRoadmap')}</Text>
+                <Text style={styles.header}>{i18n.t('pdf.projectRoadmap')} - {getRoadmapPeriodLabel(minDate, maxDate)}</Text>
                 <View style={styles.roadmapContainer}>
                     <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 8, marginBottom: 8 }}>
                         <View style={{ width: 180, justifyContent: 'flex-end', paddingBottom: 2 }}>
