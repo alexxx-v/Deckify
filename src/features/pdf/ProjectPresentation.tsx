@@ -210,8 +210,8 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
         Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / totalTasks);
 
     // Roadmap logic
-    const sortedTasks = [...tasks].sort((a, b) => dayjs(a.startDate).valueOf() - dayjs(b.startDate).valueOf());
-    const minDate = startDate ? dayjs(startDate) : (sortedTasks.length > 0 ? dayjs(sortedTasks[0].startDate) : dayjs());
+    const sortedTasks = tasks;
+    const minDate = startDate ? dayjs(startDate) : (sortedTasks.length > 0 ? dayjs(Math.min(...sortedTasks.map(t => dayjs(t.startDate).valueOf()))) : dayjs());
     const maxDate = endDate ? dayjs(endDate) : (sortedTasks.length > 0
         ? dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())))
         : dayjs().add(30, 'day'));
@@ -371,7 +371,7 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                             } catch (e) {
                                 // ignore
                             }
-                            const showSteps = task.status !== 'done' && steps.length > 0;
+                            const showSteps = steps.length > 0;
                             const hasDesc = !!task.description;
 
                             if (!hasDesc && !showSteps) return null;
@@ -401,23 +401,30 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                                             <View style={{ marginLeft: 30 }}>
                                                 {steps.map((step, stepIdx) => {
                                                     const isCompleted = step.completed;
-                                                    const currentStepIndex = steps.findIndex(s => !s.completed);
-                                                    const isCurrent = stepIdx === currentStepIndex;
+                                                    const hasCompletedAfter = steps.slice(stepIdx + 1).some((s: any) => s.completed);
+                                                    const isMissed = !isCompleted && hasCompletedAfter;
+                                                    const currentStepIndex = steps.findIndex((s: any) => !s.completed);
+                                                    const isCurrent = stepIdx === currentStepIndex && !hasCompletedAfter;
                                                     const isLast = stepIdx === steps.length - 1;
+
+                                                    const dotBgColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#FFFFFF');
+                                                    const dotBorderColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#D1D5DB');
+                                                    const textColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#6B7280');
+                                                    const numColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#9CA3AF');
 
                                                     return (
                                                         <View key={step.id || stepIdx} style={{ flexDirection: 'row' }} wrap={false}>
                                                             <View style={{ width: 20, alignItems: 'center', position: 'relative' }}>
-                                                                <Text style={{ position: 'absolute', left: -25, top: 0, fontSize: 12, fontWeight: 'bold', color: isCompleted || isCurrent ? '#111827' : '#9CA3AF' }}>
+                                                                <Text style={{ position: 'absolute', left: -25, top: 0, fontSize: 12, fontWeight: 'bold', color: numColor }}>
                                                                     {(stepIdx + 1).toString().padStart(2, '0')}
                                                                 </Text>
                                                                 {!isLast && (
                                                                     <View style={{ position: 'absolute', top: 12, bottom: -4, width: 2, backgroundColor: isCompleted ? '#111827' : '#E5E7EB', zIndex: 0 }} />
                                                                 )}
-                                                                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: isCompleted || isCurrent ? '#111827' : '#FFFFFF', borderColor: isCompleted || isCurrent ? '#111827' : '#D1D5DB', borderWidth: 2, zIndex: 1, marginTop: 2 }} />
+                                                                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: dotBgColor, borderColor: dotBorderColor, borderWidth: 2, zIndex: 1, marginTop: 2 }} />
                                                             </View>
                                                             <View style={{ flex: 1, paddingLeft: 10, paddingBottom: 15, flexDirection: 'row', alignItems: 'flex-start' }}>
-                                                                <Text style={{ fontSize: 14, color: isCompleted || isCurrent ? '#111827' : '#6B7280', fontWeight: isCurrent ? 'bold' : 'normal' }}>
+                                                                <Text style={{ fontSize: 14, color: textColor, fontWeight: isCurrent || isMissed ? 'bold' : 'normal' }}>
                                                                     {step.text}
                                                                 </Text>
                                                             </View>
@@ -469,12 +476,34 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                             const widthPercentRaw = (task.duration / totalDays) * 100;
 
                             const endPercentRaw = leftPercentRaw + widthPercentRaw;
+                            const absoluteProgressEndPercent = leftPercentRaw + widthPercentRaw * (task.progress / 100);
 
                             const startPercent = Math.max(0, Math.min(100, leftPercentRaw));
                             const endPercent = Math.max(0, Math.min(100, endPercentRaw));
                             const clampedWidthPercent = endPercent - startPercent;
 
+                            const progressEndPercent = Math.max(0, Math.min(100, absoluteProgressEndPercent));
+                            const clampedProgressWidthPercent = Math.max(0, progressEndPercent - startPercent);
+
                             if (clampedWidthPercent <= 0) return null;
+
+                            const isCutLeft = leftPercentRaw < 0;
+                            const isCutRight = endPercentRaw > 100;
+                            const isProgressCutRight = absoluteProgressEndPercent > 100;
+
+                            const bgBorderRadii = {
+                                borderTopLeftRadius: isCutLeft ? 0 : 4,
+                                borderBottomLeftRadius: isCutLeft ? 0 : 4,
+                                borderTopRightRadius: isCutRight ? 0 : 4,
+                                borderBottomRightRadius: isCutRight ? 0 : 4,
+                            };
+                            
+                            const fgBorderRadii = {
+                                borderTopLeftRadius: isCutLeft ? 0 : 4,
+                                borderBottomLeftRadius: isCutLeft ? 0 : 4,
+                                borderTopRightRadius: isProgressCutRight ? 0 : 4,
+                                borderBottomRightRadius: isProgressCutRight ? 0 : 4,
+                            };
 
                             return (
                                 <View key={task.id} style={styles.roadmapRow}>
@@ -491,16 +520,21 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                                                 left: `${startPercent}%`,
                                                 width: `${Math.max(1, clampedWidthPercent)}%`,
                                                 backgroundColor: getPdfStatusColor(task.status).bar,
+                                                ...bgBorderRadii
                                             }
                                         ]} />
-                                        <View style={[
-                                            styles.roadmapBar,
-                                            {
-                                                left: `${startPercent}%`,
-                                                width: `${Math.max(1, clampedWidthPercent) * (task.progress / 100)}%`,
-                                                backgroundColor: 'rgba(0,0,0,0.2)', // overlay for progress
-                                            }
-                                        ]} />
+                                        
+                                        {clampedProgressWidthPercent > 0 && (
+                                            <View style={[
+                                                styles.roadmapBar,
+                                                {
+                                                    left: `${startPercent}%`,
+                                                    width: `${Math.max(1, clampedProgressWidthPercent)}%`,
+                                                    backgroundColor: 'rgba(0,0,0,0.2)', // overlay for progress
+                                                    ...fgBorderRadii
+                                                }
+                                            ]} />
+                                        )}
                                     </View>
                                 </View>
                             );
