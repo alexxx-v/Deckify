@@ -14,6 +14,21 @@ const getPdfStatusColor = (status?: TaskStatus) => {
     }
 };
 
+const getRoadmapPeriodLabel = (minDate: dayjs.Dayjs, maxDate: dayjs.Dayjs): string => {
+    const diffDays = maxDate.diff(minDate, 'day');
+    if (diffDays <= 45) {
+        const monthRu = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][minDate.month()];
+        return `${monthRu} ${minDate.year()}`;
+    }
+    if (diffDays <= 100) {
+        const q = Math.floor(minDate.month() / 3) + 1;
+        return `Q${q} ${minDate.year()}`;
+    }
+    const startYear = minDate.year();
+    const endYear = maxDate.year();
+    return startYear === endYear ? `Год ${startYear}` : `Год ${startYear}-${endYear}`;
+};
+
 Font.register({
     family: 'Roboto',
     fonts: [
@@ -378,7 +393,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                             {(() => {
                                 let steps: any[] = [];
                                 try { steps = task.steps ? JSON.parse(task.steps) : []; } catch (e) { }
-                                const showSteps = includeSteps && task.status !== 'done' && steps.length > 0;
+                                const showSteps = includeSteps && steps.length > 0;
                                 const hasDesc = includeDescription && !!task.description;
 
                                 if (!hasDesc && !showSteps) return null;
@@ -442,19 +457,26 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                                                 <View style={{ marginLeft: 30 }}>
                                                     {steps.map((step, stepIdx) => {
                                                         const isCompleted = step.completed;
-                                                        const currentStepIndex = steps.findIndex(s => !s.completed);
-                                                        const isCurrent = stepIdx === currentStepIndex;
+                                                        const hasCompletedAfter = steps.slice(stepIdx + 1).some((s: any) => s.completed);
+                                                        const isMissed = !isCompleted && hasCompletedAfter;
+                                                        const currentStepIndex = steps.findIndex((s: any) => !s.completed);
+                                                        const isCurrent = stepIdx === currentStepIndex && !hasCompletedAfter;
                                                         const isLast = stepIdx === steps.length - 1;
+
+                                                        const dotBgColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#FFFFFF');
+                                                        const dotBorderColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#D1D5DB');
+                                                        const textColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#6B7280');
+                                                        const numColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#9CA3AF');
 
                                                         return (
                                                             <View key={step.id || stepIdx} style={{ flexDirection: 'row' }} wrap={false}>
                                                                 <View style={{ width: 20, alignItems: 'center', position: 'relative' }}>
-                                                                    <Text style={{ position: 'absolute', left: -25, top: 0, fontSize: 11, fontWeight: 'bold', color: isCompleted || isCurrent ? '#111827' : '#9CA3AF' }}>{(stepIdx + 1).toString().padStart(2, '0')}</Text>
+                                                                    <Text style={{ position: 'absolute', left: -25, top: 0, fontSize: 11, fontWeight: 'bold', color: numColor }}>{(stepIdx + 1).toString().padStart(2, '0')}</Text>
                                                                     {!isLast && <View style={{ position: 'absolute', top: 16, bottom: -4, width: 2, backgroundColor: isCompleted ? '#111827' : '#E5E7EB', zIndex: 0 }} />}
-                                                                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: isCompleted || isCurrent ? '#111827' : '#FFFFFF', borderColor: isCompleted || isCurrent ? '#111827' : '#D1D5DB', borderWidth: 2, zIndex: 1, marginTop: 2 }} />
+                                                                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: dotBgColor, borderColor: dotBorderColor, borderWidth: 2, zIndex: 1, marginTop: 2 }} />
                                                                 </View>
                                                                 <View style={{ flex: 1, paddingLeft: 10, paddingBottom: 12, flexDirection: 'row', alignItems: 'flex-start' }}>
-                                                                    <Text style={{ fontSize: 12, color: isCompleted || isCurrent ? '#111827' : '#6B7280', fontWeight: isCurrent ? 'bold' : 'normal' }}>{step.text}</Text>
+                                                                    <Text style={{ fontSize: 12, color: textColor, fontWeight: isCurrent || isMissed ? 'bold' : 'normal' }}>{step.text}</Text>
                                                                 </View>
                                                             </View>
                                                         );
@@ -473,7 +495,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
     }
 
     if (block.type === 'ROADMAP') {
-        const sortedTasks = [...tasks].sort((a, b) => dayjs(a.startDate).valueOf() - dayjs(b.startDate).valueOf());
+        const sortedTasks = tasks;
         if (sortedTasks.length === 0) return null;
 
         const dateRange = block.props.dateRange || 'export';
@@ -483,30 +505,42 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
 
         if (dateRange === 'export') {
             // Use the export period dates as-is
-            minDate = startDate ? dayjs(startDate) : dayjs(sortedTasks[0].startDate);
+            minDate = startDate ? dayjs(startDate) : dayjs(Math.min(...sortedTasks.map(t => dayjs(t.startDate).valueOf())));
             maxDate = endDate ? dayjs(endDate) : dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
         } else if (dateRange === 'month') {
-            // Constrain to the export month
+            // Constrain to the export month or specifically chosen month
             const base = startDate ? dayjs(startDate) : dayjs();
-            minDate = base.startOf('month');
-            maxDate = base.endOf('month');
+            const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
+            const m = block.props.specificMonth === 'current' ? dayjs().month() : (block.props.specificMonth !== undefined && block.props.specificMonth !== '' ? parseInt(block.props.specificMonth) : base.month());
+            minDate = dayjs(new Date(y, m, 1)).startOf('month');
+            maxDate = minDate.clone().endOf('month');
         } else if (dateRange === 'quarter') {
-            // Expand to the full quarter containing the export start month
+            // Expand to the full quarter containing the start month or specifically chosen quarter
             const base = startDate ? dayjs(startDate) : dayjs();
-            const quarterStartMonth = Math.floor(base.month() / 3) * 3;
-            minDate = base.month(quarterStartMonth).startOf('month');
-            maxDate = minDate.add(2, 'month').endOf('month');
+            const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
+            let quarterStartMonth: number;
+            if (block.props.specificQuarter === 'current') {
+                quarterStartMonth = Math.floor(dayjs().month() / 3) * 3;
+            } else if (block.props.specificQuarter !== undefined && block.props.specificQuarter !== '') {
+                quarterStartMonth = (parseInt(block.props.specificQuarter) - 1) * 3;
+            } else {
+                quarterStartMonth = Math.floor(base.month() / 3) * 3;
+            }
+            minDate = dayjs(new Date(y, quarterStartMonth, 1)).startOf('month');
+            maxDate = minDate.clone().add(2, 'month').endOf('month');
         } else if (dateRange === 'year') {
-            // Expand to the full year
+            // Expand to the full year or specifically chosen year
             const base = startDate ? dayjs(startDate) : dayjs();
-            minDate = base.startOf('year');
-            maxDate = base.endOf('year');
+            const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
+            minDate = dayjs(new Date(y, 0, 1)).startOf('year');
+            maxDate = dayjs(new Date(y, 0, 1)).endOf('year');
         } else {
-            minDate = startDate ? dayjs(startDate) : dayjs(sortedTasks[0].startDate);
+            minDate = startDate ? dayjs(startDate) : dayjs(Math.min(...sortedTasks.map(t => dayjs(t.startDate).valueOf())));
             maxDate = endDate ? dayjs(endDate) : dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
         }
 
         const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
+        const edgeLabelFormat = totalDays > 180 ? 'MMM D' : 'MMM D, YYYY';
 
         const timelineMarkers: Array<{ label: string, percent: number }> = [];
         let currentMarker = minDate.clone().startOf('month');
@@ -518,26 +552,28 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
             const daysOffset = currentMarker.diff(minDate, 'day');
             const percent = (daysOffset / totalDays) * 100;
             if (percent > 2 && percent < 98) {
-                timelineMarkers.push({ label: currentMarker.format('MMM YYYY'), percent: percent });
+                const labelFormat = totalDays > 180 ? 'MMM' : 'MMM YYYY';
+                const labelText = percent > 88 ? '' : currentMarker.format(labelFormat);
+                timelineMarkers.push({ label: labelText, percent: percent });
             }
             currentMarker = currentMarker.add(1, 'month');
         }
 
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
-                <Text style={styles.header}>{i18n.t('pdf.projectRoadmap')}</Text>
+                <Text style={styles.header}>{i18n.t('pdf.projectRoadmap')} - {getRoadmapPeriodLabel(minDate, maxDate)}</Text>
                 <View style={styles.roadmapContainer}>
                     <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 8, marginBottom: 8 }}>
                         <View style={{ width: 180, justifyContent: 'flex-end', paddingBottom: 2 }}>
                             <Text style={{ fontSize: 10, color: '#6B7280', fontWeight: 'bold' }}>{i18n.t('pdf.timelineDays', { count: totalDays })}</Text>
                         </View>
                         <View style={{ flex: 1, position: 'relative', height: 16 }}>
-                            <Text style={{ position: 'absolute', left: 0, top: 2, fontSize: 10, color: '#6B7280' }}>{minDate.format('MMM D, YYYY')}</Text>
-                            <Text style={{ position: 'absolute', right: 0, top: 2, fontSize: 10, color: '#6B7280' }}>{maxDate.format('MMM D, YYYY')}</Text>
+                            <Text style={{ position: 'absolute', left: 0, top: 2, fontSize: 10, color: '#6B7280' }}>{minDate.format(edgeLabelFormat)}</Text>
+                            <Text style={{ position: 'absolute', right: 0, top: 2, fontSize: 10, color: '#6B7280' }}>{maxDate.format(edgeLabelFormat)}</Text>
 
                             {timelineMarkers.map((m, idx) => (
                                 <View key={idx} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, paddingLeft: 4, borderLeftWidth: 1, borderLeftColor: '#D1D5DB', height: 16 }}>
-                                    <Text style={{ fontSize: 9, color: '#4B5563', fontWeight: 'bold', paddingTop: 2 }}>{m.label}</Text>
+                                    <Text style={{ fontSize: 10, color: '#6B7280', paddingTop: 2 }}>{m.label}</Text>
                                 </View>
                             ))}
                         </View>
@@ -549,11 +585,34 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                         const widthPercentRaw = (task.duration / totalDays) * 100;
 
                         const endPercentRaw = leftPercentRaw + widthPercentRaw;
+                        const absoluteProgressEndPercent = leftPercentRaw + widthPercentRaw * (task.progress / 100);
+
                         const startPercent = Math.max(0, Math.min(100, leftPercentRaw));
                         const endPercent = Math.max(0, Math.min(100, endPercentRaw));
                         const clampedWidthPercent = endPercent - startPercent;
 
+                        const progressEndPercent = Math.max(0, Math.min(100, absoluteProgressEndPercent));
+                        const clampedProgressWidthPercent = Math.max(0, progressEndPercent - startPercent);
+
                         if (clampedWidthPercent <= 0) return null;
+
+                        const isCutLeft = leftPercentRaw < 0;
+                        const isCutRight = endPercentRaw > 100;
+                        const isProgressCutRight = absoluteProgressEndPercent > 100;
+
+                        const bgBorderRadii = {
+                            borderTopLeftRadius: isCutLeft ? 0 : 4,
+                            borderBottomLeftRadius: isCutLeft ? 0 : 4,
+                            borderTopRightRadius: isCutRight ? 0 : 4,
+                            borderBottomRightRadius: isCutRight ? 0 : 4,
+                        };
+
+                        const fgBorderRadii = {
+                            borderTopLeftRadius: isCutLeft ? 0 : 4,
+                            borderBottomLeftRadius: isCutLeft ? 0 : 4,
+                            borderTopRightRadius: isProgressCutRight ? 0 : 4,
+                            borderBottomRightRadius: isProgressCutRight ? 0 : 4,
+                        };
 
                         return (
                             <View key={task.id} style={styles.roadmapRow}>
@@ -562,8 +621,10 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                                     {timelineMarkers.map((m, idx) => (
                                         <View key={`grid-${idx}`} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, height: '100%', width: 1, backgroundColor: '#E5E7EB', zIndex: 0 }} />
                                     ))}
-                                    <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent)}%`, backgroundColor: getPdfStatusColor(task.status).bar }]} />
-                                    <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent) * (task.progress / 100)}%`, backgroundColor: 'rgba(0,0,0,0.2)' }]} />
+                                    <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent)}%`, backgroundColor: getPdfStatusColor(task.status).bar, ...bgBorderRadii }]} />
+                                    {clampedProgressWidthPercent > 0 && (
+                                        <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedProgressWidthPercent)}%`, backgroundColor: 'rgba(0,0,0,0.2)', ...fgBorderRadii }]} />
+                                    )}
                                 </View>
                             </View>
                         );

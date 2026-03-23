@@ -44,6 +44,13 @@
         "entireProject": "Entire Project",
         "visualRoadmap": "Visual Roadmap",
         "noTasks": "No tasks found for this timeframe.",
+        "sortBy": "Sort by",
+        "sortByStartDate": "Start Date (Oldest first)",
+        "sortByStartDateDesc": "Start Date (Newest first)",
+        "sortByDuration": "Duration (Shortest first)",
+        "sortByDurationDesc": "Duration (Longest first)",
+        "sortByStatus": "Status",
+        "sortByStatusDesc": "Status (Descending)",
         "previous": "Previous",
         "next": "Next",
         "pageOf": "Page {{current}} of {{total}}",
@@ -170,6 +177,11 @@
         "dateRange_quarter": "Quarter",
         "dateRange_year": "Year",
         "dateRange_hint": "Determines the date range displayed on the roadmap timeline. 'Same as export period' uses the dates selected in the export dialog.",
+        "prop_specificMonth": "Month",
+        "prop_specificQuarter": "Quarter",
+        "prop_specificYear": "Year",
+        "currentPeriodExport": "Current (from export)",
+        "currentPeriodExt": "Current",
         "defaultTemplate": "Default Template"
     }
 }

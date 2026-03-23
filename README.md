@@ -45,13 +45,14 @@ All data is stored entirely locally on your device using IndexedDB (with a Data 
   - Add tasks via a dedicated modal interface with title, description, start date, and duration.
   - Delete tasks safely via a confirmation prompt within the task edit view.
   - **Dual Views**: Toggle seamlessly between a tabular 'List' view (with built-in pagination) and a beautiful interactive 'Roadmap' timeline view.
+  - **Task Sorting**: Dynamically sort tasks within lists and roadmap arrays by Start Date (default), Status, or Duration. Sorting preferences are persistently stored.
   - Dynamically update real-time progress using interactive sliders from the list. Setting a task's status to 'Done' automatically locks its progress at 100%.
   - Comprehensive task editing via a dedicated, full-width page featuring a two-column layout that separates the main content (description, steps) from metadata. The description field uses a Tiptap rich-text editor with a custom toolbar (headings, bold, italic, lists, task-list, blockquote, code). The editor auto-resizes to fit content with a minimum height of 256px. Descriptions are stored as HTML and rendered correctly in both the app and PDF exports.
 - **Automated PDF Export**:
   - **Custom Export Templates**: Create and modify reusable PDF templates using a block constructor natively within the app. TEXT blocks use the Tiptap rich-text editor (same as task descriptions); content is stored as HTML and rendered in the final PDF.
   - Generates presentations with a Title, Progress Overview stats, and clean Task List slides.
   - **One Slide per Task**: Automatically renders each task on a separate slide containing its timeline, progress status, and detailed description.
-  - **Roadmap Visualization**: Calculates the min and max dates of all tasks and renders a time-scaled visual roadmap.
+  - **Roadmap Visualization**: Calculates the min and max dates of all tasks and renders a time-scaled visual roadmap. Dynamically adds a period label (e.g., 'Май 2026', 'Q1 2026', 'Год 2026-2027') to the Roadmap slide title based on the timeframe. Users can choose to render the roadmap based on the export window ('Текущий (по экспорту)'), the actual real-world current time ('Текущий'), or explicitly define custom absolute periods (specific month, quarter, or year) within the template block properties.
 - **Custom Branding**: App includes a beautiful, flat Material Design 3 icon designed and configured for macOS (`build/icon.png`).
 
 ---

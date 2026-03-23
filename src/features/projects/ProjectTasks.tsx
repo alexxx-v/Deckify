@@ -38,6 +38,9 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
     const [timeframe, setTimeframe] = useState<'all' | 'month' | 'quarter' | 'year'>(() => {
         return (localStorage.getItem('deckify_timeframe') as any) || 'month';
     });
+    const [sortBy, setSortBy] = useState<'startDate' | 'status' | 'duration' | 'startDate_desc' | 'status_desc' | 'duration_desc'>(() => {
+        return (localStorage.getItem('deckify_sortBy') as any) || 'startDate';
+    });
     const [filterDate, setFilterDate] = useState(dayjs().format('YYYY-MM'));
     const [currentPage, setCurrentPage] = useState(1);
     const [newTitle, setNewTitle] = useState('');
@@ -58,6 +61,10 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
     useEffect(() => {
         localStorage.setItem('deckify_timeframe', timeframe);
     }, [timeframe]);
+
+    useEffect(() => {
+        localStorage.setItem('deckify_sortBy', sortBy);
+    }, [sortBy]);
 
     const project = useLiveQuery(() => db.projects.get(projectId));
     const tasks = useLiveQuery(() => db.tasks.where('projectId').equals(projectId).sortBy('startDate'));
@@ -84,6 +91,24 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
 
         // Check if task overlaps with the timeframe
         return taskStart.isBefore(rangeEnd) && taskEnd.isAfter(rangeStart);
+    }).sort((a: any, b: any) => {
+        const isDesc = sortBy.endsWith('_desc');
+        const sortType = sortBy.replace('_desc', '');
+        let diff = 0;
+
+        if (sortType === 'duration') {
+            diff = a.duration - b.duration;
+        } else if (sortType === 'status') {
+            const statusOrder = { 'progress': 1, 'backlog': 2, 'hold': 3, 'done': 4 };
+            const orderA = statusOrder[a.status as keyof typeof statusOrder] || 5;
+            const orderB = statusOrder[b.status as keyof typeof statusOrder] || 5;
+            if (orderA !== orderB) diff = orderA - orderB;
+            else diff = dayjs(a.startDate).valueOf() - dayjs(b.startDate).valueOf();
+        } else {
+            diff = dayjs(a.startDate).valueOf() - dayjs(b.startDate).valueOf();
+        }
+
+        return isDesc ? -diff : diff;
     });
 
     const pageSize = 10;
@@ -254,19 +279,36 @@ export function ProjectTasks({ projectId, onBack, onEditTask }: { projectId: str
                         <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'month' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('month')}>{t('tasks.month')}</button>
                     </div>
 
-                    <div className="hidden sm:flex bg-muted p-1 rounded-lg">
-                        <button
-                            className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                            onClick={() => setViewMode('list')}
-                        >
-                            {t('tasks.list')}
-                        </button>
-                        <button
-                            className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${viewMode === 'roadmap' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                            onClick={() => setViewMode('roadmap')}
-                        >
-                            {t('tasks.roadmap')}
-                        </button>
+                    <div className="hidden sm:flex items-center gap-2">
+                        <div className="bg-muted p-1 rounded-lg flex">
+                            <select 
+                                value={sortBy} 
+                                onChange={(e) => setSortBy(e.target.value as any)}
+                                title={t('tasks.sortBy')}
+                                className="h-7 pl-2 pr-6 text-xs font-semibold rounded-md border-0 bg-transparent focus:ring-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                            >
+                                <option value="startDate">{t('tasks.sortByStartDate')}</option>
+                                <option value="startDate_desc">{t('tasks.sortByStartDateDesc')}</option>
+                                <option value="status">{t('tasks.sortByStatus')}</option>
+                                <option value="status_desc">{t('tasks.sortByStatusDesc')}</option>
+                                <option value="duration">{t('tasks.sortByDuration')}</option>
+                                <option value="duration_desc">{t('tasks.sortByDurationDesc')}</option>
+                            </select>
+                        </div>
+                        <div className="hidden sm:flex bg-muted p-1 rounded-lg flex-shrink-0">
+                            <button
+                                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setViewMode('list')}
+                            >
+                                {t('tasks.list')}
+                            </button>
+                            <button
+                                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${viewMode === 'roadmap' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setViewMode('roadmap')}
+                            >
+                                {t('tasks.roadmap')}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

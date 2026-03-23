@@ -548,19 +548,105 @@ export function TemplatesView() {
                                                 )}
 
                                                 {selectedBlock.type === 'ROADMAP' && (
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">{t('templates.prop_dateRange')}</label>
-                                                        <select
-                                                            value={selectedBlock.props.dateRange || 'export'}
-                                                            onChange={(e) => updateBlockProp(selectedBlock.id, 'dateRange', e.target.value)}
-                                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                                                        >
-                                                            <option value="export">{t('templates.dateRange_export')}</option>
-                                                            <option value="month">{t('templates.dateRange_month')}</option>
-                                                            <option value="quarter">{t('templates.dateRange_quarter')}</option>
-                                                            <option value="year">{t('templates.dateRange_year')}</option>
-                                                        </select>
-                                                        <p className="text-xs text-muted-foreground">{t('templates.dateRange_hint')}</p>
+                                                    <div className="space-y-4">
+                                                        <div className="space-y-2">
+                                                            <label className="text-sm font-medium">{t('templates.prop_dateRange')}</label>
+                                                            <select
+                                                                value={selectedBlock.props.dateRange || 'export'}
+                                                                onChange={(e) => updateBlockProp(selectedBlock.id, 'dateRange', e.target.value)}
+                                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                            >
+                                                                <option value="export">{t('templates.dateRange_export')}</option>
+                                                                <option value="month">{t('templates.dateRange_month')}</option>
+                                                                <option value="quarter">{t('templates.dateRange_quarter')}</option>
+                                                                <option value="year">{t('templates.dateRange_year')}</option>
+                                                            </select>
+                                                        </div>
+
+                                                        {selectedBlock.props.dateRange === 'month' && (
+                                                            <div className="flex gap-2">
+                                                                <div className="flex-1 space-y-2">
+                                                                    <label className="text-xs text-muted-foreground">{t('templates.prop_specificMonth')}</label>
+                                                                    <select
+                                                                        value={selectedBlock.props.specificMonth !== undefined ? selectedBlock.props.specificMonth : ''}
+                                                                        onChange={(e) => updateBlockProp(selectedBlock.id, 'specificMonth', e.target.value)}
+                                                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                    >
+                                                                        <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                        <option value="current">{t('templates.currentPeriodExt')}</option>
+                                                                        {['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'].map((m, i) => (
+                                                                            <option key={i} value={i}>{m}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="w-24 space-y-2">
+                                                                    <label className="text-xs text-muted-foreground">{t('templates.prop_specificYear')}</label>
+                                                                    <select
+                                                                        value={selectedBlock.props.specificYear !== undefined ? selectedBlock.props.specificYear : ''}
+                                                                        onChange={(e) => updateBlockProp(selectedBlock.id, 'specificYear', e.target.value)}
+                                                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                    >
+                                                                        <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                        <option value="current">{t('templates.currentPeriodExt')}</option>
+                                                                        {Array.from({length: 7}, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                                                                            <option key={y} value={y}>{y}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {selectedBlock.props.dateRange === 'quarter' && (
+                                                            <div className="flex gap-2">
+                                                                <div className="flex-1 space-y-2">
+                                                                    <label className="text-xs text-muted-foreground">{t('templates.prop_specificQuarter')}</label>
+                                                                    <select
+                                                                        value={selectedBlock.props.specificQuarter !== undefined ? selectedBlock.props.specificQuarter : ''}
+                                                                        onChange={(e) => updateBlockProp(selectedBlock.id, 'specificQuarter', e.target.value)}
+                                                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                    >
+                                                                        <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                        <option value="current">{t('templates.currentPeriodExt')}</option>
+                                                                        {[1,2,3,4].map(q => (
+                                                                            <option key={q} value={q}>Q{q}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="w-24 space-y-2">
+                                                                    <label className="text-xs text-muted-foreground">{t('templates.prop_specificYear')}</label>
+                                                                    <select
+                                                                        value={selectedBlock.props.specificYear !== undefined ? selectedBlock.props.specificYear : ''}
+                                                                        onChange={(e) => updateBlockProp(selectedBlock.id, 'specificYear', e.target.value)}
+                                                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                    >
+                                                                        <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                        <option value="current">{t('templates.currentPeriodExt')}</option>
+                                                                        {Array.from({length: 7}, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                                                                            <option key={y} value={y}>{y}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {selectedBlock.props.dateRange === 'year' && (
+                                                            <div className="space-y-2">
+                                                                <label className="text-xs text-muted-foreground">{t('templates.prop_specificYear')}</label>
+                                                                <select
+                                                                    value={selectedBlock.props.specificYear !== undefined ? selectedBlock.props.specificYear : ''}
+                                                                    onChange={(e) => updateBlockProp(selectedBlock.id, 'specificYear', e.target.value)}
+                                                                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                >
+                                                                    <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                    <option value="current">{t('templates.currentPeriodExt')}</option>
+                                                                    {Array.from({length: 7}, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                                                                        <option key={y} value={y}>{y}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                        )}
+
+                                                        <p className="text-xs text-muted-foreground mt-2">{t('templates.dateRange_hint')}</p>
                                                     </div>
                                                 )}
 
