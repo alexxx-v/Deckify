@@ -573,6 +573,7 @@ export function TemplatesView() {
                                                                         className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                                                     >
                                                                         <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                        <option value="current">{t('templates.currentPeriodExt')}</option>
                                                                         {['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'].map((m, i) => (
                                                                             <option key={i} value={i}>{m}</option>
                                                                         ))}
@@ -585,7 +586,8 @@ export function TemplatesView() {
                                                                         onChange={(e) => updateBlockProp(selectedBlock.id, 'specificYear', e.target.value)}
                                                                         className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                                                     >
-                                                                        <option value="">{t('templates.currentPeriodExt')}</option>
+                                                                        <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                        <option value="current">{t('templates.currentPeriodExt')}</option>
                                                                         {Array.from({length: 7}, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
                                                                             <option key={y} value={y}>{y}</option>
                                                                         ))}
@@ -604,6 +606,7 @@ export function TemplatesView() {
                                                                         className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                                                     >
                                                                         <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                        <option value="current">{t('templates.currentPeriodExt')}</option>
                                                                         {[1,2,3,4].map(q => (
                                                                             <option key={q} value={q}>Q{q}</option>
                                                                         ))}
@@ -616,7 +619,8 @@ export function TemplatesView() {
                                                                         onChange={(e) => updateBlockProp(selectedBlock.id, 'specificYear', e.target.value)}
                                                                         className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                                                     >
-                                                                        <option value="">{t('templates.currentPeriodExt')}</option>
+                                                                        <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                        <option value="current">{t('templates.currentPeriodExt')}</option>
                                                                         {Array.from({length: 7}, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
                                                                             <option key={y} value={y}>{y}</option>
                                                                         ))}
@@ -634,6 +638,7 @@ export function TemplatesView() {
                                                                     className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                                                 >
                                                                     <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                    <option value="current">{t('templates.currentPeriodExt')}</option>
                                                                     {Array.from({length: 7}, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
                                                                         <option key={y} value={y}>{y}</option>
                                                                     ))}

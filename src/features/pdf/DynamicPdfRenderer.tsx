@@ -510,25 +510,28 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
         } else if (dateRange === 'month') {
             // Constrain to the export month or specifically chosen month
             const base = startDate ? dayjs(startDate) : dayjs();
-            const y = block.props.specificYear ? parseInt(block.props.specificYear) : base.year();
-            const m = block.props.specificMonth !== undefined && block.props.specificMonth !== '' ? parseInt(block.props.specificMonth) : base.month();
+            const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
+            const m = block.props.specificMonth === 'current' ? dayjs().month() : (block.props.specificMonth !== undefined && block.props.specificMonth !== '' ? parseInt(block.props.specificMonth) : base.month());
             minDate = dayjs(new Date(y, m, 1)).startOf('month');
             maxDate = minDate.clone().endOf('month');
         } else if (dateRange === 'quarter') {
             // Expand to the full quarter containing the start month or specifically chosen quarter
             const base = startDate ? dayjs(startDate) : dayjs();
-            const y = block.props.specificYear ? parseInt(block.props.specificYear) : base.year();
-            let quarterStartMonth = Math.floor(base.month() / 3) * 3;
-            if (block.props.specificQuarter) {
-                const q = parseInt(block.props.specificQuarter);
-                quarterStartMonth = (q - 1) * 3;
+            const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
+            let quarterStartMonth: number;
+            if (block.props.specificQuarter === 'current') {
+                quarterStartMonth = Math.floor(dayjs().month() / 3) * 3;
+            } else if (block.props.specificQuarter !== undefined && block.props.specificQuarter !== '') {
+                quarterStartMonth = (parseInt(block.props.specificQuarter) - 1) * 3;
+            } else {
+                quarterStartMonth = Math.floor(base.month() / 3) * 3;
             }
             minDate = dayjs(new Date(y, quarterStartMonth, 1)).startOf('month');
             maxDate = minDate.clone().add(2, 'month').endOf('month');
         } else if (dateRange === 'year') {
             // Expand to the full year or specifically chosen year
             const base = startDate ? dayjs(startDate) : dayjs();
-            const y = block.props.specificYear ? parseInt(block.props.specificYear) : base.year();
+            const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
             minDate = dayjs(new Date(y, 0, 1)).startOf('year');
             maxDate = dayjs(new Date(y, 0, 1)).endOf('year');
         } else {
@@ -537,6 +540,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
         }
 
         const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
+        const edgeLabelFormat = totalDays > 180 ? 'MMM D' : 'MMM D, YYYY';
 
         const timelineMarkers: Array<{ label: string, percent: number }> = [];
         let currentMarker = minDate.clone().startOf('month');
@@ -548,7 +552,9 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
             const daysOffset = currentMarker.diff(minDate, 'day');
             const percent = (daysOffset / totalDays) * 100;
             if (percent > 2 && percent < 98) {
-                timelineMarkers.push({ label: currentMarker.format('MMM YYYY'), percent: percent });
+                const labelFormat = totalDays > 180 ? 'MMM' : 'MMM YYYY';
+                const labelText = percent > 88 ? '' : currentMarker.format(labelFormat);
+                timelineMarkers.push({ label: labelText, percent: percent });
             }
             currentMarker = currentMarker.add(1, 'month');
         }
@@ -562,12 +568,12 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                             <Text style={{ fontSize: 10, color: '#6B7280', fontWeight: 'bold' }}>{i18n.t('pdf.timelineDays', { count: totalDays })}</Text>
                         </View>
                         <View style={{ flex: 1, position: 'relative', height: 16 }}>
-                            <Text style={{ position: 'absolute', left: 0, top: 2, fontSize: 10, color: '#6B7280' }}>{minDate.format('MMM D, YYYY')}</Text>
-                            <Text style={{ position: 'absolute', right: 0, top: 2, fontSize: 10, color: '#6B7280' }}>{maxDate.format('MMM D, YYYY')}</Text>
+                            <Text style={{ position: 'absolute', left: 0, top: 2, fontSize: 10, color: '#6B7280' }}>{minDate.format(edgeLabelFormat)}</Text>
+                            <Text style={{ position: 'absolute', right: 0, top: 2, fontSize: 10, color: '#6B7280' }}>{maxDate.format(edgeLabelFormat)}</Text>
 
                             {timelineMarkers.map((m, idx) => (
                                 <View key={idx} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, paddingLeft: 4, borderLeftWidth: 1, borderLeftColor: '#D1D5DB', height: 16 }}>
-                                    <Text style={{ fontSize: 9, color: '#4B5563', fontWeight: 'bold', paddingTop: 2 }}>{m.label}</Text>
+                                    <Text style={{ fontSize: 10, color: '#6B7280', paddingTop: 2 }}>{m.label}</Text>
                                 </View>
                             ))}
                         </View>

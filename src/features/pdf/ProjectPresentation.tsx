@@ -217,6 +217,7 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
         : dayjs().add(30, 'day'));
 
     const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
+    const edgeLabelFormat = totalDays > 180 ? 'MMM D' : 'MMM D, YYYY';
 
     const timelineMarkers: Array<{ label: string, percent: number }> = [];
     let currentMarker = minDate.clone().startOf('month');
@@ -228,8 +229,10 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
         const daysOffset = currentMarker.diff(minDate, 'day');
         const percent = (daysOffset / totalDays) * 100;
         if (percent > 2 && percent < 98) {
+            const labelFormat = totalDays > 180 ? 'MMM' : 'MMM YYYY';
+            const labelText = percent > 88 ? '' : currentMarker.format(labelFormat);
             timelineMarkers.push({
-                label: currentMarker.format('MMM YYYY'),
+                label: labelText,
                 percent: percent
             });
         }
@@ -454,15 +457,15 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                             </View>
                             <View style={{ flex: 1, position: 'relative', height: 16 }}>
                                 <Text style={{ position: 'absolute', left: 0, top: 2, fontSize: 10, color: '#6B7280' }}>
-                                    {minDate.format('MMM D, YYYY')}
+                                    {minDate.format(edgeLabelFormat)}
                                 </Text>
                                 <Text style={{ position: 'absolute', right: 0, top: 2, fontSize: 10, color: '#6B7280' }}>
-                                    {maxDate.format('MMM D, YYYY')}
+                                    {maxDate.format(edgeLabelFormat)}
                                 </Text>
 
                                 {timelineMarkers.map((m, idx) => (
                                     <View key={idx} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, paddingLeft: 4, borderLeftWidth: 1, borderLeftColor: '#D1D5DB', height: 16 }}>
-                                        <Text style={{ fontSize: 9, color: '#4B5563', fontWeight: 'bold', paddingTop: 2 }}>
+                                        <Text style={{ fontSize: 10, color: '#6B7280', paddingTop: 2 }}>
                                             {m.label}
                                         </Text>
                                     </View>

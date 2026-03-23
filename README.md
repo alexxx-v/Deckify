@@ -52,7 +52,7 @@ All data is stored entirely locally on your device using IndexedDB (with a Data 
   - **Custom Export Templates**: Create and modify reusable PDF templates using a block constructor natively within the app. TEXT blocks use the Tiptap rich-text editor (same as task descriptions); content is stored as HTML and rendered in the final PDF.
   - Generates presentations with a Title, Progress Overview stats, and clean Task List slides.
   - **One Slide per Task**: Automatically renders each task on a separate slide containing its timeline, progress status, and detailed description.
-  - **Roadmap Visualization**: Calculates the min and max dates of all tasks and renders a time-scaled visual roadmap. Dynamically adds a period label (e.g., 'Май 2026', 'Q1 2026', 'Год 2026-2027') to the Roadmap slide title based on the timeframe. Users can explicitly define custom absolute periods (specific month, quarter, or year) within the template block properties to override the export's base period.
+  - **Roadmap Visualization**: Calculates the min and max dates of all tasks and renders a time-scaled visual roadmap. Dynamically adds a period label (e.g., 'Май 2026', 'Q1 2026', 'Год 2026-2027') to the Roadmap slide title based on the timeframe. Users can choose to render the roadmap based on the export window ('Текущий (по экспорту)'), the actual real-world current time ('Текущий'), or explicitly define custom absolute periods (specific month, quarter, or year) within the template block properties.
 - **Custom Branding**: App includes a beautiful, flat Material Design 3 icon designed and configured for macOS (`build/icon.png`).
 
 ---
