@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db, useLiveQuery, TaskStep } from '@/db/schema';
+import { db, useLiveQuery, TaskStep, TaskType } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import dayjs from 'dayjs';
@@ -68,7 +68,9 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
     const [editDurationUnit, setEditDurationUnit] = useState<'days' | 'weeks' | 'months'>('days');
     const [editProgress, setEditProgress] = useState('0');
     const [editStatus, setEditStatus] = useState<'backlog' | 'progress' | 'hold' | 'done'>('backlog');
+    const [editTaskTypeId, setEditTaskTypeId] = useState<string>('');
     const [editSteps, setEditSteps] = useState<TaskStep[]>([]);
+    const taskTypes = useLiveQuery(() => task ? db.taskTypes.where('projectId').equals(task.projectId).toArray() : [], [task?.projectId]);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -100,6 +102,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
             setEditDurationUnit('days');
             setEditProgress(task.progress.toString());
             setEditStatus(task.status || 'backlog');
+            setEditTaskTypeId(task.taskTypeId || '');
             try {
                 setEditSteps(task.steps ? JSON.parse(task.steps) : []);
             } catch (e) {
@@ -135,6 +138,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
             duration: calculatedDuration,
             progress: editStatus === 'done' ? 100 : (parseInt(editProgress, 10) || 0),
             status: editStatus,
+            taskTypeId: editTaskTypeId || undefined,
             steps: JSON.stringify(editSteps)
         });
 
@@ -275,6 +279,20 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                                 <option value="progress">{t('taskEdit.inProgress')}</option>
                                 <option value="hold">{t('taskEdit.onHold')}</option>
                                 <option value="done">{t('taskEdit.done')}</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.taskType', 'Тип задачи')}</label>
+                            <select
+                                value={editTaskTypeId}
+                                onChange={(e) => setEditTaskTypeId(e.target.value)}
+                                className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
+                            >
+                                <option value="">{t('taskEdit.noType', 'Без типа')}</option>
+                                {taskTypes?.map((tt: TaskType) => (
+                                    <option key={tt.id} value={tt.id}>{tt.name}</option>
+                                ))}
                             </select>
                         </div>
 

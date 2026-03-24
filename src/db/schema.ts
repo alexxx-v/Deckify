@@ -6,7 +6,7 @@ export interface Project {
     createdAt: number; // timestamp
 }
 
-export type TemplateBlockType = 'TITLE_PAGE' | 'STATS' | 'TASKS_LIST' | 'TASK_DETAIL' | 'ROADMAP' | 'TEXT';
+export type TemplateBlockType = 'TITLE_PAGE' | 'STATS' | 'TASKS_LIST' | 'TASK_DETAIL' | 'ROADMAP' | 'TEXT' | 'TYPE_SUMMARY';
 
 export interface TemplateBlock {
     id: string; // unique block id inside the template
@@ -34,6 +34,14 @@ export interface Task {
     progress: number; // 0-100
     status?: TaskStatus; // Enum for status
     steps?: string; // JSON string of steps
+    taskTypeId?: string; // Foreign key to TaskType
+}
+
+export interface TaskType {
+    id: string;
+    projectId: string;
+    name: string;
+    color: string;
 }
 
 export interface TaskStep {
@@ -87,12 +95,18 @@ export function initDb(dbPath: string): boolean {
             );
         `);
 
-        // Migration: add steps column if it doesn't exist
-        try {
-            sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN steps TEXT`);
-        } catch (e) {
-            // Ignore error if column already exists
-        }
+        // Migrations
+        try { sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN steps TEXT`); } catch (e) { }
+        try { sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN taskTypeId TEXT`); } catch (e) { }
+
+        sqliteDb.exec(`
+            CREATE TABLE IF NOT EXISTS task_types (
+                id TEXT PRIMARY KEY,
+                projectId TEXT,
+                name TEXT,
+                color TEXT
+            );
+        `);
 
         notifySubscribers();
         return true;
@@ -176,9 +190,9 @@ export const db = {
         add: async (t: Task) => {
             if (!sqliteDb) return;
             sqliteDb.prepare(`
-                INSERT INTO tasks (id, projectId, title, description, startDate, duration, progress, status, steps)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(t.id, t.projectId, t.title, t.description || '', t.startDate, t.duration, t.progress, t.status || 'backlog', t.steps || '[]');
+                INSERT INTO tasks (id, projectId, title, description, startDate, duration, progress, status, steps, taskTypeId)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(t.id, t.projectId, t.title, t.description || '', t.startDate, t.duration, t.progress, t.status || 'backlog', t.steps || '[]', t.taskTypeId || null);
             notifySubscribers();
         },
         update: async (id: string, obj: Partial<Task>) => {
@@ -240,6 +254,41 @@ export const db = {
         delete: async (id: string) => {
             if (!sqliteDb) return;
             sqliteDb.prepare(`DELETE FROM templates WHERE id = ?`).run(id);
+            notifySubscribers();
+        }
+    },
+    taskTypes: {
+        toArray: () => {
+            if (!sqliteDb) return [];
+            return sqliteDb.prepare(`SELECT * FROM task_types`).all();
+        },
+        where: (field: string) => ({
+            equals: (val: string) => ({
+                toArray: () => {
+                    if (!sqliteDb) return [];
+                    return sqliteDb.prepare(`SELECT * FROM task_types WHERE ${field} = ?`).all(val);
+                }
+            })
+        }),
+        add: async (tt: TaskType) => {
+            if (!sqliteDb) return;
+            sqliteDb.prepare(`INSERT INTO task_types (id, projectId, name, color) VALUES (?, ?, ?, ?)`).run(tt.id, tt.projectId, tt.name, tt.color);
+            notifySubscribers();
+        },
+        update: async (id: string, obj: Partial<TaskType>) => {
+            if (!sqliteDb) return;
+            const keys = Object.keys(obj);
+            if (keys.length === 0) return;
+            const setStr = keys.map(k => `${k} = ?`).join(', ');
+            const values = keys.map(k => (obj as any)[k]);
+            sqliteDb.prepare(`UPDATE task_types SET ${setStr} WHERE id = ?`).run(...values, id);
+            notifySubscribers();
+        },
+        delete: async (id: string) => {
+            if (!sqliteDb) return;
+            // Also nullify taskTypeId in tasks using this type
+            sqliteDb.prepare(`UPDATE tasks SET taskTypeId = NULL WHERE taskTypeId = ?`).run(id);
+            sqliteDb.prepare(`DELETE FROM task_types WHERE id = ?`).run(id);
             notifySubscribers();
         }
     }

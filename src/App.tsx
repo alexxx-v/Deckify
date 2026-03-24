@@ -5,6 +5,7 @@ import { TaskEditView } from './features/projects/TaskEditView'
 import { Dashboard } from './features/dashboard/Dashboard'
 import { Settings } from './features/settings/Settings'
 import { TemplatesView } from './features/pdf/TemplatesView'
+import { ProjectSettings } from './features/projects/ProjectSettings'
 import { initDb } from './db/schema'
 import { Button } from './components/ui/button'
 import { useTranslation } from 'react-i18next'
@@ -16,6 +17,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [selectedProjectSettingsId, setSelectedProjectSettingsId] = useState<string | null>(null);
   const [dbReady, setDbReady] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [dbPathInput, setDbPathInput] = useState('');
@@ -191,11 +193,17 @@ function App() {
                 taskId={editingTaskId}
                 onBack={() => setEditingTaskId(null)}
               />
+            ) : selectedProjectSettingsId ? (
+              <ProjectSettings
+                projectId={selectedProjectSettingsId}
+                onBack={() => setSelectedProjectSettingsId(null)}
+              />
             ) : selectedProjectId ? (
               <ProjectTasks
                 projectId={selectedProjectId}
                 onBack={() => setSelectedProjectId(null)}
                 onEditTask={(taskId) => setEditingTaskId(taskId)}
+                onOpenSettings={() => setSelectedProjectSettingsId(selectedProjectId)}
               />
             ) : activeTab === 'dashboard' ? (
               <Dashboard />

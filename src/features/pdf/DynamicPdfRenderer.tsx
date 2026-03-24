@@ -1,6 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import { Project, Task, TaskStatus, TemplateBlock } from '@/db/schema';
+import { Project, Task, TaskStatus, TemplateBlock, TaskType } from '@/db/schema';
 import dayjs from 'dayjs';
 import i18n from '@/i18n';
 
@@ -257,13 +257,14 @@ interface BlockRendererProps {
     project: Project;
     tasks: Task[];
     allProjectTasks?: Task[];
+    taskTypes?: TaskType[];
     period: string;
     startDate?: string;
     endDate?: string;
     key: string;
 }
 
-const BlockRenderer = ({ block, project, tasks, allProjectTasks, period, startDate, endDate }: BlockRendererProps) => {
+const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, period, startDate, endDate }: BlockRendererProps) => {
     if (block.type === 'TITLE_PAGE') {
         const { showSubtitle } = block.props;
         return (
@@ -325,22 +326,43 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, period, startDa
     }
 
     if (block.type === 'TASKS_LIST') {
+        const groups: Record<string, Task[]> = { 'no-type': [] };
+        taskTypes?.forEach(tt => groups[tt.id] = []);
+        tasks.forEach(t => {
+            if (t.taskTypeId && groups[t.taskTypeId]) groups[t.taskTypeId].push(t);
+            else groups['no-type'].push(t);
+        });
+
+        const entries = Object.entries(groups).filter(([_, gt]) => gt.length > 0);
+
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
                 <Text style={styles.header}>{i18n.t('pdf.progressOverview')}</Text>
                 <View style={{ marginTop: 10, flex: 1 }}>
-                    {tasks.map((task, idx) => (
-                        <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center' }}>
-                            <Text style={{ fontSize: 14, color: '#374151', flex: 1, paddingRight: 10 }}>
-                                {idx + 1}. {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
-                            </Text>
-                            <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, borderColor: getPdfStatusColor(task.status).border, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, width: 100, alignItems: 'center' }}>
-                                <Text style={{ fontSize: 10, fontWeight: 'bold', color: getPdfStatusColor(task.status).text, textTransform: 'uppercase' }}>
-                                    {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
-                                </Text>
+                    {entries.map(([typeId, groupTasks]) => {
+                        const taskType = taskTypes?.find(tt => tt.id === typeId);
+                        return (
+                            <View key={typeId} style={{ marginBottom: 15 }}>
+                                <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 4, borderLeftWidth: 3, borderLeftColor: taskType?.color || '#94a3b8', marginBottom: 5 }}>
+                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#4B5563', textTransform: 'uppercase' }}>
+                                        {taskType?.name || i18n.t('taskEdit.noType', 'Без типа')} ({groupTasks.length})
+                                    </Text>
+                                </View>
+                                {groupTasks.map((task) => (
+                                    <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10 }}>
+                                        <Text style={{ fontSize: 13, color: '#374151', flex: 1, paddingRight: 10 }}>
+                                            {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
+                                        </Text>
+                                        <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, borderColor: getPdfStatusColor(task.status).border, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, width: 90, alignItems: 'center' }}>
+                                            <Text style={{ fontSize: 9, fontWeight: 'bold', color: getPdfStatusColor(task.status).text, textTransform: 'uppercase' }}>
+                                                {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ))}
                             </View>
-                        </View>
-                    ))}
+                        );
+                    })}
                 </View>
             </Page>
         );
@@ -356,6 +378,18 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, period, startDa
                             <Text style={{ fontSize: 20, color: '#111827', fontWeight: 'bold' }}>
                                 {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
                             </Text>
+                            {(() => {
+                                const taskType = taskTypes?.find(tt => tt.id === task.taskTypeId);
+                                if (!taskType) return null;
+                                return (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                        <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: taskType.color, marginRight: 4 }} />
+                                        <Text style={{ fontSize: 9, color: '#6B7280', fontWeight: 'medium' }}>
+                                            {taskType.name}
+                                        </Text>
+                                    </View>
+                                );
+                            })()}
                         </View>
 
                         <View style={{ flex: 1 }}>
@@ -654,6 +688,59 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, period, startDa
         );
     }
 
+    if (block.type === 'TYPE_SUMMARY') {
+        const typeStats: Record<string, { count: number, duration: number, color: string, name: string }> = {};
+
+        // Initialize with all types for this project
+        taskTypes?.forEach(tt => {
+            typeStats[tt.id] = { count: 0, duration: 0, color: tt.color, name: tt.name };
+        });
+        typeStats['no-type'] = { count: 0, duration: 0, color: '#94a3b8', name: i18n.t('taskEdit.noType') };
+
+        let totalDuration = 0;
+        tasks.forEach(t => {
+            const tid = t.taskTypeId && typeStats[t.taskTypeId] ? t.taskTypeId : 'no-type';
+            typeStats[tid].count += 1;
+            typeStats[tid].duration += t.duration || 0;
+            totalDuration += t.duration || 0;
+        });
+
+        const activeStats = Object.values(typeStats).filter(s => s.count > 0);
+        // Sort by duration descending
+        activeStats.sort((a, b) => b.duration - a.duration);
+
+        return (
+            <Page size="A4" orientation="landscape" style={styles.page}>
+                <Text style={styles.header}>{i18n.t('pdf.typeSummaryTitle')}</Text>
+                <View style={{ marginTop: 10, flex: 1, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' }}>
+                    {/* Table Header */}
+                    <View style={{ flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', padding: 12 }}>
+                        <Text style={{ flex: 3, fontSize: 10, fontWeight: 'bold', color: '#374151' }}>{i18n.t('pdf.typeColumn')}</Text>
+                        <Text style={{ flex: 1, fontSize: 10, fontWeight: 'bold', color: '#374151', textAlign: 'center' }}>{i18n.t('pdf.countColumn')}</Text>
+                        <Text style={{ flex: 1, fontSize: 10, fontWeight: 'bold', color: '#374151', textAlign: 'right' }}>{i18n.t('pdf.timePercentColumn')}</Text>
+                    </View>
+
+                    {/* Table Body */}
+                    {activeStats.map((stat, idx) => {
+                        const percent = totalDuration === 0 ? 0 : (stat.duration / totalDuration) * 100;
+                        return (
+                            <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: idx === activeStats.length - 1 ? 0 : 1, borderBottomColor: '#F3F4F6', padding: 12, alignItems: 'center' }}>
+                                <View style={{ flex: 3, flexDirection: 'row', alignItems: 'center' }}>
+                                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: stat.color, marginRight: 10 }} />
+                                    <Text style={{ fontSize: 12, color: '#111827' }}>{stat.name}</Text>
+                                </View>
+                                <Text style={{ flex: 1, fontSize: 12, color: '#4B5563', textAlign: 'center' }}>{stat.count}</Text>
+                                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#111827' }}>{percent.toFixed(2)}%</Text>
+                                </View>
+                            </View>
+                        );
+                    })}
+                </View>
+            </Page>
+        );
+    }
+
     return null;
 }
 
@@ -661,13 +748,14 @@ interface DynamicPdfRendererProps {
     project: Project;
     tasks: Task[];
     allProjectTasks?: Task[];
+    taskTypes?: TaskType[];
     period: string; // e.g. "Q1 January"
     startDate?: string;
     endDate?: string;
     blocksJson: string; // The templates' JSON blocks string
 }
 
-export const DynamicPdfRenderer = ({ project, tasks, allProjectTasks, period, startDate, endDate, blocksJson }: DynamicPdfRendererProps) => {
+export const DynamicPdfRenderer = ({ project, tasks, allProjectTasks, taskTypes, period, startDate, endDate, blocksJson }: DynamicPdfRendererProps) => {
     let parsedBlocks: TemplateBlock[] = [];
     try {
         parsedBlocks = JSON.parse(blocksJson);
@@ -693,6 +781,7 @@ export const DynamicPdfRenderer = ({ project, tasks, allProjectTasks, period, st
                     project={project}
                     tasks={tasks}
                     allProjectTasks={allProjectTasks}
+                    taskTypes={taskTypes}
                     period={period}
                     startDate={startDate}
                     endDate={endDate}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { Project, Task, db, ExportTemplate } from '@/db/schema';
+import { Project, Task, db, ExportTemplate, TaskType } from '@/db/schema';
 import { pdf } from '@react-pdf/renderer';
 import { ProjectPresentation } from './ProjectPresentation';
 import { DynamicPdfRenderer } from './DynamicPdfRenderer';
@@ -30,6 +30,7 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
 
     const [templates, setTemplates] = useState<ExportTemplate[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
 
     useEffect(() => {
         const loaded = db.templates.toArray() as ExportTemplate[];
@@ -37,7 +38,10 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
         if (loaded.length > 0) {
             setSelectedTemplateId(loaded[0].id);
         }
-    }, []);
+
+        const loadedTypes = db.taskTypes.where('projectId').equals(project.id).toArray() as TaskType[];
+        setTaskTypes(loadedTypes);
+    }, [project.id]);
 
     useEffect(() => {
         let p = '';
@@ -79,8 +83,8 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
 
             const template = templates.find(t => t.id === selectedTemplateId);
             const doc = template
-                ? <DynamicPdfRenderer project={project} tasks={filteredTasks} allProjectTasks={tasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} blocksJson={template.blocks} />
-                : <ProjectPresentation project={project} tasks={filteredTasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} />;
+                ? <DynamicPdfRenderer project={project} tasks={filteredTasks} allProjectTasks={tasks} taskTypes={taskTypes} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} blocksJson={template.blocks} />
+                : <ProjectPresentation project={project} tasks={filteredTasks} taskTypes={taskTypes} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} />;
 
             const asPdf = pdf();
             asPdf.updateContainer(doc);

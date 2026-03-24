@@ -85,7 +85,9 @@
         "stepPlaceholder": "Опишите этап...",
         "deleteStep": "Удалить",
         "deleteTask": "Удалить задачу",
-        "deleteTaskConfirm": "Вы действительно хотите удалить эту задачу? Это действие необратимо."
+        "deleteTaskConfirm": "Вы действительно хотите удалить эту задачу? Это действие необратимо.",
+        "type": "Тип задачи",
+        "noType": "Без типа"
     },
     "export": {
         "title": "Экспорт презентации",
@@ -137,7 +139,12 @@
         "hold": "НА ПАУЗЕ",
         "backlog": "БЭКЛОГ",
         "steps": "Этапы реализации",
-        "currentStep": "текущий этап"
+        "currentStep": "текущий этап",
+        "typeSummaryTitle": "Анализ задач по типам",
+        "typeColumn": "Тип задачи",
+        "countColumn": "Кол-во задач",
+        "durationColumn": "Длительность",
+        "timePercentColumn": "% времени"
     },
     "templates": {
         "title": "Шаблоны отчетов",
@@ -161,6 +168,7 @@
         "block_TASK_DETAIL": "Детали задач",
         "block_ROADMAP": "Дорожная карта",
         "block_TEXT": "Текстовый блок",
+        "block_TYPE_SUMMARY": "Сводка по типам",
         "prop_showSubtitle": "Показывать подзаголовок",
         "prop_showCompleted": "Показывать количество ГОТОВО",
         "prop_showProgress": "Показывать общий прогресс",

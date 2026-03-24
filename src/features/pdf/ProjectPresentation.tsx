@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import { Project, Task, TaskStatus } from '@/db/schema';
+import { Project, Task, TaskStatus, TaskType } from '@/db/schema';
 import dayjs from 'dayjs';
 import i18n from '@/i18n';
 
@@ -194,12 +194,13 @@ const styles = StyleSheet.create({
 interface PdfDocumentProps {
     project: Project;
     tasks: Task[];
+    taskTypes?: TaskType[];
     period: string; // e.g. "Q1 January"
     startDate?: string;
     endDate?: string;
 }
 
-export const ProjectPresentation = ({ project, tasks, period, startDate, endDate }: PdfDocumentProps) => {
+export const ProjectPresentation = ({ project, tasks, taskTypes, period, startDate, endDate }: PdfDocumentProps) => {
     const completedTasks = tasks.filter(t => (t.progress || 0) === 100 || t.status === 'done').length;
     const totalTasks = tasks.length;
     const overallProgress = totalTasks === 0 ? 0 :
@@ -272,32 +273,55 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                     </View>
                 </View>
                 <View style={{ marginTop: 10, flex: 1 }}>
-                    {tasks.map((task, idx) => (
-                        <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center' }}>
-                            <Text style={{ fontSize: 14, color: '#374151', flex: 1, paddingRight: 10 }}>
-                                {idx + 1}. {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
-                            </Text>
-                            <View style={{
-                                backgroundColor: getPdfStatusColor(task.status).bg,
-                                borderColor: getPdfStatusColor(task.status).border,
-                                borderWidth: 1,
-                                paddingHorizontal: 8,
-                                paddingVertical: 4,
-                                borderRadius: 4,
-                                width: 100,
-                                alignItems: 'center'
-                            }}>
-                                <Text style={{
-                                    fontSize: 10,
-                                    fontWeight: 'bold',
-                                    color: getPdfStatusColor(task.status).text,
-                                    textTransform: 'uppercase'
-                                }}>
-                                    {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
-                                </Text>
-                            </View>
-                        </View>
-                    ))}
+                    {(() => {
+                        const groups: Record<string, Task[]> = { 'no-type': [] };
+                        taskTypes?.forEach(tt => groups[tt.id] = []);
+                        tasks.forEach(t => {
+                            if (t.taskTypeId && groups[t.taskTypeId]) groups[t.taskTypeId].push(t);
+                            else groups['no-type'].push(t);
+                        });
+
+                        const entries = Object.entries(groups).filter(([_, gt]) => gt.length > 0);
+
+                        return entries.map(([typeId, groupTasks]) => {
+                            const taskType = taskTypes?.find(tt => tt.id === typeId);
+                            return (
+                                <View key={typeId} style={{ marginBottom: 15 }}>
+                                    <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 4, borderLeftWidth: 3, borderLeftColor: taskType?.color || '#94a3b8', marginBottom: 5 }}>
+                                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#4B5563', textTransform: 'uppercase' }}>
+                                            {taskType?.name || i18n.t('taskEdit.noType', 'Без типа')} ({groupTasks.length})
+                                        </Text>
+                                    </View>
+                                    {groupTasks.map((task) => (
+                                        <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10 }}>
+                                            <Text style={{ fontSize: 13, color: '#374151', flex: 1, paddingRight: 10 }}>
+                                                {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
+                                            </Text>
+                                            <View style={{
+                                                backgroundColor: getPdfStatusColor(task.status).bg,
+                                                borderColor: getPdfStatusColor(task.status).border,
+                                                borderWidth: 1,
+                                                paddingHorizontal: 8,
+                                                paddingVertical: 3,
+                                                borderRadius: 4,
+                                                width: 90,
+                                                alignItems: 'center'
+                                            }}>
+                                                <Text style={{
+                                                    fontSize: 9,
+                                                    fontWeight: 'bold',
+                                                    color: getPdfStatusColor(task.status).text,
+                                                    textTransform: 'uppercase'
+                                                }}>
+                                                    {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            );
+                        });
+                    })()}
                 </View>
             </Page>
 
@@ -308,6 +332,18 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                         <Text style={{ fontSize: 26, color: '#111827', fontWeight: 'bold' }}>
                             {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
                         </Text>
+                        {(() => {
+                            const taskType = taskTypes?.find(tt => tt.id === task.taskTypeId);
+                            if (!taskType) return null;
+                            return (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: taskType.color, marginRight: 6 }} />
+                                    <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: 'medium' }}>
+                                        {taskType.name}
+                                    </Text>
+                                </View>
+                            );
+                        })()}
                     </View>
 
                     <View style={{ flex: 1 }}>

@@ -12,6 +12,7 @@ const AVAILABLE_BLOCKS: { type: TemplateBlockType, defaultProps: any }[] = [
     { type: 'TASK_DETAIL', defaultProps: { includeDescription: true, includeSteps: true } },
     { type: 'ROADMAP', defaultProps: { dateRange: 'export' } },
     { type: 'TEXT', defaultProps: { title: 'Custom Section', content: 'Enter your text here...' } },
+    { type: 'TYPE_SUMMARY', defaultProps: {} },
 ];
 
 export function TemplatesView() {
@@ -203,7 +204,8 @@ export function TemplatesView() {
                                                 {block.type === 'TASK_DETAIL' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M7 7h10" /><path d="M7 12h10" /><path d="M7 17h10" /></svg>}
                                                 {block.type === 'ROADMAP' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M7 10h6" /><path d="M11 14h8" /><path d="M5 6h4" /></svg>}
                                                 {block.type === 'TEXT' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="7" y2="7" /><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="14" y1="17" y2="17" /></svg>}
-                                            </div>
+                                                {block.type === 'TYPE_SUMMARY' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 9v12"/><path d="M15 9v12"/></svg>}
+                                             </div>
                                             <span className="text-sm font-medium">{t(`templates.block_${block.type}` as any)}</span>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-auto text-muted-foreground opacity-50"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                                         </div>
@@ -430,6 +432,32 @@ export function TemplatesView() {
                                                             <div className="w-11/12 h-1 bg-muted-foreground/15 rounded-full" />
                                                             <div className="w-4/5 h-1 bg-muted-foreground/15 rounded-full" />
                                                             <div className="w-9/12 h-1 bg-muted-foreground/15 rounded-full" />
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* TYPE_SUMMARY preview */}
+                                                {block.type === 'TYPE_SUMMARY' && (
+                                                    <div className="bg-muted/30 rounded-lg p-4" style={{ aspectRatio: '16/7' }}>
+                                                        <div className="w-1/3 h-1.5 bg-foreground/40 rounded-full mb-3" />
+                                                        <div className="space-y-1.5 border rounded border-muted-foreground/10 overflow-hidden">
+                                                            <div className="bg-muted/50 h-3 flex items-center px-1.5 gap-2">
+                                                                <div className="w-1/3 h-1 bg-foreground/20 rounded-full" />
+                                                                <div className="w-1/4 h-1 bg-foreground/20 rounded-full" />
+                                                                <div className="w-1/4 h-1 bg-foreground/20 rounded-full" />
+                                                            </div>
+                                                            <div className="h-3 flex items-center px-1.5 gap-2 border-t border-muted-foreground/5">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                                                                <div className="w-1/4 h-1 bg-muted-foreground/20 rounded-full" />
+                                                                <div className="w-1/12 h-1 bg-muted-foreground/20 rounded-full ml-auto" />
+                                                                <div className="w-1/6 h-1 bg-muted-foreground/20 rounded-full" />
+                                                            </div>
+                                                            <div className="h-3 flex items-center px-1.5 gap-2 border-t border-muted-foreground/5">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                                                <div className="w-1/4 h-1 bg-muted-foreground/20 rounded-full" />
+                                                                <div className="w-1/12 h-1 bg-muted-foreground/20 rounded-full ml-auto" />
+                                                                <div className="w-1/6 h-1 bg-muted-foreground/20 rounded-full" />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
