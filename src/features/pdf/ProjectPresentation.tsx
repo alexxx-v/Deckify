@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { Project, Task, TaskStatus } from '@/db/schema';
 import dayjs from 'dayjs';
 import i18n from '@/i18n';
@@ -29,13 +29,9 @@ const getRoadmapPeriodLabel = (minDate: dayjs.Dayjs, maxDate: dayjs.Dayjs): stri
 };
 
 // Register fonts
-Font.register({
-    family: 'Roboto',
-    fonts: [
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf' },
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf', fontWeight: 'bold' }
-    ]
-});
+import { registerFonts } from './pdfFonts';
+
+registerFonts();
 
 const styles = StyleSheet.create({
     page: {
@@ -204,10 +200,10 @@ interface PdfDocumentProps {
 }
 
 export const ProjectPresentation = ({ project, tasks, period, startDate, endDate }: PdfDocumentProps) => {
-    const completedTasks = tasks.filter(t => t.progress === 100).length;
+    const completedTasks = tasks.filter(t => (t.progress || 0) === 100 || t.status === 'done').length;
     const totalTasks = tasks.length;
     const overallProgress = totalTasks === 0 ? 0 :
-        Math.round(tasks.reduce((sum, t) => sum + t.progress, 0) / totalTasks);
+        Math.round(tasks.reduce((sum, t) => sum + (t.progress || 0), 0) / totalTasks);
 
     // Roadmap logic
     const sortedTasks = tasks;
@@ -216,7 +212,8 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
         ? dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())))
         : dayjs().add(30, 'day'));
 
-    const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
+    let totalDays = maxDate.diff(minDate, 'day');
+    if (isNaN(totalDays) || totalDays < 1) totalDays = 1;
     const edgeLabelFormat = totalDays > 180 ? 'MMM D' : 'MMM D, YYYY';
 
     const timelineMarkers: Array<{ label: string, percent: number }> = [];
@@ -227,7 +224,7 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
 
     while (currentMarker.isBefore(maxDate)) {
         const daysOffset = currentMarker.diff(minDate, 'day');
-        const percent = (daysOffset / totalDays) * 100;
+        const percent = isNaN(daysOffset) || isNaN(totalDays) ? 0 : (daysOffset / totalDays) * 100;
         if (percent > 2 && percent < 98) {
             const labelFormat = totalDays > 180 ? 'MMM' : 'MMM YYYY';
             const labelText = percent > 88 ? '' : currentMarker.format(labelFormat);

@@ -26,4 +26,5 @@ tmp-app
 *.sw?
 GEMINI.md
 .agents
+.agent
 skills-lock.json

@@ -97,9 +97,11 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
             URL.revokeObjectURL(url);
 
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to generate PDF', error);
-            alert('Failed to generate PDF');
+            // Show more details if possible
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            alert(`Failed to generate PDF: ${errorMsg}`);
         } finally {
             setIsGenerating(false);
         }

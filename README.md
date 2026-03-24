@@ -25,7 +25,7 @@ Deckify is designed to simplify planning and reporting for teams and individual 
 4.  **Powerful Rich Text Editor**: Write detailed task descriptions using the integrated Tiptap editor. Features include headings, lists, blockquotes, code blocks with syntax highlighting, and rich text formatting.
 5.  **Built-in PDF Generator**: Turn your task lists into professional PDF reports with a single click. Use the built-in template block constructor (TEXT, flowcharts, statistics) to fully customize your exports.
 
-All data is stored entirely locally on your device using IndexedDB (with a Data Access Layer designed for future PostgreSQL support), guaranteeing absolute privacy and a seamless offline experience.
+All data is stored entirely locally on your device using **SQLite** (via `better-sqlite3`), guaranteeing absolute privacy and a seamless offline experience. You can choose any local `.db` file in the Settings to manage multiple workspaces.
 
 ---
 
@@ -33,7 +33,7 @@ All data is stored entirely locally on your device using IndexedDB (with a Data 
 -   **Frontend Framework**: React (Vite)
 -   **Styling**: Tailwind CSS, shadcn/ui components
 -   **Desktop Wrapper**: Electron.js
--   **Storage**: Local-First via IndexedDB (Dexie.js). Designed with a Data Access Layer to easily migrate to PostgreSQL later.
+-   **Storage**: Local-First via **SQLite** (`better-sqlite3`). Designed with a flexible Data Access Layer that supports custom database paths.
 -   **Rich Text Editor**: Tiptap (ProseMirror-based), with a custom toolbar. Used in both task description editing and in PDF template TEXT blocks. Content is stored as HTML.
 -   **PDF Generation**: `@react-pdf/renderer` for declarative, vector-based PDF generation directly in the browser/app.
 
@@ -52,6 +52,7 @@ All data is stored entirely locally on your device using IndexedDB (with a Data 
   - **Custom Export Templates**: Create and modify reusable PDF templates using a block constructor natively within the app. TEXT blocks use the Tiptap rich-text editor (same as task descriptions); content is stored as HTML and rendered in the final PDF.
   - Generates presentations with a Title, Progress Overview stats, and clean Task List slides.
   - **One Slide per Task**: Automatically renders each task on a separate slide containing its timeline, progress status, and detailed description.
+  - **Robust PDF Engine**: Highly resilient PDF rendering architecture that handles complex HTML formatting, diverse Unicode characters (including full Cyrillic support), and protects against layout crashes from missing or invalid date/duration metadata via automatic sanitization.
   - **Roadmap Visualization**: Calculates the min and max dates of all tasks and renders a time-scaled visual roadmap. Dynamically adds a period label (e.g., 'Май 2026', 'Q1 2026', 'Год 2026-2027') to the Roadmap slide title based on the timeframe. Users can choose to render the roadmap based on the export window ('Текущий (по экспорту)'), the actual real-world current time ('Текущий'), or explicitly define custom absolute periods (specific month, quarter, or year) within the template block properties.
 - **Custom Branding**: App includes a beautiful, flat Material Design 3 icon designed and configured for macOS (`build/icon.png`).
 

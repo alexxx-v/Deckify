@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { Project, Task, TaskStatus, TemplateBlock } from '@/db/schema';
 import dayjs from 'dayjs';
 import i18n from '@/i18n';
@@ -29,13 +29,9 @@ const getRoadmapPeriodLabel = (minDate: dayjs.Dayjs, maxDate: dayjs.Dayjs): stri
     return startYear === endYear ? `Год ${startYear}` : `Год ${startYear}-${endYear}`;
 };
 
-Font.register({
-    family: 'Roboto',
-    fonts: [
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf' },
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf', fontWeight: 'bold' }
-    ]
-});
+import { registerFonts } from './pdfFonts';
+
+registerFonts();
 
 const styles = StyleSheet.create({
     page: { flexDirection: 'column', backgroundColor: '#FAFAFA', padding: 40, fontFamily: 'Roboto' },
@@ -75,11 +71,10 @@ function renderInlineChildren(node: Element, ctx: RenderCtx): React.ReactNode[] 
         if (child.nodeType !== Node.ELEMENT_NODE) return;
         const el = child as Element;
         const tag = el.tagName.toLowerCase();
-        const text = el.textContent || '';
         if (tag === 'strong') result.push(<Text key={i} style={{ fontWeight: 'bold', color: '#111827' }}>{renderInlineChildren(el, ctx)}</Text>);
-        else if (tag === 'em') result.push(<Text key={i} style={{ fontStyle: 'italic' }}>{text}</Text>);
-        else if (tag === 's') result.push(<Text key={i} style={{ textDecoration: 'line-through', opacity: 0.65 }}>{text}</Text>);
-        else if (tag === 'code') result.push(<Text key={i} style={{ fontFamily: 'Courier', fontSize: ctx.fontSize - 1 }}>{text}</Text>);
+        else if (tag === 'em') result.push(<Text key={i} style={{ fontStyle: 'italic' }}>{renderInlineChildren(el, ctx)}</Text>);
+        else if (tag === 's') result.push(<Text key={i} style={{ textDecoration: 'line-through', opacity: 0.65 }}>{renderInlineChildren(el, ctx)}</Text>);
+        else if (tag === 'code') result.push(<Text key={i} style={{ fontFamily: 'Courier', fontSize: ctx.fontSize - 1 }}>{renderInlineChildren(el, ctx)}</Text>);
         else result.push(<React.Fragment key={i}>{renderInlineChildren(el, ctx)}</React.Fragment>);
     });
     return result;
@@ -97,28 +92,31 @@ function renderList(el: Element, ctx: RenderCtx, outerKey: number): React.ReactN
         if (li.tagName.toLowerCase() !== 'li') return;
         counter++;
 
-        // Separate direct inline/paragraph content from nested lists
-        const directNodes: Node[] = [];
+        // Extraction for inline content: just use nodeType comparison instead of span
+        const directNodesContent: React.ReactNode[] = [];
         const nestedLists: Element[] = [];
-        li.childNodes.forEach(c => {
-            if (c.nodeType === Node.ELEMENT_NODE) {
-                const tag = (c as Element).tagName.toLowerCase();
-                if (tag === 'ul' || tag === 'ol') { nestedLists.push(c as Element); return; }
+        li.childNodes.forEach((c, idx) => {
+            if (c.nodeType === Node.TEXT_NODE) {
+                const t = c.textContent || '';
+                if (t) directNodesContent.push(<React.Fragment key={`li-t-${idx}`}>{t}</React.Fragment>);
+            } else if (c.nodeType === Node.ELEMENT_NODE) {
+                const elChild = c as Element;
+                const tag = elChild.tagName.toLowerCase();
+                if (tag === 'ul' || tag === 'ol') {
+                    nestedLists.push(elChild);
+                } else {
+                    // Render other elements inline if they are not lists
+                    directNodesContent.push(<React.Fragment key={`li-e-${idx}`}>{renderBlockEl(elChild, ctx, idx)}</React.Fragment>);
+                }
             }
-            directNodes.push(c);
         });
-
-        // Build a temporary element to extract inline content
-        const tempEl = document.createElement('span');
-        directNodes.forEach(n => tempEl.appendChild(n.cloneNode(true)));
 
         if (isTask) {
             const checked = li.getAttribute('data-checked') === 'true';
-            const content = tempEl.textContent?.trim() || '';
             items.push(
                 <View key={i} style={{ flexDirection: 'row', marginBottom: ctx.fontSize * 0.1, paddingLeft: indent * 12 + 4 }}>
                     <Text style={{ width: 16, fontSize: ctx.fontSize, color: checked ? '#4F46E5' : '#9CA3AF' }}>{checked ? '☑' : '☐'}</Text>
-                    <Text style={{ flex: 1, fontSize: ctx.fontSize, color: checked ? '#9CA3AF' : '#4B5563', lineHeight: 1.2, textDecoration: checked ? 'line-through' : 'none' }}>{content}</Text>
+                    <Text style={{ flex: 1, fontSize: ctx.fontSize, color: checked ? '#9CA3AF' : '#4B5563', lineHeight: 1.2, textDecoration: checked ? 'line-through' : 'none' }}>{directNodesContent}</Text>
                 </View>
             );
         } else {
@@ -129,12 +127,12 @@ function renderList(el: Element, ctx: RenderCtx, outerKey: number): React.ReactN
                     <View style={{ flexDirection: 'row', marginBottom: ctx.fontSize * 0.05, paddingLeft: indent * 12 + 8 }}>
                         <Text style={{ width: bulletWidth, fontSize: ctx.fontSize, color: '#4B5563' }}>{bullet}</Text>
                         <Text style={{ flex: 1, fontSize: ctx.fontSize, color: '#4B5563', lineHeight: 1.2 }}>
-                            {renderInlineChildren(tempEl, ctx)}
+                            {directNodesContent}
                         </Text>
                     </View>
                     {nestedLists.map((nested, j) => (
                         <React.Fragment key={`n-${j}`}>
-                            {renderList(nested, { ...ctx, indent: indent + 1 }, j)}
+                            {renderList(nested, { ...ctx, indent: (indent || 0) + 1 }, j)}
                         </React.Fragment>
                     ))}
                 </View>
@@ -174,7 +172,7 @@ function renderBlockEl(el: Element, ctx: RenderCtx, key: number): React.ReactNod
     if (tag === 'ul' || tag === 'ol') return renderList(el, ctx, key);
     if (tag === 'blockquote') return (
         <View key={key} style={{ borderLeftWidth: 2, borderLeftColor: '#D1D5DB', paddingLeft: 8, marginVertical: ctx.fontSize * 0.2 }}>
-            <Text style={{ fontSize: ctx.fontSize - 1, color: '#6B7280', fontStyle: 'italic' }}>{el.textContent}</Text>
+            <Text style={{ fontSize: ctx.fontSize - 1, color: '#6B7280', fontStyle: 'italic' }}>{renderInlineChildren(el, ctx)}</Text>
         </View>
     );
     if (tag === 'pre') return (
@@ -215,17 +213,17 @@ const renderMarkdownContent = (text: string, baseFontSize = 14) => {
     return lines.map((line, lineIdx) => {
         const trimmed = line.trim();
         if (!trimmed) return <View key={lineIdx} style={{ height: baseFontSize * 0.3 }} />;
-        
+
         // Headers
         if (trimmed.startsWith('# ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 8, fontWeight: 'bold', color: '#111827', marginTop: baseFontSize * 0.5, marginBottom: baseFontSize * 0.2 }}>{trimmed.substring(2)}</Text>;
         if (trimmed.startsWith('## ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 4, fontWeight: 'bold', color: '#111827', marginTop: baseFontSize * 0.4, marginBottom: baseFontSize * 0.2 }}>{trimmed.substring(3)}</Text>;
         if (trimmed.startsWith('### ')) return <Text key={lineIdx} style={{ fontSize: baseFontSize + 1, fontWeight: 'bold', color: '#1f2937', marginTop: baseFontSize * 0.3, marginBottom: baseFontSize * 0.2 }}>{trimmed.substring(4)}</Text>;
-        
+
         // Lists
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
             const listContent = trimmed.substring(2);
             const parts = listContent.split(/(\*\*.*?\*\*)/g).filter(Boolean);
-            
+
             return (
                 <View key={lineIdx} style={{ flexDirection: 'row', marginBottom: baseFontSize * 0.1, paddingLeft: 12 }}>
                     <Text style={{ width: 12, fontSize: baseFontSize, color: '#4B5563', paddingTop: 0 }}>•</Text>
@@ -238,7 +236,7 @@ const renderMarkdownContent = (text: string, baseFontSize = 14) => {
                 </View>
             );
         }
-        
+
         // Paragraphs with Bold
         const parts = line.split(/(\*\*.*?\*\*)/g).filter(Boolean);
         return (
@@ -279,7 +277,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
 
     if (block.type === 'STATS') {
         const { showCompleted = true, showProgress = true, showTotalTasks = true, showInProgress = true, showHoldTasks = true } = block.props;
-        
+
         const totalTasks = tasks.length;
         const completedTasks = tasks.filter(t => t.progress === 100 || t.status === 'done').length;
         const holdTasks = tasks.filter(t => t.status === 'hold').length;
@@ -539,7 +537,8 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
             maxDate = endDate ? dayjs(endDate) : dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
         }
 
-        const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
+        let totalDays = maxDate.diff(minDate, 'day');
+        if (isNaN(totalDays) || totalDays < 1) totalDays = 1;
         const edgeLabelFormat = totalDays > 180 ? 'MMM D' : 'MMM D, YYYY';
 
         const timelineMarkers: Array<{ label: string, percent: number }> = [];
@@ -550,7 +549,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
 
         while (currentMarker.isBefore(maxDate)) {
             const daysOffset = currentMarker.diff(minDate, 'day');
-            const percent = (daysOffset / totalDays) * 100;
+            const percent = isNaN(daysOffset) || isNaN(totalDays) ? 0 : (daysOffset / totalDays) * 100;
             if (percent > 2 && percent < 98) {
                 const labelFormat = totalDays > 180 ? 'MMM' : 'MMM YYYY';
                 const labelText = percent > 88 ? '' : currentMarker.format(labelFormat);
@@ -581,17 +580,17 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
 
                     {sortedTasks.map(task => {
                         const startOffset = dayjs(task.startDate).diff(minDate, 'day');
-                        const leftPercentRaw = (startOffset / totalDays) * 100;
-                        const widthPercentRaw = (task.duration / totalDays) * 100;
+                        const leftPercentRaw = isNaN(totalDays) ? 0 : (startOffset / totalDays) * 100;
+                        const widthPercentRaw = isNaN(totalDays) ? 0 : (task.duration / totalDays) * 100;
 
                         const endPercentRaw = leftPercentRaw + widthPercentRaw;
                         const absoluteProgressEndPercent = leftPercentRaw + widthPercentRaw * (task.progress / 100);
 
-                        const startPercent = Math.max(0, Math.min(100, leftPercentRaw));
-                        const endPercent = Math.max(0, Math.min(100, endPercentRaw));
+                        const startPercent = Math.max(0, Math.min(100, leftPercentRaw || 0));
+                        const endPercent = Math.max(0, Math.min(100, endPercentRaw || 0));
                         const clampedWidthPercent = endPercent - startPercent;
 
-                        const progressEndPercent = Math.max(0, Math.min(100, absoluteProgressEndPercent));
+                        const progressEndPercent = Math.max(0, Math.min(100, absoluteProgressEndPercent || 0));
                         const clampedProgressWidthPercent = Math.max(0, progressEndPercent - startPercent);
 
                         if (clampedWidthPercent <= 0) return null;
