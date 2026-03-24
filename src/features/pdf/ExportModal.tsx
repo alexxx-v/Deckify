@@ -79,7 +79,7 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
 
             const template = templates.find(t => t.id === selectedTemplateId);
             const doc = template
-                ? <DynamicPdfRenderer project={project} tasks={filteredTasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} blocksJson={template.blocks} />
+                ? <DynamicPdfRenderer project={project} tasks={filteredTasks} allProjectTasks={tasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} blocksJson={template.blocks} />
                 : <ProjectPresentation project={project} tasks={filteredTasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} />;
 
             const asPdf = pdf();

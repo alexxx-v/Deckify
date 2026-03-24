@@ -256,13 +256,14 @@ interface BlockRendererProps {
     block: TemplateBlock;
     project: Project;
     tasks: Task[];
+    allProjectTasks?: Task[];
     period: string;
     startDate?: string;
     endDate?: string;
     key: string;
 }
 
-const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: BlockRendererProps) => {
+const BlockRenderer = ({ block, project, tasks, allProjectTasks, period, startDate, endDate }: BlockRendererProps) => {
     if (block.type === 'TITLE_PAGE') {
         const { showSubtitle } = block.props;
         return (
@@ -493,7 +494,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
     }
 
     if (block.type === 'ROADMAP') {
-        const sortedTasks = tasks;
+        const sortedTasks = allProjectTasks || tasks;
         if (sortedTasks.length === 0) return null;
 
         const dateRange = block.props.dateRange || 'export';
@@ -558,6 +559,13 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
             currentMarker = currentMarker.add(1, 'month');
         }
 
+        // Only render tasks that overlap with the calculated min/max of the roadmap block
+        const roadmapTasks = sortedTasks.filter((t: Task) => {
+            const tStart = dayjs(t.startDate);
+            const tEnd = dayjs(t.startDate).add(t.duration, 'day');
+            return tStart.isBefore(maxDate) && tEnd.isAfter(minDate);
+        });
+
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
                 <Text style={styles.header}>{i18n.t('pdf.projectRoadmap')} - {getRoadmapPeriodLabel(minDate, maxDate)}</Text>
@@ -578,7 +586,7 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
                         </View>
                     </View>
 
-                    {sortedTasks.map(task => {
+                    {roadmapTasks.map((task: Task) => {
                         const startOffset = dayjs(task.startDate).diff(minDate, 'day');
                         const leftPercentRaw = isNaN(totalDays) ? 0 : (startOffset / totalDays) * 100;
                         const widthPercentRaw = isNaN(totalDays) ? 0 : (task.duration / totalDays) * 100;
@@ -652,13 +660,14 @@ const BlockRenderer = ({ block, project, tasks, period, startDate, endDate }: Bl
 interface DynamicPdfRendererProps {
     project: Project;
     tasks: Task[];
+    allProjectTasks?: Task[];
     period: string; // e.g. "Q1 January"
     startDate?: string;
     endDate?: string;
     blocksJson: string; // The templates' JSON blocks string
 }
 
-export const DynamicPdfRenderer = ({ project, tasks, period, startDate, endDate, blocksJson }: DynamicPdfRendererProps) => {
+export const DynamicPdfRenderer = ({ project, tasks, allProjectTasks, period, startDate, endDate, blocksJson }: DynamicPdfRendererProps) => {
     let parsedBlocks: TemplateBlock[] = [];
     try {
         parsedBlocks = JSON.parse(blocksJson);
@@ -683,6 +692,7 @@ export const DynamicPdfRenderer = ({ project, tasks, period, startDate, endDate,
                     block={block}
                     project={project}
                     tasks={tasks}
+                    allProjectTasks={allProjectTasks}
                     period={period}
                     startDate={startDate}
                     endDate={endDate}
