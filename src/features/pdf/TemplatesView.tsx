@@ -436,27 +436,30 @@ export function TemplatesView() {
                                                     </div>
                                                 )}
 
-                                                {/* TYPE_SUMMARY preview */}
                                                 {block.type === 'TYPE_SUMMARY' && (
-                                                    <div className="bg-muted/30 rounded-lg p-4" style={{ aspectRatio: '16/7' }}>
+                                                    <div className="bg-muted/30 rounded-lg p-4 h-full flex flex-col" style={{ aspectRatio: '16/7' }}>
                                                         <div className="w-1/3 h-1.5 bg-foreground/40 rounded-full mb-3" />
-                                                        <div className="space-y-1.5 border rounded border-muted-foreground/10 overflow-hidden">
-                                                            <div className="bg-muted/50 h-3 flex items-center px-1.5 gap-2">
-                                                                <div className="w-1/3 h-1 bg-foreground/20 rounded-full" />
-                                                                <div className="w-1/4 h-1 bg-foreground/20 rounded-full" />
-                                                                <div className="w-1/4 h-1 bg-foreground/20 rounded-full" />
+                                                        <div className="flex gap-4 flex-1 items-center">
+                                                            <div className="flex-1 space-y-1.5 border rounded border-muted-foreground/10 overflow-hidden bg-background/50">
+                                                                <div className="bg-muted/50 h-3 flex items-center px-1.5 gap-2">
+                                                                    <div className="w-1/3 h-1 bg-foreground/20 rounded-full" />
+                                                                    <div className="w-1/4 h-1 bg-foreground/20 rounded-full" />
+                                                                </div>
+                                                                {[1, 2, 3].map(i => (
+                                                                    <div key={i} className="h-3 flex items-center px-1.5 gap-2 border-t border-muted-foreground/5">
+                                                                        <div className={`w-1.5 h-1.5 rounded-full ${i === 1 ? 'bg-indigo-400' : i === 2 ? 'bg-emerald-400' : 'bg-orange-400'}`} />
+                                                                        <div className="w-1/3 h-1 bg-muted-foreground/20 rounded-full" />
+                                                                        <div className="w-1/6 h-1 bg-muted-foreground/20 rounded-full ml-auto" />
+                                                                    </div>
+                                                                ))}
                                                             </div>
-                                                            <div className="h-3 flex items-center px-1.5 gap-2 border-t border-muted-foreground/5">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                                                                <div className="w-1/4 h-1 bg-muted-foreground/20 rounded-full" />
-                                                                <div className="w-1/12 h-1 bg-muted-foreground/20 rounded-full ml-auto" />
-                                                                <div className="w-1/6 h-1 bg-muted-foreground/20 rounded-full" />
-                                                            </div>
-                                                            <div className="h-3 flex items-center px-1.5 gap-2 border-t border-muted-foreground/5">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                                                <div className="w-1/4 h-1 bg-muted-foreground/20 rounded-full" />
-                                                                <div className="w-1/12 h-1 bg-muted-foreground/20 rounded-full ml-auto" />
-                                                                <div className="w-1/6 h-1 bg-muted-foreground/20 rounded-full" />
+                                                            <div className="flex-1 flex items-center justify-center">
+                                                                <div className="w-20 h-20 rounded-full border-[10px] border-muted-foreground/10 relative flex items-center justify-center">
+                                                                    <div className="absolute inset-x-0 h-[10px] top-1/2 -mt-[5px] -rotate-45 flex justify-between">
+                                                                        <div className="w-1/2 h-full bg-indigo-400 rounded-full" />
+                                                                        <div className="w-1/4 h-full bg-emerald-400 rounded-full" />
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

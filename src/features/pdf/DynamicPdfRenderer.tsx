@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Svg, Path, G } from '@react-pdf/renderer';
 import { Project, Task, TaskStatus, TemplateBlock, TaskType } from '@/db/schema';
 import dayjs from 'dayjs';
 import i18n from '@/i18n';
@@ -27,6 +27,91 @@ const getRoadmapPeriodLabel = (minDate: dayjs.Dayjs, maxDate: dayjs.Dayjs): stri
     const startYear = minDate.year();
     const endYear = maxDate.year();
     return startYear === endYear ? `Год ${startYear}` : `Год ${startYear}-${endYear}`;
+};
+
+const DonutChart = ({ data }: { data: { percent: number, color: string }[] }) => {
+    const size = 180;
+    const center = size / 2;
+    const radius = size * 0.45;
+    const thickness = 40;
+    const innerRadius = radius - thickness;
+    
+    let currentAngle = 0;
+    
+    return (
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+            <G transform={`translate(${center}, ${center})`}>
+                {data.map((item, idx) => {
+                    const angle = (item.percent / 100) * 360;
+                    if (angle <= 0) return null;
+                    if (angle >= 360) {
+                        return (
+                            <G key={idx}>
+                                <Path d={`M 0 -${radius} A ${radius} ${radius} 0 1 1 -0.01 -${radius} Z`} fill={item.color} />
+                                <Path d={`M 0 -${innerRadius} A ${innerRadius} ${innerRadius} 0 1 1 -0.01 -${innerRadius} Z`} fill="#FFFFFF" />
+                                <Text
+                                    x={0}
+                                    y={4}
+                                    textAnchor="middle"
+                                    style={{ fontSize: 10, fontWeight: 'bold', fill: '#111827' }}
+                                >
+                                    100%
+                                </Text>
+                            </G>
+                        );
+                    }
+                    
+                    const startAngle = currentAngle;
+                    const endAngle = currentAngle + angle;
+                    currentAngle += angle;
+                    
+                    const startRad = (startAngle - 90) * (Math.PI / 180);
+                    const endRad = (endAngle - 90) * (Math.PI / 180);
+                    
+                    const x1 = radius * Math.cos(startRad);
+                    const y1 = radius * Math.sin(startRad);
+                    const x2 = radius * Math.cos(endRad);
+                    const y2 = radius * Math.sin(endRad);
+                    
+                    const ix1 = innerRadius * Math.cos(startRad);
+                    const iy1 = innerRadius * Math.sin(startRad);
+                    const ix2 = innerRadius * Math.cos(endRad);
+                    const iy2 = innerRadius * Math.sin(endRad);
+                    
+                    const largeArcFlag = angle > 180 ? 1 : 0;
+                    
+                    const d = [
+                        `M ${x1} ${y1}`,
+                        `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+                        `L ${ix2} ${iy2}`,
+                        `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${ix1} ${iy1}`,
+                        'Z'
+                    ].join(' ');
+
+                    const midRad = (radius + innerRadius) / 2;
+                    const midAngleRad = (startAngle + angle / 2 - 90) * (Math.PI / 180);
+                    const tx = midRad * Math.cos(midAngleRad);
+                    const ty = midRad * Math.sin(midAngleRad);
+                    
+                    return (
+                        <G key={idx}>
+                            <Path d={d} fill={item.color} />
+                            {angle > 12 && (
+                                <Text
+                                    x={tx}
+                                    y={ty + 3}
+                                    textAnchor="middle"
+                                    style={{ fontSize: 7, fontWeight: 'bold', fill: '#FFFFFF' }}
+                                >
+                                    {Math.round(item.percent)}%
+                                </Text>
+                            )}
+                        </G>
+                    );
+                })}
+            </G>
+        </Svg>
+    );
 };
 
 import { registerFonts } from './pdfFonts';
@@ -712,30 +797,54 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
                 <Text style={styles.header}>{i18n.t('pdf.typeSummaryTitle')}</Text>
-                <View style={{ marginTop: 10, flex: 1, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' }}>
-                    {/* Table Header */}
-                    <View style={{ flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', padding: 12 }}>
-                        <Text style={{ flex: 3, fontSize: 10, fontWeight: 'bold', color: '#374151' }}>{i18n.t('pdf.typeColumn')}</Text>
-                        <Text style={{ flex: 1, fontSize: 10, fontWeight: 'bold', color: '#374151', textAlign: 'center' }}>{i18n.t('pdf.countColumn')}</Text>
-                        <Text style={{ flex: 1, fontSize: 10, fontWeight: 'bold', color: '#374151', textAlign: 'right' }}>{i18n.t('pdf.timePercentColumn')}</Text>
+                
+                <View style={{ flexDirection: 'row', gap: 20, flex: 1, alignItems: 'flex-start' }}>
+                    {/* Table (Left side) */}
+                    <View style={{ flex: 1, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' }}>
+                        {/* Table Header */}
+                        <View style={{ flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', padding: 8, borderTopLeftRadius: 7, borderTopRightRadius: 7 }}>
+                            <Text style={{ flex: 3, fontSize: 10, fontWeight: 'bold', color: '#374151' }}>{i18n.t('pdf.typeColumn')}</Text>
+                            <Text style={{ flex: 1, fontSize: 10, fontWeight: 'bold', color: '#374151', textAlign: 'center' }}>{i18n.t('pdf.countColumn')}</Text>
+                            <Text style={{ flex: 1, fontSize: 10, fontWeight: 'bold', color: '#374151', textAlign: 'right' }}>{i18n.t('pdf.timePercentColumn')}</Text>
+                        </View>
+
+                        {/* Table Body */}
+                        {activeStats.map((stat, idx) => {
+                            const percent = totalDuration === 0 ? 0 : (stat.duration / totalDuration) * 100;
+                            return (
+                                <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: idx === activeStats.length - 1 ? 0 : 1, borderBottomColor: '#F3F4F6', padding: 8, alignItems: 'center' }}>
+                                    <View style={{ flex: 3, flexDirection: 'row', alignItems: 'center' }}>
+                                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: stat.color, marginRight: 8 }} />
+                                        <Text style={{ fontSize: 10, color: '#111827' }}>{stat.name}</Text>
+                                    </View>
+                                    <Text style={{ flex: 1, fontSize: 10, color: '#4B5563', textAlign: 'center' }}>{stat.count}</Text>
+                                    <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#111827' }}>{percent.toFixed(2)}%</Text>
+                                    </View>
+                                </View>
+                            );
+                        })}
                     </View>
 
-                    {/* Table Body */}
-                    {activeStats.map((stat, idx) => {
-                        const percent = totalDuration === 0 ? 0 : (stat.duration / totalDuration) * 100;
-                        return (
-                            <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: idx === activeStats.length - 1 ? 0 : 1, borderBottomColor: '#F3F4F6', padding: 12, alignItems: 'center' }}>
-                                <View style={{ flex: 3, flexDirection: 'row', alignItems: 'center' }}>
-                                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: stat.color, marginRight: 10 }} />
-                                    <Text style={{ fontSize: 12, color: '#111827' }}>{stat.name}</Text>
-                                </View>
-                                <Text style={{ flex: 1, fontSize: 12, color: '#4B5563', textAlign: 'center' }}>{stat.count}</Text>
-                                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#111827' }}>{percent.toFixed(2)}%</Text>
-                                </View>
-                            </View>
-                        );
-                    })}
+                    {/* Chart (Right side) */}
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', padding: 20, height: '100%' }}>
+                        <DonutChart data={activeStats.map(s => ({
+                            percent: totalDuration === 0 ? 0 : (s.duration / totalDuration) * 100,
+                            color: s.color
+                        }))} />
+                        
+                        <View style={{ marginTop: 20, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
+                            {activeStats.map((stat, idx) => {
+                                const percent = totalDuration === 0 ? 0 : (stat.duration / totalDuration) * 100;
+                                return (
+                                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: stat.color }} />
+                                        <Text style={{ fontSize: 8, color: '#6B7280' }}>{stat.name} ({percent.toFixed(1)}%)</Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </View>
                 </View>
             </Page>
         );
