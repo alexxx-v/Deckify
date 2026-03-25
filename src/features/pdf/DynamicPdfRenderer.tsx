@@ -129,10 +129,12 @@ const styles = StyleSheet.create({
     statNumber: { fontSize: 48, fontWeight: 'bold', color: '#4F46E5' },
     statLabel: { fontSize: 16, color: '#6B7280', marginTop: 8 },
     roadmapContainer: { marginTop: 20, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 16, backgroundColor: '#FFFFFF' },
-    roadmapRow: { flexDirection: 'row', marginBottom: 8, alignItems: 'center', minHeight: 24 },
-    roadmapTaskTitle: { width: 180, fontSize: 10, paddingRight: 8 },
-    roadmapTimeline: { flex: 1, height: 20, backgroundColor: '#F3F4F6', borderRadius: 4, position: 'relative' },
-    roadmapBar: { position: 'absolute', height: 12, top: 4, backgroundColor: '#4F46E5', borderRadius: 4 }
+    roadmapRow: { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-start', minHeight: 16 },
+    roadmapTaskTitle: { width: 180, fontSize: 10, paddingRight: 8, color: '#374151', paddingTop: 2 },
+    roadmapTimeline: { flex: 1, height: 16, backgroundColor: '#F3F4F6', borderRadius: 4, position: 'relative', marginTop: 1 },
+    roadmapBar: { position: 'absolute', height: 10, top: 3, backgroundColor: '#4F46E5', borderRadius: 4 },
+    roadmapGroupHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, marginTop: 8, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', gap: 6 },
+    roadmapGroupTitle: { fontSize: 8, fontWeight: 'bold', color: '#6B7280', textTransform: 'uppercase' },
 });
 
 // ─── HTML → react-pdf renderer ───────────────────────────────────────────────
@@ -713,56 +715,88 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                         </View>
                     </View>
 
-                    {roadmapTasks.map((task: Task) => {
-                        const startOffset = dayjs(task.startDate).diff(minDate, 'day');
-                        const leftPercentRaw = isNaN(totalDays) ? 0 : (startOffset / totalDays) * 100;
-                        const widthPercentRaw = isNaN(totalDays) ? 0 : (task.duration / totalDays) * 100;
+                    {(() => {
+                        const groupByType = block.props.groupByType ?? false;
+                        
+                        const renderTaskRow = (task: Task) => {
+                            const startOffset = dayjs(task.startDate).diff(minDate, 'day');
+                            const leftPercentRaw = isNaN(totalDays) ? 0 : (startOffset / totalDays) * 100;
+                            const widthPercentRaw = isNaN(totalDays) ? 0 : (task.duration / totalDays) * 100;
 
-                        const endPercentRaw = leftPercentRaw + widthPercentRaw;
-                        const absoluteProgressEndPercent = leftPercentRaw + widthPercentRaw * (task.progress / 100);
+                            const endPercentRaw = leftPercentRaw + widthPercentRaw;
+                            const absoluteProgressEndPercent = leftPercentRaw + widthPercentRaw * (task.progress / 100);
 
-                        const startPercent = Math.max(0, Math.min(100, leftPercentRaw || 0));
-                        const endPercent = Math.max(0, Math.min(100, endPercentRaw || 0));
-                        const clampedWidthPercent = endPercent - startPercent;
+                            const startPercent = Math.max(0, Math.min(100, leftPercentRaw || 0));
+                            const endPercent = Math.max(0, Math.min(100, endPercentRaw || 0));
+                            const clampedWidthPercent = endPercent - startPercent;
 
-                        const progressEndPercent = Math.max(0, Math.min(100, absoluteProgressEndPercent || 0));
-                        const clampedProgressWidthPercent = Math.max(0, progressEndPercent - startPercent);
+                            const progressEndPercent = Math.max(0, Math.min(100, absoluteProgressEndPercent || 0));
+                            const clampedProgressWidthPercent = Math.max(0, progressEndPercent - startPercent);
 
-                        if (clampedWidthPercent <= 0) return null;
+                            if (clampedWidthPercent <= 0) return null;
 
-                        const isCutLeft = leftPercentRaw < 0;
-                        const isCutRight = endPercentRaw > 100;
-                        const isProgressCutRight = absoluteProgressEndPercent > 100;
+                            const isCutLeft = leftPercentRaw < 0;
+                            const isCutRight = endPercentRaw > 100;
+                            const isProgressCutRight = absoluteProgressEndPercent > 100;
 
-                        const bgBorderRadii = {
-                            borderTopLeftRadius: isCutLeft ? 0 : 4,
-                            borderBottomLeftRadius: isCutLeft ? 0 : 4,
-                            borderTopRightRadius: isCutRight ? 0 : 4,
-                            borderBottomRightRadius: isCutRight ? 0 : 4,
-                        };
+                            const bgBorderRadii = {
+                                borderTopLeftRadius: isCutLeft ? 0 : 4,
+                                borderBottomLeftRadius: isCutLeft ? 0 : 4,
+                                borderTopRightRadius: isCutRight ? 0 : 4,
+                                borderBottomRightRadius: isCutRight ? 0 : 4,
+                            };
 
-                        const fgBorderRadii = {
-                            borderTopLeftRadius: isCutLeft ? 0 : 4,
-                            borderBottomLeftRadius: isCutLeft ? 0 : 4,
-                            borderTopRightRadius: isProgressCutRight ? 0 : 4,
-                            borderBottomRightRadius: isProgressCutRight ? 0 : 4,
-                        };
+                            const fgBorderRadii = {
+                                borderTopLeftRadius: isCutLeft ? 0 : 4,
+                                borderBottomLeftRadius: isCutLeft ? 0 : 4,
+                                borderTopRightRadius: isProgressCutRight ? 0 : 4,
+                                borderBottomRightRadius: isProgressCutRight ? 0 : 4,
+                            };
 
-                        return (
-                            <View key={task.id} style={styles.roadmapRow}>
-                                <Text style={styles.roadmapTaskTitle}>{task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}</Text>
-                                <View style={styles.roadmapTimeline}>
-                                    {timelineMarkers.map((m, idx) => (
-                                        <View key={`grid-${idx}`} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, height: '100%', width: 1, backgroundColor: '#E5E7EB', zIndex: 0 }} />
-                                    ))}
-                                    <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent)}%`, backgroundColor: getPdfStatusColor(task.status).bar, ...bgBorderRadii }]} />
-                                    {clampedProgressWidthPercent > 0 && (
-                                        <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedProgressWidthPercent)}%`, backgroundColor: 'rgba(0,0,0,0.2)', ...fgBorderRadii }]} />
-                                    )}
+                            return (
+                                <View key={task.id} style={styles.roadmapRow} wrap={false}>
+                                    <Text style={styles.roadmapTaskTitle}>{task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}</Text>
+                                    <View style={styles.roadmapTimeline}>
+                                        {timelineMarkers.map((m, idx) => (
+                                            <View key={`grid-${idx}`} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, height: '100%', width: 1, backgroundColor: '#E5E7EB', zIndex: 0 }} />
+                                        ))}
+                                        <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent)}%`, backgroundColor: getPdfStatusColor(task.status).bar, ...bgBorderRadii }]} />
+                                        {clampedProgressWidthPercent > 0 && (
+                                            <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedProgressWidthPercent)}%`, backgroundColor: 'rgba(0,0,0,0.2)', ...fgBorderRadii }]} />
+                                        )}
+                                    </View>
                                 </View>
-                            </View>
-                        );
-                    })}
+                            );
+                        };
+
+                        if (groupByType) {
+                            const groups: Record<string, Task[]> = { 'no-type': [] };
+                            taskTypes?.forEach(tt => groups[tt.id] = []);
+                            roadmapTasks.forEach(t => {
+                                if (t.taskTypeId && groups[t.taskTypeId]) {
+                                    groups[t.taskTypeId].push(t);
+                                } else {
+                                    groups['no-type'].push(t);
+                                }
+                            });
+
+                            const activeEntries = Object.entries(groups).filter(([_, g]) => g.length > 0);
+                            return activeEntries.map(([typeId, groupTasks]) => {
+                                const type = taskTypes?.find(tt => tt.id === typeId);
+                                return (
+                                    <View key={typeId} style={{ marginBottom: 16 }}>
+                                        <View style={styles.roadmapGroupHeader}>
+                                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: type?.color || '#94a3b8' }} />
+                                            <Text style={styles.roadmapGroupTitle}>{type?.name || i18n.t('taskEdit.noType')}</Text>
+                                        </View>
+                                        {groupTasks.map(t => renderTaskRow(t))}
+                                    </View>
+                                );
+                            });
+                        }
+
+                        return roadmapTasks.map(t => renderTaskRow(t));
+                    })()}
                 </View>
             </Page>
         );

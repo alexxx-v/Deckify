@@ -694,6 +694,18 @@ export function TemplatesView() {
                                                             </select>
                                                         </div>
 
+                                                        <div className="pt-2">
+                                                            <label className="flex items-center gap-3 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selectedBlock.props.groupByType ?? false}
+                                                                    onChange={(e) => updateBlockProp(selectedBlock.id, 'groupByType', e.target.checked)}
+                                                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                                                                />
+                                                                <span className="text-sm">{t('templates.prop_groupByType')}</span>
+                                                            </label>
+                                                        </div>
+
                                                         {selectedBlock.props.dateRange === 'month' && (
                                                             <div className="flex gap-2">
                                                                 <div className="flex-1 space-y-2">

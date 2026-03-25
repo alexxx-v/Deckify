@@ -190,6 +190,7 @@
         "prop_specificYear": "Year",
         "currentPeriodExport": "Current (from export)",
         "currentPeriodExt": "Current",
+        "prop_groupByType": "Group by task type",
         "defaultTemplate": "Default Template"
     }
 }

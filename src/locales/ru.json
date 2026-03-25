@@ -190,6 +190,7 @@
         "prop_specificYear": "Год",
         "currentPeriodExport": "Текущий (по экспорту)",
         "currentPeriodExt": "Текущий",
+        "prop_groupByType": "Группировать по типу задач",
         "defaultTemplate": "Стандартный шаблон"
     }
 }
