@@ -37,7 +37,7 @@ function TaskRow({ task, onEditTask, t, isLast, taskTypes, groupByType }: { task
             className={`px-4 py-3 cursor-pointer flex flex-col sm:flex-row sm:items-center gap-y-3 gap-x-2 group hover:bg-muted/50 transition-colors relative ${!isLast ? 'border-b border-border/50' : ''}`}
         >
             <div className="flex-1 w-0 min-w-[200px] flex flex-col gap-1 pl-4 pr-4">
-                <h4 className="font-medium truncate text-foreground group-hover:text-primary transition-colors">{task.title}</h4>
+                <h4 className="font-medium text-foreground group-hover:text-primary transition-colors leading-tight break-words text-wrap">{task.title}</h4>
                 {taskType && !groupByType && (
                     <div className="flex items-center gap-1.5">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: taskType.color }}></div>
@@ -631,164 +631,134 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                 {timeframe === 'all' ? t('tasks.entireProject') : `${timeframe} ${dayjs(filterDate + '-01').format('MMMM YYYY')}`} • {minDate.format('MMM D, YYYY')} - {maxDate.format('MMM D, YYYY')}
                             </div>
                         </div>
-                        <div className="flex flex-row relative items-stretch">
-                            {groupByType ? (
-                                (() => {
-                                    const groups: Record<string, any[]> = { 'no-type': [] };
-                                    taskTypes?.forEach((tt: TaskType) => groups[tt.id] = []);
-                                    filteredTasks.forEach((t: any) => {
-                                        if (t.taskTypeId && groups[t.taskTypeId]) {
-                                            groups[t.taskTypeId].push(t);
-                                        } else {
-                                            groups['no-type'].push(t);
-                                        }
-                                    });
+                        <div className="flex-1 overflow-x-auto p-4 lg:p-6 scrollbar-thin">
+                            <div className="min-w-[1000px] flex flex-col relative">
+                                {/* Grid background layer */}
+                                <div className="absolute top-10 bottom-0 w-full flex pointer-events-none z-0">
+                                    <div className="w-[25%] min-w-[300px] shrink-0 border-r"></div>
+                                    <div className="flex-1 relative">
+                                        {timelineMarkers.map((m, idx) => (
+                                            <div key={`grid-${idx}`} className="absolute top-0 bottom-0 border-l border-muted-foreground/20" style={{ left: `${m.percent}%` }}></div>
+                                        ))}
+                                    </div>
+                                </div>
 
-                                    const entries = Object.entries(groups).filter(([_, gt]) => gt.length > 0);
+                                {/* Header Row */}
+                                <div className="flex sticky top-0 z-30 bg-background border-b h-10 mb-4 shrink-0">
+                                    <div className="w-[25%] min-w-[300px] sticky left-0 z-40 bg-background shrink-0 flex items-end pb-1 px-5 text-[10px] font-medium text-muted-foreground uppercase border-r">
+                                        <div className="flex-1 truncate pr-2">{t('taskEdit.title')}</div>
+                                        <div className="w-20 text-right shrink-0">{t('taskEdit.status')}</div>
+                                    </div>
+                                    <div className="flex-1 relative flex items-center">
+                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground left-2 flex items-center">{minDate.format('MMM D, YYYY')}</div>
+                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground right-2 flex items-center">{maxDate.format('MMM D, YYYY')}</div>
+                                        {timelineMarkers.map((m, idx) => (
+                                            <div key={idx} className="absolute h-full border-l border-border text-[10px] font-medium text-muted-foreground pl-1 flex items-center" style={{ left: `${m.percent}%` }}>{m.label}</div>
+                                        ))}
+                                    </div>
+                                </div>
 
-                                    return (
-                                        <>
-                                            <div className="hidden lg:flex w-[25%] min-w-[300px] shrink-0 bg-card border-r flex-col z-20 py-6">
-                                                <div className="flex items-end pb-1 h-6 mb-4 border-b px-5 text-[10px] font-medium text-muted-foreground uppercase">
-                                                    <div className="flex-1 truncate pr-2">{t('taskEdit.title')}</div>
-                                                    <div className="w-20 text-right shrink-0">{t('taskEdit.status')}</div>
-                                                </div>
-                                                <div className="flex flex-col gap-6">
-                                                    {entries.map(([typeId, groupTasks]) => {
-                                                        const taskType: TaskType | undefined = taskTypes?.find((tt: TaskType) => tt.id === typeId);
-                                                        return (
-                                                            <div key={`sidebar-group-${typeId}`} className="flex flex-col px-5">
-                                                                <div className="flex items-center gap-2 h-7 mb-2 border-b border-border/50">
+                                {/* Tasks Rows */}
+                                <div className="flex flex-col gap-2 relative z-10">
+                                    {groupByType ? (
+                                        (() => {
+                                            const groups: Record<string, any[]> = { 'no-type': [] };
+                                            taskTypes?.forEach((tt: TaskType) => groups[tt.id] = []);
+                                            filteredTasks.forEach((t: any) => {
+                                                if (t.taskTypeId && groups[t.taskTypeId]) {
+                                                    groups[t.taskTypeId].push(t);
+                                                } else {
+                                                    groups['no-type'].push(t);
+                                                }
+                                            });
+
+                                            const entries = Object.entries(groups).filter(([_, gt]) => gt.length > 0);
+
+                                            return entries.map(([typeId, groupTasks]) => {
+                                                const taskType: TaskType | undefined = taskTypes?.find((tt: TaskType) => tt.id === typeId);
+                                                return (
+                                                    <div key={`group-${typeId}`} className="flex flex-col">
+                                                        <div className="flex sticky top-10 z-20">
+                                                            <div className="w-[25%] min-w-[300px] sticky left-0 z-20 bg-background/95 backdrop-blur-sm px-5 py-1 border-b border-border/50 border-r">
+                                                                <div className="flex items-center gap-2">
                                                                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: taskType?.color || '#94a3b8' }}></div>
                                                                     <span className="text-[10px] font-bold text-muted-foreground uppercase">{taskType?.name || t('taskEdit.noType', 'Без типа')}</span>
                                                                 </div>
-                                                                <div className="flex flex-col space-y-2">
-                                                                    {groupTasks.map((task: any) => (
-                                                                        <div key={`sidebar-${task.id}`} className="h-8 flex items-center text-sm group cursor-pointer" onClick={() => onEditTask(task.id)}>
-                                                                            <div className="flex-1 truncate font-medium text-foreground group-hover:text-primary pr-3" title={task.title}>{task.title}</div>
-                                                                            <div className="w-24 shrink-0 justify-end flex">
+                                                            </div>
+                                                            <div className="flex-1 border-b border-border/50 border-dashed"></div>
+                                                        </div>
+                                                        <div className="flex flex-col space-y-2 mt-2">
+                                                            {groupTasks.map((task: any) => {
+                                                                const colors = getRoadmapColor(task.status);
+                                                                return (
+                                                                    <div key={task.id} className="flex min-h-8 py-1 group">
+                                                                        <div 
+                                                                            className="w-[25%] min-w-[300px] sticky left-0 z-20 bg-background/95 backdrop-blur-sm flex items-start text-sm cursor-pointer border-r pr-3 pl-5"
+                                                                            onClick={() => onEditTask(task.id)}
+                                                                        >
+                                                                            <div className="flex-1 min-w-0 font-medium text-foreground group-hover:text-primary leading-tight break-words text-wrap pr-3 pt-0.5" title={task.title}>{task.title}</div>
+                                                                            <div className="w-24 shrink-0 justify-end flex pt-0.5">
                                                                                 <span className={`px-1.5 py-0.5 rounded text-[8px] uppercase font-bold border whitespace-nowrap ${getStatusBadgeClass(task.status)}`}>
                                                                                     {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
                                                                                 </span>
                                                                             </div>
                                                                         </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 overflow-x-auto p-6">
-                                                <div className="min-w-[800px] overflow-hidden relative">
-                                                    <div className="absolute top-6 bottom-0 w-full pointer-events-none z-0">
-                                                        {timelineMarkers.map((m, idx) => (
-                                                            <div key={`grid-${idx}`} className="absolute top-0 bottom-0 border-l border-muted-foreground/20" style={{ left: `${m.percent}%` }}></div>
-                                                        ))}
-                                                    </div>
-                                                    <div className="flex relative h-6 mb-4 border-b">
-                                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground left-0">{minDate.format('MMM D, YYYY')}</div>
-                                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground right-0">{maxDate.format('MMM D, YYYY')}</div>
-                                                        {timelineMarkers.map((m, idx) => (
-                                                            <div key={idx} className="absolute h-full border-l border-border text-[10px] font-medium text-muted-foreground pl-1" style={{ left: `${m.percent}%` }}>{m.label}</div>
-                                                        ))}
-                                                    </div>
-                                                    <div className="flex flex-col gap-6 relative z-10">
-                                                        {entries.map(([typeId, groupTasks]) => (
-                                                            <div key={`timeline-group-${typeId}`} className="flex flex-col relative">
-                                                                {/* Visual separator for the group, matching sidebar header height */}
-                                                                <div className="h-7 mb-2 border-b border-border/50 border-dashed w-full"></div>
-
-                                                                <div className="flex flex-col space-y-2 relative">
-                                                                    {groupTasks.map((task: any) => {
-                                                                        const colors = getRoadmapColor(task.status);
-                                                                        return (
-                                                                            <div key={`row-container-${task.id}`} className="relative h-8">
-                                                                                {/* Row guideline */}
-                                                                                <div className="absolute inset-x-0 top-1/2 h-[1px] bg-border/20 -translate-y-1/2 z-0"></div>
-                                                                                <DraggableTaskBar
-                                                                                    task={task}
-                                                                                    minDate={minDate}
-                                                                                    totalDays={totalDays}
-                                                                                    colors={colors}
-                                                                                    onUpdate={async (id, start, duration) => {
-                                                                                        await db.tasks.update(id, { startDate: start, duration });
-                                                                                    }}
-                                                                                    onClick={() => onEditTask(task.id)}
-                                                                                />
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </>
-                                    );
-                                })()
-                            ) : (
-                                <>
-                                    <div className="hidden lg:flex w-[25%] min-w-[300px] shrink-0 bg-card border-r flex-col z-20 py-6">
-                                        <div className="flex items-end pb-1 h-6 mb-4 border-b px-5 text-[10px] font-medium text-muted-foreground uppercase">
-                                            <div className="flex-1 truncate pr-2">{t('taskEdit.title')}</div>
-                                            <div className="w-20 text-right shrink-0">{t('taskEdit.status')}</div>
-                                        </div>
-                                        <div className="space-y-2 pb-2 px-5">
-                                            {filteredTasks.map((task: any) => (
-                                                <div key={`sidebar-${task.id}`} className="h-8 flex items-center text-sm group cursor-pointer" onClick={() => onEditTask(task.id)}>
-                                                    <div className="flex-1 truncate font-medium text-foreground group-hover:text-primary pr-3" title={task.title}>{task.title}</div>
-                                                    <div className="w-24 shrink-0 justify-end flex">
-                                                        <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold border whitespace-nowrap ${getStatusBadgeClass(task.status)}`}>
-                                                            {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex-1 overflow-x-auto p-6">
-                                        <div className="min-w-[800px] overflow-hidden relative">
-                                            <div className="absolute top-6 bottom-0 w-full pointer-events-none z-0">
-                                                {timelineMarkers.map((m, idx) => (
-                                                    <div key={`grid-${idx}`} className="absolute top-0 bottom-0 border-l border-muted-foreground/20" style={{ left: `${m.percent}%` }}></div>
-                                                ))}
-                                            </div>
-
-                                            <div className="flex relative h-6 mb-4 border-b">
-                                                <div className="absolute h-full text-[10px] font-medium text-muted-foreground left-0">{minDate.format('MMM D, YYYY')}</div>
-                                                <div className="absolute h-full text-[10px] font-medium text-muted-foreground right-0">{maxDate.format('MMM D, YYYY')}</div>
-                                                {timelineMarkers.map((m, idx) => (
-                                                    <div key={idx} className="absolute h-full border-l border-border text-[10px] font-medium text-muted-foreground pl-1" style={{ left: `${m.percent}%` }}>{m.label}</div>
-                                                ))}
-                                            </div>
-                                            <div className="space-y-2 pb-2 relative z-10">
-                                                {filteredTasks.map((task: any) => {
-                                                    const colors = getRoadmapColor(task.status);
-                                                    return (
-                                                        <div key={`row-container-${task.id}`} className="relative h-8">
-                                                            {/* Row guideline */}
-                                                            <div className="absolute inset-x-0 top-1/2 h-[1px] bg-border/20 -translate-y-1/2 z-0"></div>
-                                                            <DraggableTaskBar
-                                                                task={task}
-                                                                minDate={minDate}
-                                                                totalDays={totalDays}
-                                                                colors={colors}
-                                                                onUpdate={async (id, start, duration) => {
-                                                                    await db.tasks.update(id, { startDate: start, duration });
-                                                                }}
-                                                                onClick={() => onEditTask(task.id)}
-                                                            />
+                                                                        <div className="flex-1 relative">
+                                                                            <div className="absolute inset-x-0 top-[11px] h-[1px] bg-border/20 z-0"></div>
+                                                                            <DraggableTaskBar
+                                                                                task={task}
+                                                                                minDate={minDate}
+                                                                                totalDays={totalDays}
+                                                                                colors={colors}
+                                                                                onUpdate={async (id, start, duration) => {
+                                                                                    await db.tasks.update(id, { startDate: start, duration });
+                                                                                }}
+                                                                                onClick={() => onEditTask(task.id)}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
+                                                    </div>
+                                                );
+                                            });
+                                        })()
+                                    ) : (
+                                        filteredTasks.map((task: any) => {
+                                            const colors = getRoadmapColor(task.status);
+                                            return (
+                                                <div key={task.id} className="flex min-h-8 py-1 group">
+                                                    <div 
+                                                        className="w-[25%] min-w-[300px] sticky left-0 z-20 bg-background/95 backdrop-blur-sm flex items-start text-sm cursor-pointer border-r pr-3 pl-5"
+                                                        onClick={() => onEditTask(task.id)}
+                                                    >
+                                                        <div className="flex-1 min-w-0 font-medium text-foreground group-hover:text-primary leading-tight break-words text-wrap pr-3 pt-0.5" title={task.title}>{task.title}</div>
+                                                        <div className="w-24 shrink-0 justify-end flex pt-0.5">
+                                                            <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold border whitespace-nowrap ${getStatusBadgeClass(task.status)}`}>
+                                                                {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 relative">
+                                                        <div className="absolute inset-x-0 top-[11px] h-[1px] bg-border/20 z-0"></div>
+                                                        <DraggableTaskBar
+                                                            task={task}
+                                                            minDate={minDate}
+                                                            totalDays={totalDays}
+                                                            colors={colors}
+                                                            onUpdate={async (id, start, duration) => {
+                                                                await db.tasks.update(id, { startDate: start, duration });
+                                                            }}
+                                                            onClick={() => onEditTask(task.id)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

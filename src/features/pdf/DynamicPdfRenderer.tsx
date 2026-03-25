@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     statNumber: { fontSize: 48, fontWeight: 'bold', color: '#4F46E5' },
     statLabel: { fontSize: 16, color: '#6B7280', marginTop: 8 },
     roadmapContainer: { marginTop: 20, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 16, backgroundColor: '#FFFFFF' },
-    roadmapRow: { flexDirection: 'row', marginBottom: 8, alignItems: 'center', height: 24 },
+    roadmapRow: { flexDirection: 'row', marginBottom: 8, alignItems: 'center', minHeight: 24 },
     roadmapTaskTitle: { width: 180, fontSize: 10, paddingRight: 8 },
     roadmapTimeline: { flex: 1, height: 20, backgroundColor: '#F3F4F6', borderRadius: 4, position: 'relative' },
     roadmapBar: { position: 'absolute', height: 12, top: 4, backgroundColor: '#4F46E5', borderRadius: 4 }
@@ -474,7 +474,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                                     </Text>
                                 </View>
                                 {groupTasks.map((task) => (
-                                    <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10 }}>
+                                    <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10, minHeight: 32 }}>
                                         <Text style={{ fontSize: 13, color: '#374151', flex: 1, paddingRight: 10 }}>
                                             {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
                                         </Text>
