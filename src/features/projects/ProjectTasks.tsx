@@ -30,7 +30,7 @@ const getRoadmapColor = (status?: string) => {
 
 function TaskRow({ task, onEditTask, t, isLast, taskTypes, groupByType }: { task: any, onEditTask: (id: string) => void, t: any, isLast: boolean, taskTypes?: TaskType[], groupByType: boolean }) {
     const taskType = task.taskTypeId ? taskTypes?.find(tt => tt.id === task.taskTypeId) : null;
-    
+
     return (
         <div
             onClick={() => onEditTask(task.id)}
@@ -359,8 +359,8 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
 
                     <div className="hidden sm:flex items-center gap-2">
                         <div className="bg-muted p-1 rounded-lg flex">
-                            <select 
-                                value={sortBy} 
+                            <select
+                                value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value as any)}
                                 title={t('tasks.sortBy')}
                                 className="h-7 pl-2 pr-6 text-xs font-semibold rounded-md border-0 bg-transparent focus:ring-0 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -556,7 +556,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                                 });
 
                                                 const entries = Object.entries(groups).filter(([_, groupTasks]) => groupTasks.length > 0);
-                                                
+
                                                 return entries.map(([typeId, groupTasks], groupIndex) => {
                                                     const taskType = taskTypes?.find((tt: TaskType) => tt.id === typeId);
                                                     return (
@@ -568,12 +568,12 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                                                 </span>
                                                             </div>
                                                             {groupTasks.map((task: any, index: number) => (
-                                                                <TaskRow 
-                                                                    key={task.id} 
-                                                                    task={task} 
-                                                                    onEditTask={onEditTask} 
-                                                                    t={t} 
-                                                                    isLast={index === groupTasks.length - 1 && groupIndex === entries.length - 1} 
+                                                                <TaskRow
+                                                                    key={task.id}
+                                                                    task={task}
+                                                                    onEditTask={onEditTask}
+                                                                    t={t}
+                                                                    isLast={index === groupTasks.length - 1 && groupIndex === entries.length - 1}
                                                                     taskTypes={taskTypes}
                                                                     groupByType={groupByType}
                                                                 />
@@ -584,12 +584,12 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                             })()
                                         ) : (
                                             paginatedTasks.map((task: any, index: number) => (
-                                                <TaskRow 
-                                                    key={task.id} 
-                                                    task={task} 
-                                                    onEditTask={onEditTask} 
-                                                    t={t} 
-                                                    isLast={index === paginatedTasks.length - 1} 
+                                                <TaskRow
+                                                    key={task.id}
+                                                    task={task}
+                                                    onEditTask={onEditTask}
+                                                    t={t}
+                                                    isLast={index === paginatedTasks.length - 1}
                                                     taskTypes={taskTypes}
                                                     groupByType={groupByType}
                                                 />
@@ -631,7 +631,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                 {timeframe === 'all' ? t('tasks.entireProject') : `${timeframe} ${dayjs(filterDate + '-01').format('MMMM YYYY')}`} • {minDate.format('MMM D, YYYY')} - {maxDate.format('MMM D, YYYY')}
                             </div>
                         </div>
-                         <div className="flex flex-row relative items-stretch">
+                        <div className="flex flex-row relative items-stretch">
                             {groupByType ? (
                                 (() => {
                                     const groups: Record<string, any[]> = { 'no-type': [] };
@@ -648,7 +648,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
 
                                     return (
                                         <>
-                                            <div className="hidden lg:flex w-[300px] shrink-0 bg-card border-r flex-col z-20 py-6">
+                                            <div className="hidden lg:flex w-[25%] min-w-[300px] shrink-0 bg-card border-r flex-col z-20 py-6">
                                                 <div className="flex items-end pb-1 h-6 mb-4 border-b px-5 text-[10px] font-medium text-muted-foreground uppercase">
                                                     <div className="flex-1 truncate pr-2">{t('taskEdit.title')}</div>
                                                     <div className="w-20 text-right shrink-0">{t('taskEdit.status')}</div>
@@ -698,7 +698,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                                             <div key={`timeline-group-${typeId}`} className="flex flex-col relative">
                                                                 {/* Visual separator for the group, matching sidebar header height */}
                                                                 <div className="h-7 mb-2 border-b border-border/50 border-dashed w-full"></div>
-                                                                
+
                                                                 <div className="flex flex-col space-y-2 relative">
                                                                     {groupTasks.map((task: any) => {
                                                                         const colors = getRoadmapColor(task.status);
@@ -730,7 +730,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                 })()
                             ) : (
                                 <>
-                                    <div className="hidden lg:flex w-[300px] shrink-0 bg-card border-r flex-col z-20 py-6">
+                                    <div className="hidden lg:flex w-[25%] min-w-[300px] shrink-0 bg-card border-r flex-col z-20 py-6">
                                         <div className="flex items-end pb-1 h-6 mb-4 border-b px-5 text-[10px] font-medium text-muted-foreground uppercase">
                                             <div className="flex-1 truncate pr-2">{t('taskEdit.title')}</div>
                                             <div className="w-20 text-right shrink-0">{t('taskEdit.status')}</div>
