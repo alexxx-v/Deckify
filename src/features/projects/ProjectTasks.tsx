@@ -93,7 +93,9 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
     const [groupByType, setGroupByType] = useState<boolean>(() => {
         return localStorage.getItem('deckify_groupByType') === 'true';
     });
-    const [filterDate, setFilterDate] = useState(dayjs().format('YYYY-MM'));
+    const [filterDate, setFilterDate] = useState(() => {
+        return localStorage.getItem('deckify_filterDate') || dayjs().format('YYYY-MM');
+    });
     const [currentPage, setCurrentPage] = useState(1);
     const [newTitle, setNewTitle] = useState('');
     const [newDescription, setNewDescription] = useState('');
@@ -122,6 +124,11 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
     useEffect(() => {
         localStorage.setItem('deckify_groupByType', groupByType.toString());
     }, [groupByType]);
+
+    useEffect(() => {
+        localStorage.setItem('deckify_filterDate', filterDate);
+    }, [filterDate]);
+
 
     const project = useLiveQuery(() => db.projects.get(projectId));
     const tasks = useLiveQuery(() => db.tasks.where('projectId').equals(projectId).sortBy('startDate'));
