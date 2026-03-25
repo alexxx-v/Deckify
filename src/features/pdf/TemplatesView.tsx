@@ -454,8 +454,8 @@ export function TemplatesView() {
                                                                 ))}
                                                             </div>
                                                             <div className="flex-1 flex items-center justify-center">
-                                                                <div className="w-20 h-20 rounded-full border-[10px] border-muted-foreground/10 relative flex items-center justify-center">
-                                                                    <div className="absolute inset-x-0 h-[10px] top-1/2 -mt-[5px] -rotate-45 flex justify-between">
+                                                                <div className="w-32 h-32 rounded-full border-[18px] border-muted-foreground/10 relative flex items-center justify-center">
+                                                                    <div className="absolute inset-x-0 h-[18px] top-1/2 -mt-[9px] -rotate-45 flex justify-between">
                                                                         <div className="w-1/2 h-full bg-indigo-400 rounded-full" />
                                                                         <div className="w-1/4 h-full bg-emerald-400 rounded-full" />
                                                                     </div>

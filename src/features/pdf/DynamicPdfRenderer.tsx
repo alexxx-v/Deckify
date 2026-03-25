@@ -30,10 +30,10 @@ const getRoadmapPeriodLabel = (minDate: dayjs.Dayjs, maxDate: dayjs.Dayjs): stri
 };
 
 const DonutChart = ({ data }: { data: { percent: number, color: string }[] }) => {
-    const size = 180;
+    const size = 280;
     const center = size / 2;
     const radius = size * 0.45;
-    const thickness = 40;
+    const thickness = 60;
     const innerRadius = radius - thickness;
     
     let currentAngle = 0;
@@ -53,7 +53,7 @@ const DonutChart = ({ data }: { data: { percent: number, color: string }[] }) =>
                                     x={0}
                                     y={4}
                                     textAnchor="middle"
-                                    style={{ fontSize: 10, fontWeight: 'bold', fill: '#111827' }}
+                                    style={{ fontSize: 16, fontWeight: 'bold', fill: '#111827' }}
                                 >
                                     100%
                                 </Text>
@@ -101,7 +101,7 @@ const DonutChart = ({ data }: { data: { percent: number, color: string }[] }) =>
                                     x={tx}
                                     y={ty + 3}
                                     textAnchor="middle"
-                                    style={{ fontSize: 7, fontWeight: 'bold', fill: '#FFFFFF' }}
+                                    style={{ fontSize: 11, fontWeight: 'bold', fill: '#FFFFFF' }}
                                 >
                                     {Math.round(item.percent)}%
                                 </Text>
