@@ -349,6 +349,46 @@ interface BlockRendererProps {
     key: string;
 }
 
+const getBlockRangeDates = (block: TemplateBlock, baseStartDate?: string, baseEndDate?: string, allTasks: Task[] = []) => {
+    const dateRange = block.props.dateRange || 'export';
+    let minDate: dayjs.Dayjs;
+    let maxDate: dayjs.Dayjs;
+
+    if (dateRange === 'export') {
+        minDate = baseStartDate ? dayjs(baseStartDate) : dayjs(Math.min(...allTasks.map(t => dayjs(t.startDate).valueOf())));
+        maxDate = baseEndDate ? dayjs(baseEndDate) : dayjs(Math.max(...allTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
+    } else if (dateRange === 'month') {
+        const base = baseStartDate ? dayjs(baseStartDate) : dayjs();
+        const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
+        const m = block.props.specificMonth === 'current' ? dayjs().month() : (block.props.specificMonth !== undefined && block.props.specificMonth !== '' ? parseInt(block.props.specificMonth) : base.month());
+        minDate = dayjs(new Date(y, m, 1)).startOf('month');
+        maxDate = minDate.clone().endOf('month');
+    } else if (dateRange === 'quarter') {
+        const base = baseStartDate ? dayjs(baseStartDate) : dayjs();
+        const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
+        let quarterStartMonth: number;
+        if (block.props.specificQuarter === 'current') {
+            quarterStartMonth = Math.floor(dayjs().month() / 3) * 3;
+        } else if (block.props.specificQuarter !== undefined && block.props.specificQuarter !== '') {
+            quarterStartMonth = (parseInt(block.props.specificQuarter) - 1) * 3;
+        } else {
+            quarterStartMonth = Math.floor(base.month() / 3) * 3;
+        }
+        minDate = dayjs(new Date(y, quarterStartMonth, 1)).startOf('month');
+        maxDate = minDate.clone().add(2, 'month').endOf('month');
+    } else if (dateRange === 'year') {
+        const base = baseStartDate ? dayjs(baseStartDate) : dayjs();
+        const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
+        minDate = dayjs(new Date(y, 0, 1)).startOf('year');
+        maxDate = dayjs(new Date(y, 0, 1)).endOf('year');
+    } else {
+        minDate = baseStartDate ? dayjs(baseStartDate) : dayjs(Math.min(...allTasks.map(t => dayjs(t.startDate).valueOf())));
+        maxDate = baseEndDate ? dayjs(baseEndDate) : dayjs(Math.max(...allTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
+    }
+
+    return { minDate, maxDate };
+};
+
 const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, period, startDate, endDate }: BlockRendererProps) => {
     if (block.type === 'TITLE_PAGE') {
         const { showSubtitle } = block.props;
@@ -455,9 +495,16 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
 
     if (block.type === 'TASK_DETAIL') {
         const { includeDescription, includeSteps } = block.props;
+        const { minDate, maxDate } = getBlockRangeDates(block, startDate, endDate, allProjectTasks || tasks);
+        const filteredTasks = (allProjectTasks || tasks).filter((t: Task) => {
+            const tStart = dayjs(t.startDate);
+            const tEnd = dayjs(t.startDate).add(t.duration, 'day');
+            return tStart.isBefore(maxDate) && tEnd.isAfter(minDate);
+        });
+
         return (
             <>
-                {tasks.map((task) => (
+                {filteredTasks.map((task) => (
                     <Page key={task.id} size="A4" orientation="landscape" style={styles.page}>
                         <View style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 10, marginBottom: 12 }}>
                             <Text style={{ fontSize: 20, color: '#111827', fontWeight: 'bold' }}>
@@ -616,46 +663,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
         const sortedTasks = allProjectTasks || tasks;
         if (sortedTasks.length === 0) return null;
 
-        const dateRange = block.props.dateRange || 'export';
-
-        let minDate: dayjs.Dayjs;
-        let maxDate: dayjs.Dayjs;
-
-        if (dateRange === 'export') {
-            // Use the export period dates as-is
-            minDate = startDate ? dayjs(startDate) : dayjs(Math.min(...sortedTasks.map(t => dayjs(t.startDate).valueOf())));
-            maxDate = endDate ? dayjs(endDate) : dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
-        } else if (dateRange === 'month') {
-            // Constrain to the export month or specifically chosen month
-            const base = startDate ? dayjs(startDate) : dayjs();
-            const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
-            const m = block.props.specificMonth === 'current' ? dayjs().month() : (block.props.specificMonth !== undefined && block.props.specificMonth !== '' ? parseInt(block.props.specificMonth) : base.month());
-            minDate = dayjs(new Date(y, m, 1)).startOf('month');
-            maxDate = minDate.clone().endOf('month');
-        } else if (dateRange === 'quarter') {
-            // Expand to the full quarter containing the start month or specifically chosen quarter
-            const base = startDate ? dayjs(startDate) : dayjs();
-            const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
-            let quarterStartMonth: number;
-            if (block.props.specificQuarter === 'current') {
-                quarterStartMonth = Math.floor(dayjs().month() / 3) * 3;
-            } else if (block.props.specificQuarter !== undefined && block.props.specificQuarter !== '') {
-                quarterStartMonth = (parseInt(block.props.specificQuarter) - 1) * 3;
-            } else {
-                quarterStartMonth = Math.floor(base.month() / 3) * 3;
-            }
-            minDate = dayjs(new Date(y, quarterStartMonth, 1)).startOf('month');
-            maxDate = minDate.clone().add(2, 'month').endOf('month');
-        } else if (dateRange === 'year') {
-            // Expand to the full year or specifically chosen year
-            const base = startDate ? dayjs(startDate) : dayjs();
-            const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
-            minDate = dayjs(new Date(y, 0, 1)).startOf('year');
-            maxDate = dayjs(new Date(y, 0, 1)).endOf('year');
-        } else {
-            minDate = startDate ? dayjs(startDate) : dayjs(Math.min(...sortedTasks.map(t => dayjs(t.startDate).valueOf())));
-            maxDate = endDate ? dayjs(endDate) : dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
-        }
+        const { minDate, maxDate } = getBlockRangeDates(block, startDate, endDate, sortedTasks);
 
         let totalDays = maxDate.diff(minDate, 'day');
         if (isNaN(totalDays) || totalDays < 1) totalDays = 1;
