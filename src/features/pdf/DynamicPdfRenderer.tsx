@@ -128,12 +128,14 @@ const styles = StyleSheet.create({
     statBox: { alignItems: 'center' },
     statNumber: { fontSize: 48, fontWeight: 'bold', color: '#4F46E5' },
     statLabel: { fontSize: 16, color: '#6B7280', marginTop: 8 },
-    roadmapContainer: { marginTop: 20, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 16, backgroundColor: '#FFFFFF' },
-    roadmapRow: { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-start', minHeight: 16 },
-    roadmapTaskTitle: { width: 180, fontSize: 10, paddingRight: 8, color: '#374151', paddingTop: 2 },
-    roadmapTimeline: { flex: 1, height: 16, backgroundColor: '#F3F4F6', borderRadius: 4, position: 'relative', marginTop: 1 },
-    roadmapBar: { position: 'absolute', height: 10, top: 3, backgroundColor: '#4F46E5', borderRadius: 4 },
-    roadmapGroupHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, marginTop: 8, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', gap: 6 },
+    roadmapContainer: { marginTop: 20, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 12, backgroundColor: '#FFFFFF' },
+    roadmapRow: { flexDirection: 'row', marginBottom: 8, alignItems: 'center', minHeight: 24 },
+    roadmapTaskTitle: { width: 180, paddingRight: 8 },
+    roadmapTaskTitleText: { fontSize: 9, color: '#374151' },
+    roadmapTaskStatus: { width: 85, paddingRight: 8 },
+    roadmapTimeline: { width: 465, height: 16, backgroundColor: '#F3F4F6', borderRadius: 4, position: 'relative', overflow: 'hidden' },
+    roadmapBar: { position: 'absolute', height: 10, top: 3, borderRadius: 4 },
+    roadmapGroupHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, marginTop: 8, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', gap: 6 },
     roadmapGroupTitle: { fontSize: 8, fontWeight: 'bold', color: '#6B7280', textTransform: 'uppercase' },
 });
 
@@ -699,13 +701,16 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
             <Page size="A4" orientation="landscape" style={styles.page}>
                 <Text style={styles.header}>{i18n.t('pdf.projectRoadmap')} - {getRoadmapPeriodLabel(minDate, maxDate)}</Text>
                 <View style={styles.roadmapContainer}>
-                    <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 8, marginBottom: 8 }}>
-                        <View style={{ width: 180, justifyContent: 'flex-end', paddingBottom: 2 }}>
-                            <Text style={{ fontSize: 10, color: '#6B7280', fontWeight: 'bold' }}>{i18n.t('pdf.timelineDays', { count: totalDays })}</Text>
+                    <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 6, marginBottom: 12, alignItems: 'flex-end' }}>
+                        <View style={{ width: 180 }}>
+                            <Text style={{ fontSize: 7, color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' }}>{i18n.t('taskEdit.title')}</Text>
                         </View>
-                        <View style={{ flex: 1, position: 'relative', height: 16 }}>
-                            <Text style={{ position: 'absolute', left: 0, top: 2, fontSize: 10, color: '#6B7280' }}>{minDate.format(edgeLabelFormat)}</Text>
-                            <Text style={{ position: 'absolute', right: 0, top: 2, fontSize: 10, color: '#6B7280' }}>{maxDate.format(edgeLabelFormat)}</Text>
+                        <View style={{ width: 85 }}>
+                            <Text style={{ fontSize: 7, color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' }}>{i18n.t('pdf.status')}</Text>
+                        </View>
+                        <View style={{ width: 465, position: 'relative', height: 16, overflow: 'hidden' }}>
+                            <Text style={{ position: 'absolute', left: 4, bottom: 2, fontSize: 8, color: '#9CA3AF' }}>{minDate.format(edgeLabelFormat)}</Text>
+                            <Text style={{ position: 'absolute', right: 4, bottom: 2, fontSize: 8, color: '#9CA3AF' }}>{maxDate.format(edgeLabelFormat)}</Text>
 
                             {timelineMarkers.map((m, idx) => (
                                 <View key={idx} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, paddingLeft: 4, borderLeftWidth: 1, borderLeftColor: '#D1D5DB', height: 16 }}>
@@ -755,7 +760,16 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
 
                             return (
                                 <View key={task.id} style={styles.roadmapRow} wrap={false}>
-                                    <Text style={styles.roadmapTaskTitle}>{task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}</Text>
+                                    <View style={styles.roadmapTaskTitle}>
+                                        <Text style={styles.roadmapTaskTitleText}>{task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}</Text>
+                                    </View>
+                                    <View style={styles.roadmapTaskStatus}>
+                                        <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, borderColor: getPdfStatusColor(task.status).border, borderWidth: 1, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 2, alignSelf: 'flex-start' }}>
+                                            <Text style={{ fontSize: 7, fontWeight: 'bold', color: getPdfStatusColor(task.status).text, textTransform: 'uppercase' }}>
+                                                {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
+                                            </Text>
+                                        </View>
+                                    </View>
                                     <View style={styles.roadmapTimeline}>
                                         {timelineMarkers.map((m, idx) => (
                                             <View key={`grid-${idx}`} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, height: '100%', width: 1, backgroundColor: '#E5E7EB', zIndex: 0 }} />

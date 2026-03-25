@@ -635,8 +635,8 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                             <div className="min-w-[1000px] flex flex-col relative">
                                 {/* Grid background layer */}
                                 <div className="absolute top-10 bottom-0 w-full flex pointer-events-none z-0">
-                                    <div className="w-[25%] min-w-[300px] shrink-0 border-r"></div>
-                                    <div className="flex-1 relative">
+                                    <div className="w-[25%] min-w-[300px] shrink-0 border-r bg-white dark:bg-slate-900 sticky left-0 z-40"></div>
+                                    <div className="flex-1 relative overflow-hidden">
                                         {timelineMarkers.map((m, idx) => (
                                             <div key={`grid-${idx}`} className="absolute top-0 bottom-0 border-l border-muted-foreground/20" style={{ left: `${m.percent}%` }}></div>
                                         ))}
@@ -644,12 +644,12 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                 </div>
 
                                 {/* Header Row */}
-                                <div className="flex sticky top-0 z-30 bg-background border-b h-10 mb-4 shrink-0">
-                                    <div className="w-[25%] min-w-[300px] sticky left-0 z-40 bg-background shrink-0 flex items-end pb-1 px-5 text-[10px] font-medium text-muted-foreground uppercase border-r">
+                                <div className="flex sticky top-0 z-[60] bg-white dark:bg-slate-900 border-b h-10 mb-4 shrink-0">
+                                    <div className="w-[25%] min-w-[300px] sticky left-0 z-[70] bg-white dark:bg-slate-900 shrink-0 flex items-end pb-1 px-5 text-[10px] font-medium text-muted-foreground uppercase border-r">
                                         <div className="flex-1 truncate pr-2">{t('taskEdit.title')}</div>
                                         <div className="w-20 text-right shrink-0">{t('taskEdit.status')}</div>
                                     </div>
-                                    <div className="flex-1 relative flex items-center">
+                                    <div className="flex-1 relative flex items-center overflow-hidden bg-white/50 dark:bg-slate-900/50">
                                         <div className="absolute h-full text-[10px] font-medium text-muted-foreground left-2 flex items-center">{minDate.format('MMM D, YYYY')}</div>
                                         <div className="absolute h-full text-[10px] font-medium text-muted-foreground right-2 flex items-center">{maxDate.format('MMM D, YYYY')}</div>
                                         {timelineMarkers.map((m, idx) => (
@@ -679,7 +679,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                                 return (
                                                     <div key={`group-${typeId}`} className="flex flex-col">
                                                         <div className="flex sticky top-10 z-20">
-                                                            <div className="w-[25%] min-w-[300px] sticky left-0 z-20 bg-background/95 backdrop-blur-sm px-5 py-1 border-b border-border/50 border-r">
+                                                            <div className="w-[25%] min-w-[300px] sticky left-0 z-50 bg-white dark:bg-slate-900 px-5 py-1 border-b border-border/50 border-r">
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: taskType?.color || '#94a3b8' }}></div>
                                                                     <span className="text-[10px] font-bold text-muted-foreground uppercase">{taskType?.name || t('taskEdit.noType', 'Без типа')}</span>
@@ -691,9 +691,9 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                                             {groupTasks.map((task: any) => {
                                                                 const colors = getRoadmapColor(task.status);
                                                                 return (
-                                                                    <div key={task.id} className="flex min-h-8 py-1 group">
-                                                                        <div 
-                                                                            className="w-[25%] min-w-[300px] sticky left-0 z-20 bg-background/95 backdrop-blur-sm flex items-start text-sm cursor-pointer border-r pr-3 pl-5"
+                                                                    <div key={task.id} className="flex min-h-8 group">
+                                                                        <div
+                                                                            className="w-[25%] min-w-[300px] sticky left-0 z-50 bg-white dark:bg-slate-900 flex items-start text-sm cursor-pointer border-r pr-3 pl-5 py-1"
                                                                             onClick={() => onEditTask(task.id)}
                                                                         >
                                                                             <div className="flex-1 min-w-0 font-medium text-foreground group-hover:text-primary leading-tight break-words text-wrap pr-3 pt-0.5" title={task.title}>{task.title}</div>
@@ -703,8 +703,8 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                                                                 </span>
                                                                             </div>
                                                                         </div>
-                                                                        <div className="flex-1 relative">
-                                                                            <div className="absolute inset-x-0 top-[11px] h-[1px] bg-border/20 z-0"></div>
+                                                                        <div className="flex-1 relative overflow-hidden py-1">
+                                                                            <div className="absolute inset-x-0 top-1/2 -translate-y-[0.5px] h-[1px] bg-border/20 z-0"></div>
                                                                             <DraggableTaskBar
                                                                                 task={task}
                                                                                 minDate={minDate}
@@ -728,9 +728,9 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                         filteredTasks.map((task: any) => {
                                             const colors = getRoadmapColor(task.status);
                                             return (
-                                                <div key={task.id} className="flex min-h-8 py-1 group">
-                                                    <div 
-                                                        className="w-[25%] min-w-[300px] sticky left-0 z-20 bg-background/95 backdrop-blur-sm flex items-start text-sm cursor-pointer border-r pr-3 pl-5"
+                                                <div key={task.id} className="flex min-h-8 group">
+                                                    <div
+                                                        className="w-[25%] min-w-[300px] sticky left-0 z-50 bg-white dark:bg-slate-900 flex items-start text-sm cursor-pointer border-r pr-3 pl-5 py-1"
                                                         onClick={() => onEditTask(task.id)}
                                                     >
                                                         <div className="flex-1 min-w-0 font-medium text-foreground group-hover:text-primary leading-tight break-words text-wrap pr-3 pt-0.5" title={task.title}>{task.title}</div>
@@ -740,8 +740,8 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                                             </span>
                                                         </div>
                                                     </div>
-                                                    <div className="flex-1 relative">
-                                                        <div className="absolute inset-x-0 top-[11px] h-[1px] bg-border/20 z-0"></div>
+                                                    <div className="flex-1 relative overflow-hidden py-1">
+                                                        <div className="absolute inset-x-0 top-1/2 -translate-y-[0.5px] h-[1px] bg-border/20 z-0"></div>
                                                         <DraggableTaskBar
                                                             task={task}
                                                             minDate={minDate}
