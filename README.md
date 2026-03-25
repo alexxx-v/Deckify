@@ -43,6 +43,7 @@ All data is stored entirely locally on your device using **SQLite** (via `better
 - **Project Management**: Create and delete workspaces (projects). Deleting a project also removes all its tasks; a confirmation prompt is shown before deletion.
 - **Task Tracking**:
   - Add tasks via a dedicated modal interface with title, description, start date, and duration.
+  - **Duplicate Tasks**: Quickly create identical copies of existing tasks with a single click. Duplicates include all metadata, descriptions, and implementation steps, with a timestamped title for easy identification.
   - Delete tasks safely via a confirmation prompt within the task edit view.
   - **Dual Views**: Toggle seamlessly between a tabular 'List' view (with built-in pagination) and a beautiful interactive 'Roadmap' timeline view.
   - **Task Sorting & Grouping**: Dynamically sort tasks within lists and roadmap arrays by Start Date (default), Status, or Duration. Sorting preferences, view modes (List/Roadmap), chosen timeframes, and selected reference dates are persistently stored in local storage for a consistent experience across sessions. Users can also enable "Group by Type" to organize tasks into visual swimlanes based on their assigned task type.

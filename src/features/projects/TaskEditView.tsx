@@ -56,7 +56,7 @@ function SortableStepItem({ step, onUpdate, onDelete, t }: { step: TaskStep, onU
     );
 }
 
-export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () => void }) {
+export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, onBack: () => void, onDuplicate?: (newId: string) => void }) {
     const { t } = useTranslation();
     // Initial fetch of the task using live query to keep it reactive if updated elsewhere
     const task = useLiveQuery(() => db.tasks.get(taskId));
@@ -94,7 +94,6 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
     // Populate local state once the task loads
     useEffect(() => {
         if (task) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setEditTitle(task.title);
             setEditDescription(task.description || '');
             setEditStartDate(task.startDate);
@@ -117,6 +116,27 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
         if (window.confirm(t('taskEdit.deleteTaskConfirm'))) {
             await db.tasks.delete(taskId);
             onBack();
+        }
+    };
+
+    const handleDuplicate = async () => {
+        if (!task) return;
+        
+        const now = dayjs().format('DD.MM.YY HH:mm:ss');
+        const newTaskId = uuidv4();
+        
+        const newTask = {
+            ...task,
+            id: newTaskId,
+            title: `${task.title} - ${t('taskEdit.taskCopy')} ${now}`,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+        
+        await db.tasks.add(newTask);
+        
+        if (onDuplicate) {
+            onDuplicate(newTaskId);
         }
     };
 
@@ -158,11 +178,16 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                     </Button>
                     <h2 className="text-2xl font-bold tracking-tight">{t('taskEdit.editTask')}</h2>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <Button type="button" variant="ghost" className="text-muted-foreground hover:bg-muted hover:text-foreground" onClick={handleDuplicate} title={t('taskEdit.duplicate')}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                        {t('taskEdit.duplicate')}
+                    </Button>
                     <Button type="button" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleDeleteTask}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
                         {t('taskEdit.deleteTask')}
                     </Button>
+                    <div className="w-px h-6 bg-border mx-1 hidden sm:block"></div>
                     <Button type="button" variant="ghost" onClick={onBack}>{t('taskEdit.cancel')}</Button>
                     <Button
                         type="submit"
