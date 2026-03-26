@@ -466,7 +466,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
 
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
-                <Text style={styles.header}>{i18n.t('pdf.progressOverview')}</Text>
+                <Text style={styles.header}>{i18n.t('pdf.taskList')}</Text>
                 <View style={{ marginTop: 10, flex: 1 }}>
                     {entries.map(([typeId, groupTasks]) => {
                         const taskType = taskTypes?.find(tt => tt.id === typeId);

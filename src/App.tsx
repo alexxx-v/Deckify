@@ -26,10 +26,6 @@ function App() {
     const saved = localStorage.getItem('sidebarOpen');
     return saved !== null ? JSON.parse(saved) : true;
   });
-  const [isFullWidth, setIsFullWidth] = useState(() => {
-    const saved = localStorage.getItem('fullWidth');
-    return saved !== null ? JSON.parse(saved) : false;
-  });
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
   const showNotification = (message: string, type: 'success' | 'info' = 'success') => {
@@ -192,7 +188,7 @@ function App() {
 
       {/* Main Content Area */}
       <main className={`flex-1 p-8 overflow-y-auto min-h-screen transition-all duration-300 w-full ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
-        <div className={`mx-auto transition-all duration-300 ${isFullWidth ? 'max-w-none' : 'max-w-5xl'}`}>
+        <div className="mx-auto transition-all duration-300 max-w-none">
           <div key={activeTab + (selectedProjectId || '') + (editingTaskId || '')} className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both">
             {editingTaskId ? (
               <TaskEditView
@@ -220,10 +216,7 @@ function App() {
             ) : activeTab === 'templates' ? (
               <TemplatesView />
             ) : activeTab === 'settings' ? (
-              <Settings isFullWidth={isFullWidth} onToggleFullWidth={(v) => {
-                setIsFullWidth(v);
-                localStorage.setItem('fullWidth', JSON.stringify(v));
-              }} />
+              <Settings />
             ) : (
               <ProjectList onSelect={(id) => { setSelectedProjectId(id); setActiveTab('projects'); }} />
             )}

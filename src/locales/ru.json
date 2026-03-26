@@ -115,9 +115,7 @@
         "applyChanges": "Применить изменения",
         "invalidPath": "Неверный путь",
         "invalidPathDesc": "Пожалуйста, введите корректный абсолютный путь, заканчивающийся на .db или .sqlite",
-        "language": "Язык интерфейса",
-        "display": "Отображение",
-        "fullWidth": "На всю ширину экрана"
+        "language": "Язык интерфейса"
     },
     "pdf": {
         "progressOverview": "Обзор прогресса",
@@ -147,7 +145,8 @@
         "typeColumn": "Тип задачи",
         "countColumn": "Кол-во задач",
         "durationColumn": "Длительность",
-        "timePercentColumn": "% времени"
+        "timePercentColumn": "% времени",
+        "taskList": "Список задач"
     },
     "templates": {
         "title": "Шаблоны отчетов",

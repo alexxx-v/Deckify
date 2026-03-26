@@ -704,7 +704,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                                                             </div>
                                                                         </div>
                                                                         <div className="flex-1 relative overflow-hidden py-1">
-                                                                            <div className="absolute inset-x-0 top-1/2 -translate-y-[0.5px] h-[1px] bg-border/20 z-0"></div>
+                                                                            <div className="absolute inset-x-0 top-[15px] -translate-y-[0.5px] h-[1px] bg-border/20 z-0"></div>
                                                                             <DraggableTaskBar
                                                                                 task={task}
                                                                                 minDate={minDate}
@@ -741,7 +741,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                                         </div>
                                                     </div>
                                                     <div className="flex-1 relative overflow-hidden py-1">
-                                                        <div className="absolute inset-x-0 top-1/2 -translate-y-[0.5px] h-[1px] bg-border/20 z-0"></div>
+                                                        <div className="absolute inset-x-0 top-[15px] -translate-y-[0.5px] h-[1px] bg-border/20 z-0"></div>
                                                         <DraggableTaskBar
                                                             task={task}
                                                             minDate={minDate}

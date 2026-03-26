@@ -115,9 +115,7 @@
         "applyChanges": "Apply Changes",
         "invalidPath": "Invalid path",
         "invalidPathDesc": "Please enter a valid absolute path ending with .db or .sqlite",
-        "language": "Interface Language",
-        "display": "Display",
-        "fullWidth": "Full Width Content"
+        "language": "Interface Language"
     },
     "pdf": {
         "progressOverview": "Progress Overview",
@@ -147,7 +145,8 @@
         "typeColumn": "Task Type",
         "countColumn": "Tasks count",
         "durationColumn": "Duration",
-        "timePercentColumn": "% of Time"
+        "timePercentColumn": "% of Time",
+        "taskList": "Tasks List"
     },
     "templates": {
         "title": "Report Templates",

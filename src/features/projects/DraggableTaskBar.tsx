@@ -97,7 +97,7 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
         <div className="relative h-full group" ref={barRef} style={{ touchAction: 'none' }}>
             <div
                 onPointerDown={handlePointerDownDrag}
-                className={`absolute top-1/2 -translate-y-1/2 h-[22px] rounded-md opacity-90 border backdrop-blur-sm shadow-sm flex items-center overflow-visible z-10 ${isDragging ? 'cursor-grabbing ring-2 ring-primary/50 shadow-md z-20 scale-[1.01]' : 'cursor-grab hover:opacity-100 hover:ring-1 mix-blend-normal'}`}
+                className={`absolute top-0 h-[22px] rounded-md opacity-90 border backdrop-blur-sm shadow-sm flex items-center overflow-visible z-10 ${isDragging ? 'cursor-grabbing ring-2 ring-primary/50 shadow-md z-20 scale-[1.01]' : 'cursor-grab hover:opacity-100 hover:ring-1 mix-blend-normal'}`}
                 style={{
                     left: `${leftPercentRaw}%`,
                     width: `${widthPercentRaw}%`,
@@ -128,7 +128,7 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
             {/* Visual ghost for dragging/resizing showing the new outline */}
             {(isDragging || isResizing) && (
                 <div
-                    className="absolute top-1/2 -translate-y-1/2 h-[22px] rounded-md border-2 border-primary border-dashed bg-primary/5 pointer-events-none z-0"
+                    className="absolute top-0 h-[22px] rounded-md border-2 border-primary border-dashed bg-primary/5 pointer-events-none z-0"
                     style={{
                         left: `${leftPercentRaw}%`,
                         width: `${widthPercentRaw}%`,
