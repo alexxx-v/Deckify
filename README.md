@@ -1,101 +1,99 @@
 # 📊 Deckify
 
-**Deckify** is a cross-platform, local-first application built with React, Vite, and Electron. It enables users to efficiently manage projects and tasks, and export professional PDF presentations featuring interactive roadmaps.
+> A cross-platform, local-first React + Electron application for managing projects, tracking tasks, and auto-generating interactive PDF presentations.
+
+Deckify helps individual professionals and teams seamlessly plan their projects, track task progression, and export customizable PDF reports without ever sending their private data to the cloud.
 
 ---
 
-## 📥 Download
+## 🚀 Quick Start
 
-Download the latest release of Deckify for your operating system:
+Ensure you have Node.js 20+ installed.
 
-*   🍎 **macOS**
-    *   [Apple Silicon (M1/M2/M3) — Deckify-1.0.0-arm64.dmg](./release/Deckify-1.0.0-arm64.dmg)
-    *   [Intel — Deckify-1.0.0.dmg](./release/Deckify-1.0.0.dmg)
-*   🪟 **Windows**
-    *   [Windows 64-bit — Deckify Setup 1.0.0.exe](./release/Deckify%20Setup%201.0.0.exe)
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd deckify
+
+# 2. Install dependencies
+npm install
+
+# 3. Start development server (with Electron HMR)
+npm run electron:dev
+```
+
+### Build for Production
+
+```bash
+# Build macOS .dmg
+npm run electron:build
+
+# Build Windows .exe
+npm run electron:build -- --win --x64
+```
+Compiled artifacts will be available in the `release/` folder. Alternatively, download the latest pre-compiled executable from our [Releases page](../../releases).
 
 ---
 
-## 🚀 Overview
+## ✨ Features
 
-Deckify is designed to simplify planning and reporting for teams and individual professionals:
-1.  **Project & Task Management**: Manage your workspaces (projects), and add tasks with detailed descriptions, start dates, durations, and statuses.
-2.  **Interactive Views**: Seamlessly switch between a classic paginated list view and a visual, interactive roadmap timeline.
-3.  **Progress Tracking**: Adjust task completion progress instantly using sliders. Marking a task as `Done` automatically locks the progress at 100%.
-4.  **Powerful Rich Text Editor**: Write detailed task descriptions using the integrated Tiptap editor. Features include headings, lists, blockquotes, code blocks with syntax highlighting, and rich text formatting.
-5.  **Built-in PDF Generator**: Turn your task lists into professional PDF reports with a single click. Use the built-in template block constructor (TEXT, flowcharts, statistics) to fully customize your exports.
+- **🔒 Local-First Storage**: 100% offline. All your data is saved locally on your device via SQLite. You own your data.
+- **📈 Interactive Roadmaps**: Switch seamlessly between a classic datagrid task list and a full visual, interactive roadmap timeline.
+- **📝 Rich-Text Editing**: Tiptap-powered editor for detailed task descriptions supporting headings, tables, code blocks, and lists.
+- **📋 Cross-Project Boards**: Combine tasks from multiple independent projects into unified boards for top-level reporting.
+- **🖨️ PDF Template Builder**: Construct your own export templates using a visual block builder. Add 'Team Focus' charts, 'Roadmaps', and 'Task Detail' slides and export to PDF with one click.
+- **🔄 OTA Auto-Updates**: Built-in `electron-updater` delivers silent updates pulled directly from GitHub Releases.
 
-All data is stored entirely locally on your device using **SQLite** (via `better-sqlite3`), guaranteeing absolute privacy and a seamless offline experience. You can choose any local `.db` file in the Settings to manage multiple workspaces.
+---
+
+## ⚙️ Configuration & Storage
+
+Deckify uses an internal SQLite engine (`better-sqlite3`). On the first launch, you will be prompted to select a path where the `.db` file will securely reside.
+
+| Configuration | Description | Default Path |
+|---------------|-------------|--------------|
+| **Database Path** | Location for the private database. Can be changed inside User Settings. | `[UserData]/deckify.db` |
+| **Language**  | App interface language (English/Russian). | `en` |
+
+*Note: Database schema migrations happen automatically on startup via SQLite `PRAGMA user_version` migrations.*
+
+---
+
+## 📚 Documentation
+
+For deeper dives into the project setup and deployment mechanics, check the following docs:
+
+- [Release & CI/CD Workflow](./RELEASE_INSTRUCTIONS.md) - Details on Semantic Versioning, GitHub Actions, and auto-updates.
 
 ---
 
 ## 🛠 Architecture & Tech Stack
--   **Frontend Framework**: React (Vite)
--   **Styling**: Tailwind CSS, shadcn/ui components
--   **Desktop Wrapper**: Electron.js
--   **Storage**: Local-First via **SQLite** (`better-sqlite3`). Designed with a flexible Data Access Layer that supports custom database paths. Structured schema migrations are handled via SQLite's `PRAGMA user_version`.
--   **Rich Text Editor**: Tiptap (ProseMirror-based), with a custom toolbar. Used in both task description editing and in PDF template TEXT blocks. Content is stored as HTML.
--   **PDF Generation**: `@react-pdf/renderer` for declarative, vector-based PDF generation directly in the browser/app.
--   **Auto-Update & Distribution**: Uses `electron-updater` configured to download updates from GitHub Releases seamlessly on restart. CI/CD Pipeline powered by GitHub Actions automates multi-platform compilation (.dmg, .exe) and publishing on version tags.
--   **Versioning**: Semantic versioning using `standard-version` for automated CHANGELOG generation and package bumping.
 
-## ✨ Features
-- **Sidebar Navigation**: Quickly switch between the Dashboard, Projects List, Boards, Templates, and Settings.
-- **Overview Dashboard**: View high-level statistics of your total projects, task counts, and average completion rate.
-- **Project Management**: Create and delete workspaces (projects). Deleting a project also removes all its tasks; a confirmation prompt is shown before deletion.
-- **Task Tracking**:
-  - Add tasks via a dedicated modal interface with title, description, start date, and duration.
-  - **Duplicate Tasks**: Quickly create identical copies of existing tasks with a single click. Duplicates include all metadata, descriptions, and implementation steps, with a timestamped title for easy identification.
-  - Delete tasks safely via a confirmation prompt within the task edit view.
-  - **Dual Views**: Toggle seamlessly between a tabular 'List' view (with built-in pagination) and a beautiful interactive 'Roadmap' timeline view.
-  - **Task Sorting & Grouping**: Dynamically sort tasks within lists and roadmap arrays by Start Date (default), Status, or Duration. Sorting preferences, view modes (List/Roadmap), chosen timeframes, and selected reference dates are persistently stored in local storage for a consistent experience across sessions. Users can also enable "Group by Type" to organize tasks into visual swimlanes based on their assigned task type.
-
-  - **Custom Task Types**: Create and manage project-specific task types (e.g., 'Development', 'Design', 'Meeting') via the Project Settings page. Each type can have a unique name and color. Deleting a task type resets the type of all associated tasks to "None".
-  - Dynamically update real-time progress using interactive sliders from the list. Setting a task's status to 'Done' automatically locks its progress at 100%.
-  - Comprehensive task editing via a dedicated, full-width page featuring a two-column layout that separates the main content (description, steps) from metadata. The description field uses a Tiptap rich-text editor with a custom toolbar (headings, bold, italic, lists, task-list, blockquote, code). The editor auto-resizes to fit content with a minimum height of 256px. Descriptions are stored as HTML and rendered correctly in both the app and PDF exports.
-- **Boards (Cross-Project Task Aggregation)**:
-  - Create boards to combine tasks from multiple projects into a single unified view for reporting purposes.
-  - **Add Tasks from Projects**: Browse all projects and search for specific tasks to add to a board. Tasks that are already on the board are visually indicated.
-  - **Remove Tasks from Board**: Remove tasks from a board without deleting them from their original project.
-  - **Dual Views**: Boards support both List and Roadmap views, identical to project task views.
-  - **Nested Grouping**: Organize board tasks by **Project** and then by **Task Type**. This hierarchical structure is available in both List and Roadmap views, providing a clear overview of work distribution across different workstreams.
-  - **Board PDF Export**: Export all board tasks to PDF using the same template-based export system as projects. Board exports automatically maintain the nested grouping (Project > Task Type) in the Task List and Roadmap blocks to preserve context.
-  - **Task Navigation**: Clicking a task on a board navigates to the same task editor within its original project context. The navigation is optimized to return the user directly to the Board view after editing.
-  - Boards are stored in a dedicated `boards` table with a `board_tasks` junction table for the many-to-many relationship.
-- **Automated PDF Export**:
-  - **Custom Export Templates**: Create and modify reusable PDF templates using a block constructor natively within the app. TEXT blocks use the Tiptap rich-text editor (same as task descriptions); content is stored as HTML and rendered in the final PDF.
-  - Generates presentations with a Title, Progress Overview stats, and clean Task List slides.
-  - **One Slide per Task**: Automatically renders each task on a separate slide containing its timeline, progress status, task type (if assigned), and detailed description.
-  - **Robust PDF Engine**: Highly resilient PDF rendering architecture that handles complex HTML formatting, diverse Unicode characters (including full Cyrillic support), and protects against layout crashes from missing or invalid date/duration metadata via automatic sanitization.
-  - **Team Focus**: New template block summarizing project tasks by their assigned type. Displays a clear table with task count, total duration, and percentage of total project time for each type (rounded to two decimal places), accompanied by a donut chart visualization.
-  - **Roadmap Visualization**: Calculates the min and max dates of all tasks and renders a time-scaled visual roadmap. Dynamically adds a period label (e.g., 'Май 2026', 'Q1 2026', 'Год 2026-2027') to the Roadmap slide title based on the timeframe. Users can choose to render the roadmap based on the export window ('Текущий (по экспорту)'), the actual real-world current time ('Текущий'), or explicitly define custom absolute periods (specific month, quarter, or year) within the template block properties. Features full support for multi-line task titles and an optional "Group by Task Type" mode to organize the timeline into swimlanes. When exporting from a Board, the roadmap automatically includes project-level headers to maintain clear separation between different projects' timelines. The layout is refined to ensure perfect vertical alignment of timeline bars and background markers, even when task titles wrap onto multiple lines.
-- **Custom Branding**: App includes a beautiful, flat Material Design 3 icon designed and configured for macOS (`build/icon.png`).
+- **Frontend:** React 19, Vite, TailwindCSS v4, shadcn/ui components
+- **Desktop Wrapper:** Electron.js
+- **Database:** SQLite (`better-sqlite3`) wrapped in real-time React hooks
+- **PDF Engine:** `@react-pdf/renderer`
+- **Release Pipeline:** `standard-version` + GitHub Actions
 
 ---
 
-## 💻 Running the Application
+## 🤝 Contributing
 
-### Development
-To run the application in development mode (opens native Electron window with Hot Module Replacement):
-```bash
-npm run electron:dev
-```
+We welcome outside contributions! To maintain a stable release cycle, please adhere to our contributing protocol:
 
-### Production Build
-To create a production-ready application bundle:
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes using [Conventional Commits](https://www.conventionalcommits.org/):
+   - Example: `feat: add dark mode support`
+   - Example: `fix: resolve sidebar rendering bug`
+4. Push to the branch (`git push origin feature/amazing-feature`).
+5. Open a Pull Request.
 
-**For macOS (.dmg):**
-```bash
-npm run electron:build
-```
-
-**For Windows 64-bit (.exe):**
-```bash
-npm run electron:build -- --win --x64
-```
-*(Note: electron-builder can compile the Windows application directly from your Mac. It will automatically download the required `win32-x64` binaries for SQLite and build the installer).*
-
-The output file will be generated in the `release/` directory.
+> **Important**: Our automated release scripts depend on Conventional Commits to generate the `CHANGELOG.md` and bump the semantic version appropriately.
 
 ---
-*Note: Any new features or architectural changes to this project must be reflected in this README.*
+
+## 📄 License
+
+This project is proprietary and confidential unless explicitly licensed otherwise.
+*(Update this line to MIT/GPL if open-sourcing).*
