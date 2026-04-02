@@ -284,7 +284,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                             title={t('boards.groupByProject')}
                             className={`h-9 w-9 ${groupByProject ? "bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200" : ""}`}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v10" /><path d="M18.42 15.61a2.1 2.1 0 0 1 2.97 2.97L16.95 23 13 19.05l4.44-4.44a2.1 2.1 0 0 1 2.98 0z" /><path d="m5 4 7 7-7 7" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>
                         </Button>
                         <div className="bg-muted p-1 rounded-lg flex border">
                             <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="h-7 pl-2 pr-6 text-xs font-semibold rounded-md border-0 bg-transparent focus:ring-0 text-muted-foreground hover:text-foreground cursor-pointer">
