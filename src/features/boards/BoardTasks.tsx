@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { db, useLiveQuery, Task, Project } from '@/db/schema';
+import { db, useLiveQuery, Task, Project, TaskType } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import dayjs from 'dayjs';
@@ -65,6 +65,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
     const boardTasks = useLiveQuery(() => db.boardTasks.getTasksForBoard(boardId), [boardId]) || [];
     const allProjects = useLiveQuery(() => db.projects.toArray()) || [];
     const allTasks = useLiveQuery(() => db.tasks.toArray()) || [];
+    const allTaskTypes = useLiveQuery(() => db.taskTypes.toArray()) || [];
 
     // Filter tasks by timeframe
     const filteredBoardTasks = useMemo(() => {
@@ -91,13 +92,16 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
         });
     }, [boardTasks, timeframe, filterDate]);
 
-    // Grouping logic helper
+    // Grouping logic helper: Group by Project AND Task Type
     const groupedTasks = useMemo(() => {
         if (!groupByProject) return null;
-        const groups: Record<string, any[]> = {};
+        const groups: Record<string, Record<string, any[]>> = {};
+        
         filteredBoardTasks.forEach(task => {
-            if (!groups[task.projectId]) groups[task.projectId] = [];
-            groups[task.projectId].push(task);
+            if (!groups[task.projectId]) groups[task.projectId] = {};
+            const typeKey = task.taskTypeId || 'none';
+            if (!groups[task.projectId][typeKey]) groups[task.projectId][typeKey] = [];
+            groups[task.projectId][typeKey].push(task);
         });
         return groups;
     }, [filteredBoardTasks, groupByProject]);
@@ -106,6 +110,13 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
     const getProjectName = (projectId: string) => {
         const project = allProjects.find((p: Project) => p.id === projectId);
         return project?.name || '';
+    };
+
+    // Get task type name
+    const getTaskTypeName = (typeId: string) => {
+        if (typeId === 'none') return t('tasks.noType', 'No Type');
+        const type = allTaskTypes.find((tt: TaskType) => tt.id === typeId);
+        return type?.name || t('tasks.noType', 'No Type');
     };
 
     // Sort tasks
@@ -367,15 +378,31 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                             </div>
                             <div className="flex flex-col">
                                 {groupByProject ? (
-                                    Object.entries(groupedTasks || {}).map(([projectId, tasks]: [string, any[]], groupIdx, arr) => (
+                                    Object.entries(groupedTasks || {}).map(([projectId, types]) => (
                                         <div key={projectId} className="flex flex-col">
                                             <div className="px-5 py-2 bg-muted/30 font-bold border-y text-[10px] uppercase tracking-wider flex items-center gap-2 text-primary sticky top-0 z-10 backdrop-blur-sm">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10h12" /><path d="M4 14h9" /><path d="M19 6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6Z" /></svg>
                                                 {getProjectName(projectId)}
-                                                <span className="ml-auto text-[9px] opacity-60 font-normal">{tasks.length} {t('tasks.tasksCount')}</span>
                                             </div>
-                                            {tasks.map((task, idx) => (
-                                                <TaskRow key={task.id} task={task} projectName={getProjectName(task.projectId)} onEdit={onEditTask} onRemove={handleRemoveTask} isLast={idx === tasks.length - 1 && groupIdx === arr.length - 1} t={t} />
+                                            {Object.entries(types).map(([typeId, tasks]) => (
+                                                <div key={typeId} className="flex flex-col">
+                                                    <div className="px-8 py-1.5 bg-muted/10 font-semibold border-b text-[9px] uppercase tracking-wide flex items-center gap-2 text-muted-foreground/80">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 opacity-60"></div>
+                                                        {getTaskTypeName(typeId)}
+                                                        <span className="ml-auto text-[8px] opacity-60 font-normal tabular-nums">{tasks.length} {t('tasks.tasksCount')}</span>
+                                                    </div>
+                                                    {tasks.map((task, idx) => (
+                                                        <TaskRow 
+                                                            key={task.id} 
+                                                            task={task} 
+                                                            projectName={getProjectName(task.projectId)} 
+                                                            onEdit={onEditTask} 
+                                                            onRemove={handleRemoveTask} 
+                                                            isLast={idx === tasks.length - 1} 
+                                                            t={t} 
+                                                        />
+                                                    ))}
+                                                </div>
                                             ))}
                                         </div>
                                     ))
@@ -434,16 +461,24 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                                 </div>
                                 <div className="flex flex-col gap-2 relative z-10">
                                     {groupByProject ? (
-                                        Object.entries(groupedTasks || {}).map(([projectId, tasks]: [string, any[]]) => (
+                                        Object.entries(groupedTasks || {}).map(([projectId, types]) => (
                                             <div key={projectId} className="flex flex-col gap-1.5 mb-4 last:mb-0">
                                                 <div className="flex sticky top-10 left-0 z-[65] h-6 -ml-4 -mr-4 px-4 bg-muted/40 items-center justify-between border-y backdrop-blur-md">
                                                     <div className="flex items-center gap-1.5 font-bold text-[9px] uppercase tracking-wider text-primary ml-10">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10h12" /><path d="M4 14h9" /><path d="M19 6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6Z" /></svg>
                                                         {getProjectName(projectId)}
                                                     </div>
-                                                    <span className="text-[8px] font-medium opacity-60 mr-4">{tasks.length} {t('tasks.tasksCount')}</span>
                                                 </div>
-                                                {tasks.map((task: any) => <RoadmapTaskRow key={task.id} task={task} minDate={minDate} totalDays={totalDays} onEdit={onEditTask} t={t} />)}
+                                                {Object.entries(types).map(([typeId, tasks]) => (
+                                                    <div key={typeId} className="flex flex-col gap-1.5 mb-2 last:mb-0">
+                                                        <div className="flex sticky top-[64px] left-0 z-[64] h-5 -ml-4 px-8 items-center gap-2 bg-muted/20 border-b">
+                                                            <div className="w-1 h-1 rounded-full bg-indigo-400/50"></div>
+                                                            <span className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground/70">{getTaskTypeName(typeId)}</span>
+                                                            <span className="text-[7px] font-medium opacity-50 tabular-nums ml-auto mr-4">{tasks.length} {t('tasks.tasksCount')}</span>
+                                                        </div>
+                                                        {tasks.map((task: any) => <RoadmapTaskRow key={task.id} task={task} minDate={minDate} totalDays={totalDays} onEdit={onEditTask} t={t} />)}
+                                                    </div>
+                                                ))}
                                             </div>
                                         ))
                                     ) : (
@@ -467,7 +502,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
 
 function TaskRow({ task, projectName, onEdit, onRemove, isLast, t }: any) {
     return (
-        <div onClick={() => onEdit(task.id, task.projectId)} className={`px-4 py-3 cursor-pointer flex flex-col sm:flex-row sm:items-center gap-x-2 group hover:bg-muted/50 transition-colors relative ${!isLast ? 'border-b' : ''}`}>
+        <div onClick={() => onEdit(task.id, task.projectId)} className={`px-4 py-3 cursor-pointer flex flex-col sm:flex-row sm:items-center gap-x-2 group hover:bg-muted/50 transition-colors relative ${!isLast ? 'border-b border-border/20' : ''}`}>
             <div className="flex-1 min-w-[200px] flex flex-col gap-1 pl-4 pr-4">
                 <h4 className="font-medium text-foreground group-hover:text-primary transition-colors leading-tight break-words">{task.title}</h4>
             </div>

@@ -56,7 +56,8 @@
         "next": "Next",
         "pageOf": "Page {{current}} of {{total}}",
         "deleteProject": "Delete Project",
-        "deleteProjectConfirm": "Are you sure you want to delete \"{{name}}\"? All tasks in this project will also be deleted. This action cannot be undone."
+        "deleteProjectConfirm": "Are you sure you want to delete \"{{name}}\"? All tasks in this project will also be deleted. This action cannot be undone.",
+        "noType": "No Type"
     },
     "taskEdit": {
         "addTask": "Add New Task",
