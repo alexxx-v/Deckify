@@ -327,15 +327,6 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                         <Button variant="outline" size="icon" onClick={onOpenSettings} title={t('settings.projectSettings', 'Project Settings')}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
                         </Button>
-                        <Button
-                            variant={groupByType ? "default" : "outline"}
-                            size="icon"
-                            onClick={() => setGroupByType(!groupByType)}
-                            title={t('tasks.groupByType', 'Группировать по типам')}
-                            className={groupByType ? "bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200 hover:text-indigo-800" : ""}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v10" /><path d="M18.42 15.61a2.1 2.1 0 0 1 2.97 2.97L16.95 23 13 19.05l4.44-4.44a2.1 2.1 0 0 1 2.98 0z" /><path d="m5 4 7 7-7 7" /></svg>
-                        </Button>
                     </div>
                 </div>
 
@@ -357,8 +348,17 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                         <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'month' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('month')}>{t('tasks.month')}</button>
                     </div>
 
-                    <div className="hidden sm:flex items-center gap-2">
-                        <div className="bg-muted p-1 rounded-lg flex">
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant={groupByType ? "default" : "outline"}
+                            size="icon"
+                            onClick={() => setGroupByType(!groupByType)}
+                            title={t('tasks.groupByType', 'Группировать по типам')}
+                            className={`h-9 w-9 ${groupByType ? "bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200 hover:text-indigo-800" : ""}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v10" /><path d="M18.42 15.61a2.1 2.1 0 0 1 2.97 2.97L16.95 23 13 19.05l4.44-4.44a2.1 2.1 0 0 1 2.98 0z" /><path d="m5 4 7 7-7 7" /></svg>
+                        </Button>
+                        <div className="bg-muted p-1 rounded-lg flex border">
                             <select
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value as any)}

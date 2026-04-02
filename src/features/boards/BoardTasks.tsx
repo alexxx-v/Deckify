@@ -261,14 +261,6 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                             {t('boards.addTaskFromProject')}
                         </Button>
-                        <Button
-                            variant={groupByProject ? "default" : "outline"}
-                            size="icon"
-                            onClick={() => setGroupByProject(!groupByProject)}
-                            className={groupByProject ? "bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200" : ""}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v10" /><path d="M18.42 15.61a2.1 2.1 0 0 1 2.97 2.97L16.95 23 13 19.05l4.44-4.44a2.1 2.1 0 0 1 2.98 0z" /><path d="m5 4 7 7-7 7" /></svg>
-                        </Button>
                         <Button variant="default" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setShowExportModal(true)} disabled={boardTasks.length === 0}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
                             {t('boards.exportPdf')}
@@ -285,6 +277,15 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                         ))}
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button
+                            variant={groupByProject ? "default" : "outline"}
+                            size="icon"
+                            onClick={() => setGroupByProject(!groupByProject)}
+                            title={t('boards.groupByProject')}
+                            className={`h-9 w-9 ${groupByProject ? "bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200" : ""}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v10" /><path d="M18.42 15.61a2.1 2.1 0 0 1 2.97 2.97L16.95 23 13 19.05l4.44-4.44a2.1 2.1 0 0 1 2.98 0z" /><path d="m5 4 7 7-7 7" /></svg>
+                        </Button>
                         <div className="bg-muted p-1 rounded-lg flex border">
                             <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="h-7 pl-2 pr-6 text-xs font-semibold rounded-md border-0 bg-transparent focus:ring-0 text-muted-foreground hover:text-foreground cursor-pointer">
                                 {(['startDate', 'startDate_desc', 'status', 'status_desc', 'duration', 'duration_desc'] as const).map(s => (
