@@ -33,9 +33,11 @@ All data is stored entirely locally on your device using **SQLite** (via `better
 -   **Frontend Framework**: React (Vite)
 -   **Styling**: Tailwind CSS, shadcn/ui components
 -   **Desktop Wrapper**: Electron.js
--   **Storage**: Local-First via **SQLite** (`better-sqlite3`). Designed with a flexible Data Access Layer that supports custom database paths.
+-   **Storage**: Local-First via **SQLite** (`better-sqlite3`). Designed with a flexible Data Access Layer that supports custom database paths. Structured schema migrations are handled via SQLite's `PRAGMA user_version`.
 -   **Rich Text Editor**: Tiptap (ProseMirror-based), with a custom toolbar. Used in both task description editing and in PDF template TEXT blocks. Content is stored as HTML.
 -   **PDF Generation**: `@react-pdf/renderer` for declarative, vector-based PDF generation directly in the browser/app.
+-   **Auto-Update & Distribution**: Uses `electron-updater` configured to download updates from GitHub Releases seamlessly on restart. CI/CD Pipeline powered by GitHub Actions automates multi-platform compilation (.dmg, .exe) and publishing on version tags.
+-   **Versioning**: Semantic versioning using `standard-version` for automated CHANGELOG generation and package bumping.
 
 ## ✨ Features
 - **Sidebar Navigation**: Quickly switch between the Dashboard, Projects List, Boards, Templates, and Settings.
