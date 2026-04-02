@@ -95,5 +95,4 @@ We welcome outside contributions! To maintain a stable release cycle, please adh
 
 ## 📄 License
 
-This project is proprietary and confidential unless explicitly licensed otherwise.
-*(Update this line to MIT/GPL if open-sourcing).*
+This project is open-source and licensed under the [MIT License](LICENSE).
