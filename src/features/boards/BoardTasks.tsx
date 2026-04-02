@@ -492,7 +492,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
             </div>
 
             {showExportModal && boardAsProject && (
-                <ExportModal project={boardAsProject} tasks={boardTasks} onClose={() => setShowExportModal(false)} />
+                <ExportModal project={boardAsProject} tasks={boardTasks} isBoard={true} onClose={() => setShowExportModal(false)} />
             )}
         </div>
     );

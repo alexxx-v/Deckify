@@ -351,6 +351,8 @@ interface BlockRendererProps {
     startDate?: string;
     endDate?: string;
     key: string;
+    allProjects?: Project[];
+    isBoard?: boolean;
 }
 
 const getBlockRangeDates = (block: TemplateBlock, baseStartDate?: string, baseEndDate?: string, allTasks: Task[] = []) => {
@@ -393,7 +395,7 @@ const getBlockRangeDates = (block: TemplateBlock, baseStartDate?: string, baseEn
     return { minDate, maxDate };
 };
 
-const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, period, startDate, endDate }: BlockRendererProps) => {
+const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, period, startDate, endDate, allProjects, isBoard }: BlockRendererProps) => {
     if (block.type === 'TITLE_PAGE') {
         const { showSubtitle } = block.props;
         return (
@@ -455,43 +457,80 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
     }
 
     if (block.type === 'TASKS_LIST') {
-        const groups: Record<string, Task[]> = { 'no-type': [] };
-        taskTypes?.forEach(tt => groups[tt.id] = []);
-        tasks.forEach(t => {
-            if (t.taskTypeId && groups[t.taskTypeId]) groups[t.taskTypeId].push(t);
-            else groups['no-type'].push(t);
-        });
-
-        const entries = Object.entries(groups).filter(([_, gt]) => gt.length > 0);
+        const renderGroupedTasks = (taskEntryList: [string, Task[]][]) => {
+            return taskEntryList.map(([typeId, groupTasks]: [string, Task[]]) => {
+                const taskType = taskTypes?.find((tt: TaskType) => tt.id === typeId);
+                return (
+                    <View key={typeId} style={{ marginBottom: 15 }}>
+                        <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 4, borderLeftWidth: 3, borderLeftColor: taskType?.color || '#94a3b8', marginBottom: 5 }}>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#4B5563', textTransform: 'uppercase' }}>
+                                {taskType?.name || i18n.t('taskEdit.noType', 'Без типа')} ({groupTasks.length})
+                            </Text>
+                        </View>
+                        {groupTasks.map((task: Task) => (
+                            <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10, minHeight: 32 }}>
+                                <Text style={{ fontSize: 13, color: '#374151', flex: 1, paddingRight: 10 }}>
+                                    {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
+                                </Text>
+                                <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, borderColor: getPdfStatusColor(task.status).border, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, width: 90, alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 9, fontWeight: 'bold', color: getPdfStatusColor(task.status).text, textTransform: 'uppercase' }}>
+                                        {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
+                                    </Text>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                );
+            });
+        };
 
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
                 <Text style={styles.header}>{i18n.t('pdf.taskList')}</Text>
                 <View style={{ marginTop: 10, flex: 1 }}>
-                    {entries.map(([typeId, groupTasks]) => {
-                        const taskType = taskTypes?.find(tt => tt.id === typeId);
-                        return (
-                            <View key={typeId} style={{ marginBottom: 15 }}>
-                                <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 4, borderLeftWidth: 3, borderLeftColor: taskType?.color || '#94a3b8', marginBottom: 5 }}>
-                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#4B5563', textTransform: 'uppercase' }}>
-                                        {taskType?.name || i18n.t('taskEdit.noType', 'Без типа')} ({groupTasks.length})
-                                    </Text>
-                                </View>
-                                {groupTasks.map((task) => (
-                                    <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10, minHeight: 32 }}>
-                                        <Text style={{ fontSize: 13, color: '#374151', flex: 1, paddingRight: 10 }}>
-                                            {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
-                                        </Text>
-                                        <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, borderColor: getPdfStatusColor(task.status).border, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, width: 90, alignItems: 'center' }}>
-                                            <Text style={{ fontSize: 9, fontWeight: 'bold', color: getPdfStatusColor(task.status).text, textTransform: 'uppercase' }}>
-                                                {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
-                                            </Text>
+                    {(() => {
+                        if (isBoard && allProjects) {
+                            const projectGroups: Record<string, Task[]> = {};
+                            tasks.forEach((t: Task) => {
+                                if (!projectGroups[t.projectId]) projectGroups[t.projectId] = [];
+                                projectGroups[t.projectId].push(t);
+                            });
+
+                            return Object.entries(projectGroups).map(([projId, projTasks]: [string, Task[]]) => {
+                                const currentProj = allProjects.find((p: Project) => p.id === projId);
+                                const projName = currentProj?.name || projId;
+
+                                const typeGroups: Record<string, Task[]> = { 'no-type': [] };
+                                taskTypes?.forEach((tt: TaskType) => typeGroups[tt.id] = []);
+                                projTasks.forEach((t: Task) => {
+                                    if (t.taskTypeId && typeGroups[t.taskTypeId]) typeGroups[t.taskTypeId].push(t);
+                                    else typeGroups['no-type'].push(t);
+                                });
+
+                                const activeEntries = Object.entries(typeGroups).filter(([_, gt]: [string, Task[]]) => gt.length > 0);
+
+                                return (
+                                    <View key={projId} style={{ marginBottom: 20 }}>
+                                        <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 6, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#C7D2FE' }}>
+                                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#4338CA' }}>{projName}</Text>
+                                        </View>
+                                        <View style={{ marginLeft: 10 }}>
+                                            {renderGroupedTasks(activeEntries)}
                                         </View>
                                     </View>
-                                ))}
-                            </View>
-                        );
-                    })}
+                                );
+                            });
+                        }
+
+                        const groups: Record<string, Task[]> = { 'no-type': [] };
+                        taskTypes?.forEach((tt: TaskType) => groups[tt.id] = []);
+                        tasks.forEach((t: Task) => {
+                            if (t.taskTypeId && groups[t.taskTypeId]) groups[t.taskTypeId].push(t);
+                            else groups['no-type'].push(t);
+                        });
+                        const entries = Object.entries(groups).filter(([_, gt]: [string, Task[]]) => gt.length > 0);
+                        return renderGroupedTasks(entries);
+                    })()}
                 </View>
             </Page>
         );
@@ -508,14 +547,14 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
 
         return (
             <>
-                {filteredTasks.map((task) => (
+                {filteredTasks.map((task: Task) => (
                     <Page key={task.id} size="A4" orientation="landscape" style={styles.page}>
                         <View style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 10, marginBottom: 12 }}>
                             <Text style={{ fontSize: 20, color: '#111827', fontWeight: 'bold' }}>
                                 {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
                             </Text>
                             {(() => {
-                                const taskType = taskTypes?.find(tt => tt.id === task.taskTypeId);
+                                const taskType = taskTypes?.find((tt: TaskType) => tt.id === task.taskTypeId);
                                 if (!taskType) return null;
                                 return (
                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
@@ -783,10 +822,65 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                             );
                         };
 
+                        if (isBoard && allProjects) {
+                            // First, group tasks by projectId
+                            const projectGroups: Record<string, Task[]> = {};
+                            roadmapTasks.forEach(t => {
+                                if (!projectGroups[t.projectId]) projectGroups[t.projectId] = [];
+                                projectGroups[t.projectId].push(t);
+                            });
+
+                            return Object.entries(projectGroups).map(([projId, projTasks]) => {
+                                const currentProj = allProjects.find(p => p.id === projId);
+                                const projName = currentProj?.name || projId;
+
+                                // If groupByType is true, apply nested grouping
+                                if (groupByType) {
+                                    const typeGroups: Record<string, Task[]> = { 'no-type': [] };
+                                    taskTypes?.forEach(tt => typeGroups[tt.id] = []);
+                                    projTasks.forEach(t => {
+                                        if (t.taskTypeId && typeGroups[t.taskTypeId]) typeGroups[t.taskTypeId].push(t);
+                                        else typeGroups['no-type'].push(t);
+                                    });
+
+                                    const activeTypeEntries = Object.entries(typeGroups).filter(([_, g]) => g.length > 0);
+                                    return (
+                                        <View key={projId} style={{ marginBottom: 12 }}>
+                                            <View style={{ ...styles.roadmapGroupHeader, backgroundColor: 'rgba(79, 70, 229, 0.05)', paddingHorizontal: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(79, 70, 229, 0.1)' }}>
+                                                <Text style={{ ...styles.roadmapGroupTitle, color: '#4F46E5', fontSize: 9 }}>{projName}</Text>
+                                            </View>
+                                            {activeTypeEntries.map(([typeId, groupTasks]: [string, Task[]]) => {
+                                                const type = taskTypes?.find((tt: TaskType) => tt.id === typeId);
+                                                return (
+                                                    <View key={typeId} style={{ marginLeft: 10, marginTop: 4 }}>
+                                                        <View style={{ ...styles.roadmapGroupHeader, marginTop: 0, marginBottom: 2 }}>
+                                                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: type?.color || '#94a3b8' }} />
+                                                            <Text style={{ ...styles.roadmapGroupTitle, fontSize: 7 }}>{type?.name || i18n.t('taskEdit.noType')}</Text>
+                                                        </View>
+                                                        {groupTasks.map((t: Task) => renderTaskRow(t))}
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
+                                    );
+                                }
+
+                                // If not grouped by type, just render project group
+                                return (
+                                    <View key={projId} style={{ marginBottom: 8 }}>
+                                        <View style={{ ...styles.roadmapGroupHeader, backgroundColor: '#F9FAFB', paddingHorizontal: 6 }}>
+                                            <Text style={styles.roadmapGroupTitle}>{projName}</Text>
+                                        </View>
+                                        {projTasks.map((t: Task) => renderTaskRow(t))}
+                                    </View>
+                                );
+                            });
+                        }
+
                         if (groupByType) {
                             const groups: Record<string, Task[]> = { 'no-type': [] };
-                            taskTypes?.forEach(tt => groups[tt.id] = []);
-                            roadmapTasks.forEach(t => {
+                            taskTypes?.forEach((tt: TaskType) => groups[tt.id] = []);
+                            roadmapTasks.forEach((t: Task) => {
                                 if (t.taskTypeId && groups[t.taskTypeId]) {
                                     groups[t.taskTypeId].push(t);
                                 } else {
@@ -794,22 +888,22 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                                 }
                             });
 
-                            const activeEntries = Object.entries(groups).filter(([_, g]) => g.length > 0);
-                            return activeEntries.map(([typeId, groupTasks]) => {
-                                const type = taskTypes?.find(tt => tt.id === typeId);
+                            const activeEntries = Object.entries(groups).filter(([_, g]: [string, Task[]]) => g.length > 0);
+                            return activeEntries.map(([typeId, groupTasks]: [string, Task[]]) => {
+                                const type = taskTypes?.find((tt: TaskType) => tt.id === typeId);
                                 return (
                                     <View key={typeId} style={{ marginBottom: 16 }}>
                                         <View style={styles.roadmapGroupHeader}>
                                             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: type?.color || '#94a3b8' }} />
                                             <Text style={styles.roadmapGroupTitle}>{type?.name || i18n.t('taskEdit.noType')}</Text>
                                         </View>
-                                        {groupTasks.map(t => renderTaskRow(t))}
+                                        {groupTasks.map((t: Task) => renderTaskRow(t))}
                                     </View>
                                 );
                             });
                         }
 
-                        return roadmapTasks.map(t => renderTaskRow(t));
+                        return roadmapTasks.map((t: Task) => renderTaskRow(t));
                     })()}
                 </View>
             </Page>
@@ -833,13 +927,13 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
         const typeStats: Record<string, { count: number, duration: number, color: string, name: string }> = {};
 
         // Initialize with all types for this project
-        taskTypes?.forEach(tt => {
+        taskTypes?.forEach((tt: TaskType) => {
             typeStats[tt.id] = { count: 0, duration: 0, color: tt.color, name: tt.name };
         });
         typeStats['no-type'] = { count: 0, duration: 0, color: '#94a3b8', name: i18n.t('taskEdit.noType') };
 
         let totalDuration = 0;
-        tasks.forEach(t => {
+        tasks.forEach((t: Task) => {
             const tid = t.taskTypeId && typeStats[t.taskTypeId] ? t.taskTypeId : 'no-type';
             typeStats[tid].count += 1;
             typeStats[tid].duration += t.duration || 0;
@@ -865,7 +959,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                         </View>
 
                         {/* Table Body */}
-                        {activeStats.map((stat, idx) => {
+                        {activeStats.map((stat, idx: number) => {
                             const percent = totalDuration === 0 ? 0 : (stat.duration / totalDuration) * 100;
                             return (
                                 <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: idx === activeStats.length - 1 ? 0 : 1, borderBottomColor: '#F3F4F6', padding: 8, alignItems: 'center' }}>
@@ -890,7 +984,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                         }))} />
                         
                         <View style={{ marginTop: 20, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
-                            {activeStats.map((stat, idx) => {
+                            {activeStats.map((stat, idx: number) => {
                                 const percent = totalDuration === 0 ? 0 : (stat.duration / totalDuration) * 100;
                                 return (
                                     <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -918,9 +1012,11 @@ interface DynamicPdfRendererProps {
     startDate?: string;
     endDate?: string;
     blocksJson: string; // The templates' JSON blocks string
+    allProjects?: Project[];
+    isBoard?: boolean;
 }
 
-export const DynamicPdfRenderer = ({ project, tasks, allProjectTasks, taskTypes, period, startDate, endDate, blocksJson }: DynamicPdfRendererProps) => {
+export const DynamicPdfRenderer = ({ project, tasks, allProjectTasks, taskTypes, period, startDate, endDate, blocksJson, allProjects, isBoard }: DynamicPdfRendererProps) => {
     let parsedBlocks: TemplateBlock[] = [];
     try {
         parsedBlocks = JSON.parse(blocksJson);
@@ -939,7 +1035,7 @@ export const DynamicPdfRenderer = ({ project, tasks, allProjectTasks, taskTypes,
 
     return (
         <Document>
-            {parsedBlocks.map((block, idx) => (
+            {parsedBlocks.map((block: TemplateBlock, idx: number) => (
                 <BlockRenderer
                     key={`${block.id}-${idx}`}
                     block={block}
@@ -950,6 +1046,8 @@ export const DynamicPdfRenderer = ({ project, tasks, allProjectTasks, taskTypes,
                     period={period}
                     startDate={startDate}
                     endDate={endDate}
+                    allProjects={allProjects}
+                    isBoard={isBoard}
                 />
             ))}
         </Document>
