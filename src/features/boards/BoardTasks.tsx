@@ -96,7 +96,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
     const groupedTasks = useMemo(() => {
         if (!groupByProject) return null;
         const groups: Record<string, Record<string, any[]>> = {};
-        
+
         filteredBoardTasks.forEach(task => {
             if (!groups[task.projectId]) groups[task.projectId] = {};
             const typeKey = task.taskTypeId || 'none';
@@ -182,7 +182,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
             }
         }
         const diff = Math.max(1, max.diff(min, 'day'));
-        
+
         const markers: Array<{ label: string, percent: number }> = [];
         let curr = min.startOf('month');
         if (curr.isBefore(min) || curr.isSame(min, 'day')) curr = curr.add(1, 'month');
@@ -393,14 +393,14 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                                                         <span className="ml-auto text-[8px] opacity-60 font-normal tabular-nums">{tasks.length} {t('tasks.tasksCount')}</span>
                                                     </div>
                                                     {tasks.map((task, idx) => (
-                                                        <TaskRow 
-                                                            key={task.id} 
-                                                            task={task} 
-                                                            projectName={getProjectName(task.projectId)} 
-                                                            onEdit={onEditTask} 
-                                                            onRemove={handleRemoveTask} 
-                                                            isLast={idx === tasks.length - 1} 
-                                                            t={t} 
+                                                        <TaskRow
+                                                            key={task.id}
+                                                            task={task}
+                                                            projectName={getProjectName(task.projectId)}
+                                                            onEdit={onEditTask}
+                                                            onRemove={handleRemoveTask}
+                                                            isLast={idx === tasks.length - 1}
+                                                            t={t}
                                                         />
                                                     ))}
                                                 </div>
