@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { Project, Task, db, ExportTemplate } from '@/db/schema';
+import { Project, Task, db, ExportTemplate, TaskType } from '@/db/schema';
 import { pdf } from '@react-pdf/renderer';
 import { ProjectPresentation } from './ProjectPresentation';
 import { DynamicPdfRenderer } from './DynamicPdfRenderer';
@@ -12,9 +12,10 @@ interface ExportModalProps {
     project: Project;
     tasks: Task[];
     onClose: () => void;
+    isBoard?: boolean;
 }
 
-export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
+export function ExportModal({ project, tasks, onClose, isBoard }: ExportModalProps) {
     const { t } = useTranslation();
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
@@ -30,6 +31,8 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
 
     const [templates, setTemplates] = useState<ExportTemplate[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
+    const [allProjects, setAllProjects] = useState<Project[]>([]);
 
     useEffect(() => {
         const loaded = db.templates.toArray() as ExportTemplate[];
@@ -37,7 +40,24 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
         if (loaded.length > 0) {
             setSelectedTemplateId(loaded[0].id);
         }
-    }, []);
+
+        if (isBoard) {
+            const loadAll = async () => {
+                const types = await db.taskTypes.toArray() as TaskType[];
+                const projs = await db.projects.toArray() as Project[];
+                setTaskTypes(types);
+                setAllProjects(projs);
+            };
+            loadAll();
+        } else {
+            const loadProjectData = async () => {
+                const loadedTypes = await db.taskTypes.where('projectId').equals(project.id).toArray() as TaskType[];
+                setTaskTypes(loadedTypes);
+                setAllProjects([project]);
+            };
+            loadProjectData();
+        }
+    }, [project, isBoard]);
 
     useEffect(() => {
         let p = '';
@@ -79,8 +99,8 @@ export function ExportModal({ project, tasks, onClose }: ExportModalProps) {
 
             const template = templates.find(t => t.id === selectedTemplateId);
             const doc = template
-                ? <DynamicPdfRenderer project={project} tasks={filteredTasks} allProjectTasks={tasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} blocksJson={template.blocks} />
-                : <ProjectPresentation project={project} tasks={filteredTasks} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} />;
+                ? <DynamicPdfRenderer project={project} tasks={filteredTasks} allProjectTasks={tasks} taskTypes={taskTypes} allProjects={allProjects} isBoard={isBoard} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} blocksJson={template.blocks} />
+                : <ProjectPresentation project={project} tasks={filteredTasks} taskTypes={taskTypes} allProjects={allProjects} isBoard={isBoard} period={periodText} startDate={rangeStart.format('YYYY-MM-DD')} endDate={rangeEnd.format('YYYY-MM-DD')} />;
 
             const asPdf = pdf();
             asPdf.updateContainer(doc);

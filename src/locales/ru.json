@@ -2,6 +2,7 @@
     "sidebar": {
         "dashboard": "Дашборд",
         "projects": "Проекты",
+        "boards": "Доски",
         "templates": "Шаблоны",
         "settings": "Настройки"
     },
@@ -55,7 +56,8 @@
         "next": "Далее",
         "pageOf": "Страница {{current}} из {{total}}",
         "deleteProject": "Удалить проект",
-        "deleteProjectConfirm": "Вы действительно хотите удалить проект \"{{name}}\"? Все задачи проекта будут удалены. Это действие необратимо."
+        "deleteProjectConfirm": "Вы действительно хотите удалить проект \"{{name}}\"? Все задачи проекта будут удалены. Это действие необратимо.",
+        "noType": "Без типа"
     },
     "taskEdit": {
         "addTask": "Добавить новую задачу",
@@ -85,7 +87,12 @@
         "stepPlaceholder": "Опишите этап...",
         "deleteStep": "Удалить",
         "deleteTask": "Удалить задачу",
-        "deleteTaskConfirm": "Вы действительно хотите удалить эту задачу? Это действие необратимо."
+        "deleteTaskConfirm": "Вы действительно хотите удалить эту задачу? Это действие необратимо.",
+        "duplicate": "Дублировать",
+        "duplicateSuccess": "Дубликат задачи успешно создан",
+        "taskCopy": "копия",
+        "type": "Тип задачи",
+        "noType": "Без типа"
     },
     "export": {
         "title": "Экспорт презентации",
@@ -110,9 +117,7 @@
         "applyChanges": "Применить изменения",
         "invalidPath": "Неверный путь",
         "invalidPathDesc": "Пожалуйста, введите корректный абсолютный путь, заканчивающийся на .db или .sqlite",
-        "language": "Язык интерфейса",
-        "display": "Отображение",
-        "fullWidth": "На всю ширину экрана"
+        "language": "Язык интерфейса"
     },
     "pdf": {
         "progressOverview": "Обзор прогресса",
@@ -137,7 +142,13 @@
         "hold": "НА ПАУЗЕ",
         "backlog": "БЭКЛОГ",
         "steps": "Этапы реализации",
-        "currentStep": "текущий этап"
+        "currentStep": "текущий этап",
+        "typeSummaryTitle": "Фокус команды",
+        "typeColumn": "Тип задачи",
+        "countColumn": "Кол-во задач",
+        "durationColumn": "Длительность",
+        "timePercentColumn": "% времени",
+        "taskList": "Список задач"
     },
     "templates": {
         "title": "Шаблоны отчетов",
@@ -161,6 +172,7 @@
         "block_TASK_DETAIL": "Детали задач",
         "block_ROADMAP": "Дорожная карта",
         "block_TEXT": "Текстовый блок",
+        "block_TYPE_SUMMARY": "Фокус команды",
         "prop_showSubtitle": "Показывать подзаголовок",
         "prop_showCompleted": "Показывать количество ГОТОВО",
         "prop_showProgress": "Показывать общий прогресс",
@@ -170,18 +182,43 @@
         "prop_includeDescription": "Включать описание",
         "prop_includeSteps": "Включать список шагов",
         "prop_textTitle": "Заголовок блока",
-        "prop_textContent": "Текст",
-        "prop_dateRange": "Диапазон таймлайна",
+        "prop_textContent": "Текстовое содержимое",
+        "prop_dateRange": "Диапазон дат",
         "dateRange_export": "Как в экспорте",
         "dateRange_month": "Месяц",
         "dateRange_quarter": "Квартал",
         "dateRange_year": "Год",
-        "dateRange_hint": "Определяет временной диапазон на дорожной карте. 'Как в экспорте' использует период, выбранный в окне экспорта.",
+        "dateRange_hint": "Определяет временной диапазон задач в блоке. 'Как в экспорте' использует период, выбранный в окне экспорта.",
         "prop_specificMonth": "Месяц",
         "prop_specificQuarter": "Квартал",
         "prop_specificYear": "Год",
         "currentPeriodExport": "Текущий (по экспорту)",
         "currentPeriodExt": "Текущий",
+        "prop_groupByType": "Группировать по типу задач",
         "defaultTemplate": "Стандартный шаблон"
+    },
+    "boards": {
+        "title": "Доски",
+        "addBoard": "Создать доску",
+        "noBoards": "Пока нет досок. Создайте первую доску для объединения задач из разных проектов.",
+        "boardName": "Название доски",
+        "boardNamePlaceholder": "Например: Релиз v2.0",
+        "cancel": "Отмена",
+        "create": "Создать",
+        "addTask": "Добавить задачу",
+        "addTaskFromProject": "Добавить задачу из проекта",
+        "removeFromBoard": "Убрать из доски",
+        "removeFromBoardConfirm": "Убрать задачу \"{{name}}\" из доски? Задача не будет удалена из проекта.",
+        "noTasks": "Доска пуста",
+        "noTasksHint": "Добавьте задачи из ваших проектов, чтобы объединить их на этой доске.",
+        "selectProject": "Выберите проект",
+        "searchTasks": "Поиск задач...",
+        "allProjects": "Все проекты",
+        "taskAlreadyAdded": "Уже на доске",
+        "tasksCount": "задач",
+        "exportPdf": "Экспорт PDF",
+        "deleteBoard": "Удалить доску",
+        "deleteBoardConfirm": "Вы действительно хотите удалить доску \"{{name}}\"? Задачи проектов не будут затронуты.",
+        "fromProject": "из"
     }
 }

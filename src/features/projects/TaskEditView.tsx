@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db, useLiveQuery, TaskStep } from '@/db/schema';
+import { db, useLiveQuery, TaskStep, TaskType } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import dayjs from 'dayjs';
@@ -56,7 +56,7 @@ function SortableStepItem({ step, onUpdate, onDelete, t }: { step: TaskStep, onU
     );
 }
 
-export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () => void }) {
+export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, onBack: () => void, onDuplicate?: (newId: string) => void }) {
     const { t } = useTranslation();
     // Initial fetch of the task using live query to keep it reactive if updated elsewhere
     const task = useLiveQuery(() => db.tasks.get(taskId));
@@ -68,7 +68,9 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
     const [editDurationUnit, setEditDurationUnit] = useState<'days' | 'weeks' | 'months'>('days');
     const [editProgress, setEditProgress] = useState('0');
     const [editStatus, setEditStatus] = useState<'backlog' | 'progress' | 'hold' | 'done'>('backlog');
+    const [editTaskTypeId, setEditTaskTypeId] = useState<string>('');
     const [editSteps, setEditSteps] = useState<TaskStep[]>([]);
+    const taskTypes = useLiveQuery(() => task ? db.taskTypes.where('projectId').equals(task.projectId).toArray() : [], [task?.projectId]);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -92,7 +94,6 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
     // Populate local state once the task loads
     useEffect(() => {
         if (task) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setEditTitle(task.title);
             setEditDescription(task.description || '');
             setEditStartDate(task.startDate);
@@ -100,6 +101,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
             setEditDurationUnit('days');
             setEditProgress(task.progress.toString());
             setEditStatus(task.status || 'backlog');
+            setEditTaskTypeId(task.taskTypeId || '');
             try {
                 setEditSteps(task.steps ? JSON.parse(task.steps) : []);
             } catch (e) {
@@ -114,6 +116,27 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
         if (window.confirm(t('taskEdit.deleteTaskConfirm'))) {
             await db.tasks.delete(taskId);
             onBack();
+        }
+    };
+
+    const handleDuplicate = async () => {
+        if (!task) return;
+        
+        const now = dayjs().format('DD.MM.YY HH:mm:ss');
+        const newTaskId = uuidv4();
+        
+        const newTask = {
+            ...task,
+            id: newTaskId,
+            title: `${task.title} - ${t('taskEdit.taskCopy')} ${now}`,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+        
+        await db.tasks.add(newTask);
+        
+        if (onDuplicate) {
+            onDuplicate(newTaskId);
         }
     };
 
@@ -135,6 +158,7 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
             duration: calculatedDuration,
             progress: editStatus === 'done' ? 100 : (parseInt(editProgress, 10) || 0),
             status: editStatus,
+            taskTypeId: editTaskTypeId || undefined,
             steps: JSON.stringify(editSteps)
         });
 
@@ -154,11 +178,16 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                     </Button>
                     <h2 className="text-2xl font-bold tracking-tight">{t('taskEdit.editTask')}</h2>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <Button type="button" variant="ghost" className="text-muted-foreground hover:bg-muted hover:text-foreground" onClick={handleDuplicate} title={t('taskEdit.duplicate')}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                        {t('taskEdit.duplicate')}
+                    </Button>
                     <Button type="button" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleDeleteTask}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
                         {t('taskEdit.deleteTask')}
                     </Button>
+                    <div className="w-px h-6 bg-border mx-1 hidden sm:block"></div>
                     <Button type="button" variant="ghost" onClick={onBack}>{t('taskEdit.cancel')}</Button>
                     <Button
                         type="submit"
@@ -275,6 +304,20 @@ export function TaskEditView({ taskId, onBack }: { taskId: string, onBack: () =>
                                 <option value="progress">{t('taskEdit.inProgress')}</option>
                                 <option value="hold">{t('taskEdit.onHold')}</option>
                                 <option value="done">{t('taskEdit.done')}</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.taskType', 'Тип задачи')}</label>
+                            <select
+                                value={editTaskTypeId}
+                                onChange={(e) => setEditTaskTypeId(e.target.value)}
+                                className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
+                            >
+                                <option value="">{t('taskEdit.noType', 'Без типа')}</option>
+                                {taskTypes?.map((tt: TaskType) => (
+                                    <option key={tt.id} value={tt.id}>{tt.name}</option>
+                                ))}
                             </select>
                         </div>
 

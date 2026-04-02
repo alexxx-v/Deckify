@@ -2,6 +2,7 @@
     "sidebar": {
         "dashboard": "Dashboard",
         "projects": "Projects",
+        "boards": "Boards",
         "templates": "Templates",
         "settings": "Settings"
     },
@@ -55,7 +56,8 @@
         "next": "Next",
         "pageOf": "Page {{current}} of {{total}}",
         "deleteProject": "Delete Project",
-        "deleteProjectConfirm": "Are you sure you want to delete \"{{name}}\"? All tasks in this project will also be deleted. This action cannot be undone."
+        "deleteProjectConfirm": "Are you sure you want to delete \"{{name}}\"? All tasks in this project will also be deleted. This action cannot be undone.",
+        "noType": "No Type"
     },
     "taskEdit": {
         "addTask": "Add New Task",
@@ -85,7 +87,12 @@
         "stepPlaceholder": "Describe the step...",
         "deleteStep": "Delete step",
         "deleteTask": "Delete Task",
-        "deleteTaskConfirm": "Are you sure you want to delete this task? This action cannot be undone."
+        "deleteTaskConfirm": "Are you sure you want to delete this task? This action cannot be undone.",
+        "duplicate": "Duplicate",
+        "duplicateSuccess": "Task duplicate created successfully",
+        "taskCopy": "copy",
+        "type": "Task Type",
+        "noType": "No type"
     },
     "export": {
         "title": "Export Presentation",
@@ -110,9 +117,7 @@
         "applyChanges": "Apply Changes",
         "invalidPath": "Invalid path",
         "invalidPathDesc": "Please enter a valid absolute path ending with .db or .sqlite",
-        "language": "Interface Language",
-        "display": "Display",
-        "fullWidth": "Full Width Content"
+        "language": "Interface Language"
     },
     "pdf": {
         "progressOverview": "Progress Overview",
@@ -137,7 +142,13 @@
         "hold": "ON HOLD",
         "backlog": "BACKLOG",
         "steps": "Task Steps",
-        "currentStep": "current step"
+        "currentStep": "current step",
+        "typeSummaryTitle": "Team Focus",
+        "typeColumn": "Task Type",
+        "countColumn": "Tasks count",
+        "durationColumn": "Duration",
+        "timePercentColumn": "% of Time",
+        "taskList": "Tasks List"
     },
     "templates": {
         "title": "Report Templates",
@@ -161,6 +172,7 @@
         "block_TASK_DETAIL": "Task Details Pages",
         "block_ROADMAP": "Project Roadmap",
         "block_TEXT": "Text Block",
+        "block_TYPE_SUMMARY": "Team Focus",
         "prop_showSubtitle": "Show Subtitle",
         "prop_showCompleted": "Show completed count",
         "prop_showProgress": "Show overall progress",
@@ -176,12 +188,37 @@
         "dateRange_month": "Month",
         "dateRange_quarter": "Quarter",
         "dateRange_year": "Year",
-        "dateRange_hint": "Determines the date range displayed on the roadmap timeline. 'Same as export period' uses the dates selected in the export dialog.",
+        "dateRange_hint": "Determines the task date range for this block. 'Same as export period' uses the dates selected in the export dialog.",
         "prop_specificMonth": "Month",
         "prop_specificQuarter": "Quarter",
         "prop_specificYear": "Year",
         "currentPeriodExport": "Current (from export)",
         "currentPeriodExt": "Current",
+        "prop_groupByType": "Group by task type",
         "defaultTemplate": "Default Template"
+    },
+    "boards": {
+        "title": "Boards",
+        "addBoard": "Create Board",
+        "noBoards": "No boards yet. Create your first board to combine tasks from different projects.",
+        "boardName": "Board Name",
+        "boardNamePlaceholder": "e.g. Release v2.0",
+        "cancel": "Cancel",
+        "create": "Create",
+        "addTask": "Add Task",
+        "addTaskFromProject": "Add task from project",
+        "removeFromBoard": "Remove from board",
+        "removeFromBoardConfirm": "Remove task \"{{name}}\" from board? The task will not be deleted from the project.",
+        "noTasks": "Board is empty",
+        "noTasksHint": "Add tasks from your projects to combine them on this board.",
+        "selectProject": "Select project",
+        "searchTasks": "Search tasks...",
+        "allProjects": "All projects",
+        "taskAlreadyAdded": "Already on board",
+        "tasksCount": "tasks",
+        "exportPdf": "Export PDF",
+        "deleteBoard": "Delete Board",
+        "deleteBoardConfirm": "Are you sure you want to delete board \"{{name}}\"? Project tasks will not be affected.",
+        "fromProject": "from"
     }
 }

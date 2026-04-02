@@ -9,9 +9,10 @@ const AVAILABLE_BLOCKS: { type: TemplateBlockType, defaultProps: any }[] = [
     { type: 'TITLE_PAGE', defaultProps: { showSubtitle: true } },
     { type: 'STATS', defaultProps: { showCompleted: true, showProgress: true, showTotalTasks: true, showInProgress: true, showHoldTasks: true } },
     { type: 'TASKS_LIST', defaultProps: {} },
-    { type: 'TASK_DETAIL', defaultProps: { includeDescription: true, includeSteps: true } },
+    { type: 'TASK_DETAIL', defaultProps: { includeDescription: true, includeSteps: true, dateRange: 'export' } },
     { type: 'ROADMAP', defaultProps: { dateRange: 'export' } },
     { type: 'TEXT', defaultProps: { title: 'Custom Section', content: 'Enter your text here...' } },
+    { type: 'TYPE_SUMMARY', defaultProps: {} },
 ];
 
 export function TemplatesView() {
@@ -203,7 +204,8 @@ export function TemplatesView() {
                                                 {block.type === 'TASK_DETAIL' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M7 7h10" /><path d="M7 12h10" /><path d="M7 17h10" /></svg>}
                                                 {block.type === 'ROADMAP' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M7 10h6" /><path d="M11 14h8" /><path d="M5 6h4" /></svg>}
                                                 {block.type === 'TEXT' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="7" y2="7" /><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="14" y1="17" y2="17" /></svg>}
-                                            </div>
+                                                {block.type === 'TYPE_SUMMARY' && <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 9v12"/><path d="M15 9v12"/></svg>}
+                                             </div>
                                             <span className="text-sm font-medium">{t(`templates.block_${block.type}` as any)}</span>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-auto text-muted-foreground opacity-50"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                                         </div>
@@ -433,6 +435,35 @@ export function TemplatesView() {
                                                         </div>
                                                     </div>
                                                 )}
+
+                                                {block.type === 'TYPE_SUMMARY' && (
+                                                    <div className="bg-muted/30 rounded-lg p-4 h-full flex flex-col" style={{ aspectRatio: '16/7' }}>
+                                                        <div className="w-1/3 h-1.5 bg-foreground/40 rounded-full mb-3" />
+                                                        <div className="flex gap-4 flex-1 items-center">
+                                                            <div className="flex-1 space-y-1.5 border rounded border-muted-foreground/10 overflow-hidden bg-background/50">
+                                                                <div className="bg-muted/50 h-3 flex items-center px-1.5 gap-2">
+                                                                    <div className="w-1/3 h-1 bg-foreground/20 rounded-full" />
+                                                                    <div className="w-1/4 h-1 bg-foreground/20 rounded-full" />
+                                                                </div>
+                                                                {[1, 2, 3].map(i => (
+                                                                    <div key={i} className="h-3 flex items-center px-1.5 gap-2 border-t border-muted-foreground/5">
+                                                                        <div className={`w-1.5 h-1.5 rounded-full ${i === 1 ? 'bg-indigo-400' : i === 2 ? 'bg-emerald-400' : 'bg-orange-400'}`} />
+                                                                        <div className="w-1/3 h-1 bg-muted-foreground/20 rounded-full" />
+                                                                        <div className="w-1/6 h-1 bg-muted-foreground/20 rounded-full ml-auto" />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            <div className="flex-1 flex items-center justify-center">
+                                                                <div className="w-32 h-32 rounded-full border-[18px] border-muted-foreground/10 relative flex items-center justify-center">
+                                                                    <div className="absolute inset-x-0 h-[18px] top-1/2 -mt-[9px] -rotate-45 flex justify-between">
+                                                                        <div className="w-1/2 h-full bg-indigo-400 rounded-full" />
+                                                                        <div className="w-1/4 h-full bg-emerald-400 rounded-full" />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -544,6 +575,106 @@ export function TemplatesView() {
                                                             />
                                                             <span className="text-sm">{t('templates.prop_includeSteps')}</span>
                                                         </label>
+
+                                                        <div className="space-y-4 pt-4 border-t">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">{t('templates.prop_dateRange')}</label>
+                                                                <select
+                                                                    value={selectedBlock.props.dateRange || 'export'}
+                                                                    onChange={(e) => updateBlockProp(selectedBlock.id, 'dateRange', e.target.value)}
+                                                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                >
+                                                                    <option value="export">{t('templates.dateRange_export')}</option>
+                                                                    <option value="month">{t('templates.dateRange_month')}</option>
+                                                                    <option value="quarter">{t('templates.dateRange_quarter')}</option>
+                                                                    <option value="year">{t('templates.dateRange_year')}</option>
+                                                                </select>
+                                                            </div>
+
+                                                            {selectedBlock.props.dateRange === 'month' && (
+                                                                <div className="flex gap-2">
+                                                                    <div className="flex-1 space-y-2">
+                                                                        <label className="text-xs text-muted-foreground">{t('templates.prop_specificMonth')}</label>
+                                                                        <select
+                                                                            value={selectedBlock.props.specificMonth !== undefined ? selectedBlock.props.specificMonth : ''}
+                                                                            onChange={(e) => updateBlockProp(selectedBlock.id, 'specificMonth', e.target.value)}
+                                                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                        >
+                                                                            <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                            <option value="current">{t('templates.currentPeriodExt')}</option>
+                                                                            {['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'].map((m, i) => (
+                                                                                <option key={i} value={i}>{m}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                    <div className="w-24 space-y-2">
+                                                                        <label className="text-xs text-muted-foreground">{t('templates.prop_specificYear')}</label>
+                                                                        <select
+                                                                            value={selectedBlock.props.specificYear !== undefined ? selectedBlock.props.specificYear : ''}
+                                                                            onChange={(e) => updateBlockProp(selectedBlock.id, 'specificYear', e.target.value)}
+                                                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                        >
+                                                                            <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                            <option value="current">{t('templates.currentPeriodExt')}</option>
+                                                                            {Array.from({length: 7}, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                                                                                <option key={y} value={y}>{y}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {selectedBlock.props.dateRange === 'quarter' && (
+                                                                <div className="flex gap-2">
+                                                                    <div className="flex-1 space-y-2">
+                                                                        <label className="text-xs text-muted-foreground">{t('templates.prop_specificQuarter')}</label>
+                                                                        <select
+                                                                            value={selectedBlock.props.specificQuarter !== undefined ? selectedBlock.props.specificQuarter : ''}
+                                                                            onChange={(e) => updateBlockProp(selectedBlock.id, 'specificQuarter', e.target.value)}
+                                                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                        >
+                                                                            <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                            <option value="current">{t('templates.currentPeriodExt')}</option>
+                                                                            {[1,2,3,4].map(q => (
+                                                                                <option key={q} value={q}>Q{q}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                    <div className="w-24 space-y-2">
+                                                                        <label className="text-xs text-muted-foreground">{t('templates.prop_specificYear')}</label>
+                                                                        <select
+                                                                            value={selectedBlock.props.specificYear !== undefined ? selectedBlock.props.specificYear : ''}
+                                                                            onChange={(e) => updateBlockProp(selectedBlock.id, 'specificYear', e.target.value)}
+                                                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                        >
+                                                                            <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                            <option value="current">{t('templates.currentPeriodExt')}</option>
+                                                                            {Array.from({length: 7}, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                                                                                <option key={y} value={y}>{y}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {selectedBlock.props.dateRange === 'year' && (
+                                                                <div className="space-y-2">
+                                                                    <label className="text-xs text-muted-foreground">{t('templates.prop_specificYear')}</label>
+                                                                    <select
+                                                                        value={selectedBlock.props.specificYear !== undefined ? selectedBlock.props.specificYear : ''}
+                                                                        onChange={(e) => updateBlockProp(selectedBlock.id, 'specificYear', e.target.value)}
+                                                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                    >
+                                                                        <option value="">{t('templates.currentPeriodExport')}</option>
+                                                                        <option value="current">{t('templates.currentPeriodExt')}</option>
+                                                                        {Array.from({length: 7}, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                                                                            <option key={y} value={y}>{y}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            )}
+                                                            <p className="text-xs text-muted-foreground mt-2">{t('templates.dateRange_hint')}</p>
+                                                        </div>
                                                     </>
                                                 )}
 
@@ -561,6 +692,18 @@ export function TemplatesView() {
                                                                 <option value="quarter">{t('templates.dateRange_quarter')}</option>
                                                                 <option value="year">{t('templates.dateRange_year')}</option>
                                                             </select>
+                                                        </div>
+
+                                                        <div className="pt-2">
+                                                            <label className="flex items-center gap-3 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selectedBlock.props.groupByType ?? false}
+                                                                    onChange={(e) => updateBlockProp(selectedBlock.id, 'groupByType', e.target.checked)}
+                                                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                                                                />
+                                                                <span className="text-sm">{t('templates.prop_groupByType')}</span>
+                                                            </label>
                                                         </div>
 
                                                         {selectedBlock.props.dateRange === 'month' && (

@@ -6,7 +6,7 @@ export interface Project {
     createdAt: number; // timestamp
 }
 
-export type TemplateBlockType = 'TITLE_PAGE' | 'STATS' | 'TASKS_LIST' | 'TASK_DETAIL' | 'ROADMAP' | 'TEXT';
+export type TemplateBlockType = 'TITLE_PAGE' | 'STATS' | 'TASKS_LIST' | 'TASK_DETAIL' | 'ROADMAP' | 'TEXT' | 'TYPE_SUMMARY';
 
 export interface TemplateBlock {
     id: string; // unique block id inside the template
@@ -34,12 +34,33 @@ export interface Task {
     progress: number; // 0-100
     status?: TaskStatus; // Enum for status
     steps?: string; // JSON string of steps
+    taskTypeId?: string; // Foreign key to TaskType
+}
+
+export interface TaskType {
+    id: string;
+    projectId: string;
+    name: string;
+    color: string;
 }
 
 export interface TaskStep {
     id: string;
     text: string;
     completed: boolean;
+}
+
+export interface Board {
+    id: string;
+    name: string;
+    createdAt: number;
+}
+
+export interface BoardTask {
+    id: string;
+    boardId: string;
+    taskId: string;
+    addedAt: number;
 }
 
 const Database = typeof window !== 'undefined' && 'require' in (window as any) ? (window as any).require('better-sqlite3') : null;
@@ -85,14 +106,34 @@ export function initDb(dbPath: string): boolean {
                 createdAt INTEGER,
                 updatedAt INTEGER
             );
+
+            CREATE TABLE IF NOT EXISTS boards (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                createdAt INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS board_tasks (
+                id TEXT PRIMARY KEY,
+                boardId TEXT,
+                taskId TEXT,
+                addedAt INTEGER,
+                UNIQUE(boardId, taskId)
+            );
         `);
 
-        // Migration: add steps column if it doesn't exist
-        try {
-            sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN steps TEXT`);
-        } catch (e) {
-            // Ignore error if column already exists
-        }
+        // Migrations
+        try { sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN steps TEXT`); } catch (e) { }
+        try { sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN taskTypeId TEXT`); } catch (e) { }
+
+        sqliteDb.exec(`
+            CREATE TABLE IF NOT EXISTS task_types (
+                id TEXT PRIMARY KEY,
+                projectId TEXT,
+                name TEXT,
+                color TEXT
+            );
+        `);
 
         notifySubscribers();
         return true;
@@ -176,9 +217,9 @@ export const db = {
         add: async (t: Task) => {
             if (!sqliteDb) return;
             sqliteDb.prepare(`
-                INSERT INTO tasks (id, projectId, title, description, startDate, duration, progress, status, steps)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(t.id, t.projectId, t.title, t.description || '', t.startDate, t.duration, t.progress, t.status || 'backlog', t.steps || '[]');
+                INSERT INTO tasks (id, projectId, title, description, startDate, duration, progress, status, steps, taskTypeId)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(t.id, t.projectId, t.title, t.description || '', t.startDate, t.duration, t.progress, t.status || 'backlog', t.steps || '[]', t.taskTypeId || null);
             notifySubscribers();
         },
         update: async (id: string, obj: Partial<Task>) => {
@@ -241,6 +282,105 @@ export const db = {
             if (!sqliteDb) return;
             sqliteDb.prepare(`DELETE FROM templates WHERE id = ?`).run(id);
             notifySubscribers();
+        }
+    },
+    taskTypes: {
+        toArray: () => {
+            if (!sqliteDb) return [];
+            return sqliteDb.prepare(`SELECT * FROM task_types`).all();
+        },
+        where: (field: string) => ({
+            equals: (val: string) => ({
+                toArray: () => {
+                    if (!sqliteDb) return [];
+                    return sqliteDb.prepare(`SELECT * FROM task_types WHERE ${field} = ?`).all(val);
+                }
+            })
+        }),
+        add: async (tt: TaskType) => {
+            if (!sqliteDb) return;
+            sqliteDb.prepare(`INSERT INTO task_types (id, projectId, name, color) VALUES (?, ?, ?, ?)`).run(tt.id, tt.projectId, tt.name, tt.color);
+            notifySubscribers();
+        },
+        update: async (id: string, obj: Partial<TaskType>) => {
+            if (!sqliteDb) return;
+            const keys = Object.keys(obj);
+            if (keys.length === 0) return;
+            const setStr = keys.map(k => `${k} = ?`).join(', ');
+            const values = keys.map(k => (obj as any)[k]);
+            sqliteDb.prepare(`UPDATE task_types SET ${setStr} WHERE id = ?`).run(...values, id);
+            notifySubscribers();
+        },
+        delete: async (id: string) => {
+            if (!sqliteDb) return;
+            // Also nullify taskTypeId in tasks using this type
+            sqliteDb.prepare(`UPDATE tasks SET taskTypeId = NULL WHERE taskTypeId = ?`).run(id);
+            sqliteDb.prepare(`DELETE FROM task_types WHERE id = ?`).run(id);
+            notifySubscribers();
+        }
+    },
+    boards: {
+        toArray: () => {
+            if (!sqliteDb) return [];
+            return sqliteDb.prepare(`SELECT * FROM boards ORDER BY createdAt DESC`).all();
+        },
+        get: (id: string) => {
+            if (!sqliteDb) return undefined;
+            return sqliteDb.prepare(`SELECT * FROM boards WHERE id = ?`).get(id);
+        },
+        add: async (b: Board) => {
+            if (!sqliteDb) return;
+            sqliteDb.prepare(`INSERT INTO boards (id, name, createdAt) VALUES (?, ?, ?)`).run(b.id, b.name, b.createdAt);
+            notifySubscribers();
+        },
+        update: async (id: string, obj: Partial<Board>) => {
+            if (!sqliteDb) return;
+            const keys = Object.keys(obj);
+            if (keys.length === 0) return;
+            const setStr = keys.map(k => `${k} = ?`).join(', ');
+            const values = keys.map(k => (obj as any)[k]);
+            sqliteDb.prepare(`UPDATE boards SET ${setStr} WHERE id = ?`).run(...values, id);
+            notifySubscribers();
+        },
+        delete: async (id: string) => {
+            if (!sqliteDb) return;
+            sqliteDb.prepare(`DELETE FROM board_tasks WHERE boardId = ?`).run(id);
+            sqliteDb.prepare(`DELETE FROM boards WHERE id = ?`).run(id);
+            notifySubscribers();
+        }
+    },
+    boardTasks: {
+        getByBoard: (boardId: string): BoardTask[] => {
+            if (!sqliteDb) return [];
+            return sqliteDb.prepare(`SELECT * FROM board_tasks WHERE boardId = ? ORDER BY addedAt DESC`).all(boardId);
+        },
+        getTasksForBoard: (boardId: string): Task[] => {
+            if (!sqliteDb) return [];
+            return sqliteDb.prepare(`
+                SELECT t.* FROM tasks t
+                INNER JOIN board_tasks bt ON bt.taskId = t.id
+                WHERE bt.boardId = ?
+                ORDER BY t.startDate ASC
+            `).all(boardId);
+        },
+        add: async (bt: BoardTask) => {
+            if (!sqliteDb) return;
+            try {
+                sqliteDb.prepare(`INSERT INTO board_tasks (id, boardId, taskId, addedAt) VALUES (?, ?, ?, ?)`).run(bt.id, bt.boardId, bt.taskId, bt.addedAt);
+                notifySubscribers();
+            } catch (e) {
+                // Ignore unique constraint violation (task already on board)
+            }
+        },
+        remove: async (boardId: string, taskId: string) => {
+            if (!sqliteDb) return;
+            sqliteDb.prepare(`DELETE FROM board_tasks WHERE boardId = ? AND taskId = ?`).run(boardId, taskId);
+            notifySubscribers();
+        },
+        isTaskOnBoard: (boardId: string, taskId: string): boolean => {
+            if (!sqliteDb) return false;
+            const row = sqliteDb.prepare(`SELECT id FROM board_tasks WHERE boardId = ? AND taskId = ?`).get(boardId, taskId);
+            return !!row;
         }
     }
 };

@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import { Project, Task, TaskStatus } from '@/db/schema';
+import { Project, Task, TaskStatus, TaskType } from '@/db/schema';
 import dayjs from 'dayjs';
 import i18n from '@/i18n';
 
@@ -194,12 +194,15 @@ const styles = StyleSheet.create({
 interface PdfDocumentProps {
     project: Project;
     tasks: Task[];
+    taskTypes?: TaskType[];
     period: string; // e.g. "Q1 January"
     startDate?: string;
     endDate?: string;
+    allProjects?: Project[];
+    isBoard?: boolean;
 }
 
-export const ProjectPresentation = ({ project, tasks, period, startDate, endDate }: PdfDocumentProps) => {
+export const ProjectPresentation = ({ project, tasks, taskTypes, period, startDate, endDate, allProjects, isBoard }: PdfDocumentProps) => {
     const completedTasks = tasks.filter(t => (t.progress || 0) === 100 || t.status === 'done').length;
     const totalTasks = tasks.length;
     const overallProgress = totalTasks === 0 ? 0 :
@@ -272,32 +275,106 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                     </View>
                 </View>
                 <View style={{ marginTop: 10, flex: 1 }}>
-                    {tasks.map((task, idx) => (
-                        <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center' }}>
-                            <Text style={{ fontSize: 14, color: '#374151', flex: 1, paddingRight: 10 }}>
-                                {idx + 1}. {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
-                            </Text>
-                            <View style={{
-                                backgroundColor: getPdfStatusColor(task.status).bg,
-                                borderColor: getPdfStatusColor(task.status).border,
-                                borderWidth: 1,
-                                paddingHorizontal: 8,
-                                paddingVertical: 4,
-                                borderRadius: 4,
-                                width: 100,
-                                alignItems: 'center'
-                            }}>
-                                <Text style={{
-                                    fontSize: 10,
-                                    fontWeight: 'bold',
-                                    color: getPdfStatusColor(task.status).text,
-                                    textTransform: 'uppercase'
-                                }}>
-                                    {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
-                                </Text>
-                            </View>
-                        </View>
-                    ))}
+                    {(() => {
+                        if (isBoard && allProjects) {
+                            const projectGroups: Record<string, Task[]> = {};
+                            tasks.forEach((t: Task) => {
+                                if (!projectGroups[t.projectId]) projectGroups[t.projectId] = [];
+                                projectGroups[t.projectId].push(t);
+                            });
+
+                            return Object.entries(projectGroups).map(([projId, projTasks]: [string, Task[]]) => {
+                                const currentProj = allProjects.find((p: Project) => p.id === projId);
+                                const projName = currentProj?.name || projId;
+
+                                const typeGroups: Record<string, Task[]> = { 'no-type': [] };
+                                taskTypes?.forEach((tt: TaskType) => typeGroups[tt.id] = []);
+                                projTasks.forEach((t: Task) => {
+                                    if (t.taskTypeId && typeGroups[t.taskTypeId]) typeGroups[t.taskTypeId].push(t);
+                                    else typeGroups['no-type'].push(t);
+                                });
+                                const activeTypes = Object.entries(typeGroups).filter(([_, gt]: [string, Task[]]) => gt.length > 0);
+
+                                return (
+                                    <View key={projId} style={{ marginBottom: 20 }}>
+                                        <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 6, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#C7D2FE' }}>
+                                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#4338CA' }}>{projName}</Text>
+                                        </View>
+                                        {activeTypes.map(([typeId, groupTasks]: [string, Task[]]) => {
+                                            const taskType = taskTypes?.find((tt: TaskType) => tt.id === typeId);
+                                            return (
+                                                <View key={typeId} style={{ marginBottom: 10, marginLeft: 10 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: taskType?.color || '#94a3b8', marginRight: 6 }} />
+                                                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#6B7280', textTransform: 'uppercase' }}>
+                                                            {taskType?.name || i18n.t('taskEdit.noType')}
+                                                        </Text>
+                                                    </View>
+                                                    {groupTasks.map((task: Task) => (
+                                                        <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', alignItems: 'center', marginLeft: 10 }}>
+                                                            <Text style={{ fontSize: 11, color: '#374151', flex: 1 }}>{task.title}</Text>
+                                                            <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3, width: 80, alignItems: 'center' }}>
+                                                                <Text style={{ fontSize: 8, fontWeight: 'bold', color: getPdfStatusColor(task.status).text }}>{task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}</Text>
+                                                            </View>
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                );
+                            });
+                        }
+
+                        // Standard project view
+                        const groups: Record<string, Task[]> = { 'no-type': [] };
+                        taskTypes?.forEach((tt: TaskType) => groups[tt.id] = []);
+                        tasks.forEach((t: Task) => {
+                            if (t.taskTypeId && groups[t.taskTypeId]) groups[t.taskTypeId].push(t);
+                            else groups['no-type'].push(t);
+                        });
+
+                        const entries = Object.entries(groups).filter(([_, gt]: [string, Task[]]) => gt.length > 0);
+
+                        return entries.map(([typeId, groupTasks]: [string, Task[]]) => {
+                            const taskType = taskTypes?.find((tt: TaskType) => tt.id === typeId);
+                            return (
+                                <View key={typeId} style={{ marginBottom: 15 }}>
+                                    <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 4, borderLeftWidth: 3, borderLeftColor: taskType?.color || '#94a3b8', marginBottom: 5 }}>
+                                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#4B5563', textTransform: 'uppercase' }}>
+                                            {taskType?.name || i18n.t('taskEdit.noType', 'Без типа')} ({groupTasks.length})
+                                        </Text>
+                                    </View>
+                                    {groupTasks.map((task: Task) => (
+                                        <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10 }}>
+                                            <Text style={{ fontSize: 13, color: '#374151', flex: 1, paddingRight: 10 }}>
+                                                {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
+                                            </Text>
+                                            <View style={{
+                                                backgroundColor: getPdfStatusColor(task.status).bg,
+                                                borderColor: getPdfStatusColor(task.status).border,
+                                                borderWidth: 1,
+                                                paddingHorizontal: 8,
+                                                paddingVertical: 3,
+                                                borderRadius: 4,
+                                                width: 90,
+                                                alignItems: 'center'
+                                            }}>
+                                                <Text style={{
+                                                    fontSize: 9,
+                                                    fontWeight: 'bold',
+                                                    color: getPdfStatusColor(task.status).text,
+                                                    textTransform: 'uppercase'
+                                                }}>
+                                                    {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            );
+                        });
+                    })()}
                 </View>
             </Page>
 
@@ -308,6 +385,18 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                         <Text style={{ fontSize: 26, color: '#111827', fontWeight: 'bold' }}>
                             {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
                         </Text>
+                        {(() => {
+                            const taskType = taskTypes?.find(tt => tt.id === task.taskTypeId);
+                            if (!taskType) return null;
+                            return (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: taskType.color, marginRight: 6 }} />
+                                    <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: 'medium' }}>
+                                        {taskType.name}
+                                    </Text>
+                                </View>
+                            );
+                        })()}
                     </View>
 
                     <View style={{ flex: 1 }}>
@@ -470,75 +559,80 @@ export const ProjectPresentation = ({ project, tasks, period, startDate, endDate
                             </View>
                         </View>
 
-                        {sortedTasks.map(task => {
-                            const startOffset = dayjs(task.startDate).diff(minDate, 'day');
-                            const leftPercentRaw = (startOffset / totalDays) * 100;
-                            const widthPercentRaw = (task.duration / totalDays) * 100;
+                        {(() => {
+                            const renderTaskLine = (task: Task) => {
+                                const startOffset = dayjs(task.startDate).diff(minDate, 'day');
+                                const leftPercentRaw = (startOffset / totalDays) * 100;
+                                const widthPercentRaw = (task.duration / totalDays) * 100;
 
-                            const endPercentRaw = leftPercentRaw + widthPercentRaw;
-                            const absoluteProgressEndPercent = leftPercentRaw + widthPercentRaw * (task.progress / 100);
+                                const endPercentRaw = leftPercentRaw + widthPercentRaw;
+                                const absoluteProgressEndPercent = leftPercentRaw + widthPercentRaw * (task.progress / 100);
 
-                            const startPercent = Math.max(0, Math.min(100, leftPercentRaw));
-                            const endPercent = Math.max(0, Math.min(100, endPercentRaw));
-                            const clampedWidthPercent = endPercent - startPercent;
+                                const startPercent = Math.max(0, Math.min(100, leftPercentRaw));
+                                const endPercent = Math.max(0, Math.min(100, endPercentRaw));
+                                const clampedWidthPercent = endPercent - startPercent;
 
-                            const progressEndPercent = Math.max(0, Math.min(100, absoluteProgressEndPercent));
-                            const clampedProgressWidthPercent = Math.max(0, progressEndPercent - startPercent);
+                                const progressEndPercent = Math.max(0, Math.min(100, absoluteProgressEndPercent));
+                                const clampedProgressWidthPercent = Math.max(0, progressEndPercent - startPercent);
 
-                            if (clampedWidthPercent <= 0) return null;
+                                if (clampedWidthPercent <= 0) return null;
 
-                            const isCutLeft = leftPercentRaw < 0;
-                            const isCutRight = endPercentRaw > 100;
-                            const isProgressCutRight = absoluteProgressEndPercent > 100;
+                                const isCutLeft = leftPercentRaw < 0;
+                                const isCutRight = endPercentRaw > 100;
+                                const isProgressCutRight = absoluteProgressEndPercent > 100;
 
-                            const bgBorderRadii = {
-                                borderTopLeftRadius: isCutLeft ? 0 : 4,
-                                borderBottomLeftRadius: isCutLeft ? 0 : 4,
-                                borderTopRightRadius: isCutRight ? 0 : 4,
-                                borderBottomRightRadius: isCutRight ? 0 : 4,
-                            };
-                            
-                            const fgBorderRadii = {
-                                borderTopLeftRadius: isCutLeft ? 0 : 4,
-                                borderBottomLeftRadius: isCutLeft ? 0 : 4,
-                                borderTopRightRadius: isProgressCutRight ? 0 : 4,
-                                borderBottomRightRadius: isProgressCutRight ? 0 : 4,
-                            };
+                                const bgBorderRadii = {
+                                    borderTopLeftRadius: isCutLeft ? 0 : 4,
+                                    borderBottomLeftRadius: isCutLeft ? 0 : 4,
+                                    borderTopRightRadius: isCutRight ? 0 : 4,
+                                    borderBottomRightRadius: isCutRight ? 0 : 4,
+                                };
+                                
+                                const fgBorderRadii = {
+                                    borderTopLeftRadius: isCutLeft ? 0 : 4,
+                                    borderBottomLeftRadius: isCutLeft ? 0 : 4,
+                                    borderTopRightRadius: isProgressCutRight ? 0 : 4,
+                                    borderBottomRightRadius: isProgressCutRight ? 0 : 4,
+                                };
 
-                            return (
-                                <View key={task.id} style={styles.roadmapRow}>
-                                    <Text style={styles.roadmapTaskTitle}>{task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}</Text>
-                                    <View style={styles.roadmapTimeline}>
-                                        {/* Grid lines */}
-                                        {timelineMarkers.map((m, idx) => (
-                                            <View key={`grid-${idx}`} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, height: '100%', width: 1, backgroundColor: '#E5E7EB', zIndex: 0 }} />
-                                        ))}
-
-                                        <View style={[
-                                            styles.roadmapBar,
-                                            {
-                                                left: `${startPercent}%`,
-                                                width: `${Math.max(1, clampedWidthPercent)}%`,
-                                                backgroundColor: getPdfStatusColor(task.status).bar,
-                                                ...bgBorderRadii
-                                            }
-                                        ]} />
-                                        
-                                        {clampedProgressWidthPercent > 0 && (
-                                            <View style={[
-                                                styles.roadmapBar,
-                                                {
-                                                    left: `${startPercent}%`,
-                                                    width: `${Math.max(1, clampedProgressWidthPercent)}%`,
-                                                    backgroundColor: 'rgba(0,0,0,0.2)', // overlay for progress
-                                                    ...fgBorderRadii
-                                                }
-                                            ]} />
-                                        )}
+                                return (
+                                    <View key={task.id} style={styles.roadmapRow}>
+                                        <Text style={styles.roadmapTaskTitle}>{task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}</Text>
+                                        <View style={styles.roadmapTimeline}>
+                                            {timelineMarkers.map((m, idx) => (
+                                                <View key={`grid-${idx}`} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, height: '100%', width: 1, backgroundColor: '#E5E7EB', zIndex: 0 }} />
+                                            ))}
+                                            <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent)}%`, backgroundColor: getPdfStatusColor(task.status).bar, ...bgBorderRadii }]} />
+                                            {clampedProgressWidthPercent > 0 && (
+                                                <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedProgressWidthPercent)}%`, backgroundColor: 'rgba(0,0,0,0.2)', ...fgBorderRadii }]} />
+                                            )}
+                                        </View>
                                     </View>
-                                </View>
-                            );
-                        })}
+                                );
+                            };
+
+                            if (isBoard && allProjects) {
+                                const projectGroups: Record<string, Task[]> = {};
+                                sortedTasks.forEach(t => {
+                                    if (!projectGroups[t.projectId]) projectGroups[t.projectId] = [];
+                                    projectGroups[t.projectId].push(t);
+                                });
+
+                                return Object.entries(projectGroups).map(([projId, projTasks]) => {
+                                    const currentProj = allProjects.find(p => p.id === projId);
+                                    return (
+                                        <View key={projId} style={{ marginBottom: 12 }}>
+                                            <View style={{ backgroundColor: '#F9FAFB', paddingHorizontal: 6, paddingVertical: 2, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
+                                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#374151' }}>{currentProj?.name || projId}</Text>
+                                            </View>
+                                            {projTasks.map(task => renderTaskLine(task))}
+                                        </View>
+                                    )
+                                });
+                            }
+
+                            return sortedTasks.map(task => renderTaskLine(task));
+                        })()}
                     </View>
                 </Page>
             )}
