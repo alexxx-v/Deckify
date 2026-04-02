@@ -41,8 +41,14 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
     const [viewMode, setViewMode] = useState<'list' | 'roadmap'>(() => {
         return (localStorage.getItem('deckify_board_viewMode') as any) || 'list';
     });
+    const [timeframe, setTimeframe] = useState<'all' | 'month' | 'quarter' | 'year'>(() => {
+        return (localStorage.getItem('deckify_board_timeframe') as any) || 'month';
+    });
     const [sortBy, setSortBy] = useState<'startDate' | 'status' | 'duration' | 'startDate_desc' | 'status_desc' | 'duration_desc'>(() => {
         return (localStorage.getItem('deckify_board_sortBy') as any) || 'startDate';
+    });
+    const [filterDate, setFilterDate] = useState(() => {
+        return localStorage.getItem('deckify_board_filterDate') || dayjs().format('YYYY-MM');
     });
     const [currentPage, setCurrentPage] = useState(1);
     const [isEditingBoardName, setIsEditingBoardName] = useState(false);
@@ -57,13 +63,45 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
     }, [viewMode]);
 
     useEffect(() => {
+        localStorage.setItem('deckify_board_timeframe', timeframe);
+    }, [timeframe]);
+
+    useEffect(() => {
         localStorage.setItem('deckify_board_sortBy', sortBy);
     }, [sortBy]);
+
+    useEffect(() => {
+        localStorage.setItem('deckify_board_filterDate', filterDate);
+    }, [filterDate]);
 
     const board = useLiveQuery(() => db.boards.get(boardId));
     const boardTasks = useLiveQuery(() => db.boardTasks.getTasksForBoard(boardId), [boardId]) || [];
     const allProjects = useLiveQuery(() => db.projects.toArray()) || [];
     const allTasks = useLiveQuery(() => db.tasks.toArray()) || [];
+
+    // Filter tasks by timeframe
+    const filteredBoardTasks = (boardTasks || []).filter((t: any) => {
+        if (timeframe === 'all') return true;
+        const taskStart = dayjs(t.startDate);
+        const taskEnd = dayjs(t.startDate).add(t.duration, 'day');
+        const baseDate = dayjs(filterDate + '-01');
+        let rangeStart = baseDate, rangeEnd = baseDate;
+
+        if (timeframe === 'month') {
+            rangeStart = baseDate.startOf('month');
+            rangeEnd = baseDate.endOf('month');
+        } else if (timeframe === 'quarter') {
+            const startMonth = Math.floor(baseDate.month() / 3) * 3;
+            rangeStart = baseDate.month(startMonth).startOf('month');
+            rangeEnd = rangeStart.add(2, 'month').endOf('month');
+        } else if (timeframe === 'year') {
+            rangeStart = baseDate.startOf('year');
+            rangeEnd = baseDate.endOf('year');
+        }
+
+        // Check if task overlaps with the timeframe
+        return taskStart.isBefore(rangeEnd) && taskEnd.isAfter(rangeStart);
+    });
 
     // Get project name for a task
     const getProjectName = (projectId: string) => {
@@ -72,7 +110,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
     };
 
     // Sort tasks
-    const sortedTasks = [...boardTasks].sort((a: any, b: any) => {
+    const sortedTasks = [...filteredBoardTasks].sort((a: any, b: any) => {
         const isDesc = sortBy.endsWith('_desc');
         const sortType = sortBy.replace('_desc', '');
         let diff = 0;
@@ -103,15 +141,33 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
 
     // Roadmap calculations
     let minDate = dayjs(), maxDate = dayjs();
-    if (sortedTasks.length > 0) {
-        minDate = dayjs(sortedTasks[0].startDate);
-        maxDate = minDate;
-        sortedTasks.forEach((t: any) => {
-            const start = dayjs(t.startDate);
-            const end = dayjs(t.startDate).add(t.duration, 'day');
-            if (start.isBefore(minDate)) minDate = start;
-            if (end.isAfter(maxDate)) maxDate = end;
-        });
+    if (timeframe === 'all') {
+        if (sortedTasks.length > 0) {
+            let trueMin = dayjs(sortedTasks[0].startDate);
+            let trueMax = trueMin.add(sortedTasks[0].duration, 'day');
+            
+            sortedTasks.forEach((t: any) => {
+                const start = dayjs(t.startDate);
+                const end = dayjs(t.startDate).add(t.duration, 'day');
+                if (start.isBefore(trueMin)) trueMin = start;
+                if (end.isAfter(trueMax)) trueMax = end;
+            });
+            minDate = trueMin;
+            maxDate = trueMax;
+        }
+    } else {
+        const baseDate = dayjs(filterDate + '-01');
+        if (timeframe === 'month') {
+            minDate = baseDate.startOf('month');
+            maxDate = baseDate.endOf('month');
+        } else if (timeframe === 'quarter') {
+            const startMonth = Math.floor(baseDate.month() / 3) * 3;
+            minDate = baseDate.month(startMonth).startOf('month');
+            maxDate = minDate.add(2, 'month').endOf('month');
+        } else if (timeframe === 'year') {
+            minDate = baseDate.startOf('year');
+            maxDate = baseDate.endOf('year');
+        }
     }
     const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
 
@@ -228,11 +284,27 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                 </div>
 
                 {/* Filter Row */}
-                {sortedTasks.length > 0 && (
-                    <div className="flex items-center justify-end gap-2">
-                        <div className="bg-muted p-1 rounded-lg flex">
-                            <select 
-                                value={sortBy} 
+                <div className="flex flex-col sm:flex-row items-baseline sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+                        <input
+                            type="month"
+                            value={filterDate}
+                            onChange={(e) => setFilterDate(e.target.value)}
+                            disabled={timeframe === 'all'}
+                            title="Select reference period"
+                            className={`h-7 px-2 text-xs rounded-md border-0 bg-background shadow-sm focus:ring-0 ${timeframe === 'all' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        />
+                        <div className="h-4 w-px bg-border mx-1"></div>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'all' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('all')}>{t('tasks.allTime')}</button>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'year' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('year')}>{t('tasks.year')}</button>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'quarter' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('quarter')}>{t('tasks.quarter')}</button>
+                        <button className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${timeframe === 'month' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setTimeframe('month')}>{t('tasks.month')}</button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <div className="bg-muted p-1 rounded-lg flex border">
+                            <select
+                                value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value as any)}
                                 title={t('tasks.sortBy')}
                                 className="h-7 pl-2 pr-6 text-xs font-semibold rounded-md border-0 bg-transparent focus:ring-0 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -245,7 +317,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                                 <option value="duration_desc">{t('tasks.sortByDurationDesc')}</option>
                             </select>
                         </div>
-                        <div className="hidden sm:flex bg-muted p-1 rounded-lg flex-shrink-0">
+                        <div className="flex bg-muted p-1 rounded-lg flex-shrink-0 border">
                             <button
                                 className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                                 onClick={() => setViewMode('list')}
@@ -260,7 +332,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                             </button>
                         </div>
                     </div>
-                )}
+                </div>
             </div>
 
             {/* Add Task from Project Modal */}
@@ -380,12 +452,12 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                                     {/* Table Header Row */}
                                     <div className="hidden sm:flex sm:items-center gap-x-2 px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b bg-muted/10">
                                         <div className="flex-1 w-0 min-w-[200px] pl-4">{t('taskEdit.title')}</div>
-                                        <div className="w-[140px] shrink-0">{t('boards.fromProject')}</div>
-                                        <div className="w-[120px] shrink-0">{t('taskEdit.startDate')}</div>
-                                        <div className="w-[100px] shrink-0">{t('taskEdit.duration')}</div>
-                                        <div className="w-[100px] shrink-0 text-center">{t('taskEdit.progressStatus', 'Progress').replace(/\s*\(.*?\)/, '')}</div>
-                                        <div className="w-[130px] shrink-0 text-center">{t('taskEdit.status')}</div>
-                                        <div className="w-[40px] shrink-0"></div>
+                                        <div className="w-[130px] shrink-0">{t('boards.fromProject')}</div>
+                                        <div className="w-[110px] shrink-0">{t('taskEdit.startDate')}</div>
+                                        <div className="w-[110px] shrink-0">{t('taskEdit.endDate', 'End Date')}</div>
+                                        <div className="w-[90px] shrink-0">{t('taskEdit.duration')}</div>
+                                        <div className="w-[90px] shrink-0 text-center">{t('taskEdit.progressStatus', 'Progress').replace(/\s*\(.*?\)/, '')}</div>
+                                        <div className="w-[130px] shrink-0 text-center pr-10">{t('taskEdit.status')}</div>
                                     </div>
 
                                     <div className="flex flex-col">
@@ -394,59 +466,50 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                                             return (
                                                 <div
                                                     key={task.id}
-                                                    className={`px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-y-3 gap-x-2 group hover:bg-muted/50 transition-colors relative ${index !== paginatedTasks.length - 1 ? 'border-b border-border/50' : ''}`}
+                                                    onClick={() => onEditTask(task.id, task.projectId)}
+                                                    className={`px-4 py-3 cursor-pointer flex flex-col sm:flex-row sm:items-center gap-y-3 gap-x-2 group hover:bg-muted/50 transition-colors relative ${index !== paginatedTasks.length - 1 ? 'border-b border-border/50' : ''}`}
                                                 >
-                                                    <div
-                                                        className="flex-1 w-0 min-w-[200px] flex items-center gap-4 pl-4 pr-4 cursor-pointer"
-                                                        onClick={() => onEditTask(task.id, task.projectId)}
-                                                    >
-                                                        <h4 className="font-medium truncate text-foreground group-hover:text-primary transition-colors">{task.title}</h4>
+                                                    <div className="flex-1 w-0 min-w-[200px] flex flex-col gap-1 pl-4 pr-4">
+                                                        <h4 className="font-medium text-foreground group-hover:text-primary transition-colors leading-tight break-words text-wrap">{task.title}</h4>
                                                     </div>
 
-                                                    <div
-                                                        className="hidden sm:block w-[140px] shrink-0 text-sm text-muted-foreground truncate cursor-pointer"
-                                                        onClick={() => onEditTask(task.id, task.projectId)}
-                                                        title={projectName}
-                                                    >
+                                                    <div className="hidden sm:block w-[130px] shrink-0 text-sm text-muted-foreground truncate" title={projectName}>
                                                         <span className="inline-flex items-center gap-1">
                                                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-50"><path d="M4 10h12" /><path d="M4 14h9" /><path d="M19 6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6Z" /></svg>
                                                             {projectName}
                                                         </span>
                                                     </div>
 
-                                                    <div
-                                                        className="hidden sm:block w-[120px] shrink-0 text-sm text-foreground/80 tabular-nums cursor-pointer"
-                                                        onClick={() => onEditTask(task.id, task.projectId)}
-                                                    >
+                                                    <div className="hidden sm:block w-[110px] shrink-0 text-sm text-foreground/80 tabular-nums">
                                                         {dayjs(task.startDate).format('MMM D, YYYY')}
                                                     </div>
-                                                    <div
-                                                        className="hidden sm:block w-[100px] shrink-0 text-sm text-muted-foreground tabular-nums cursor-pointer"
-                                                        onClick={() => onEditTask(task.id, task.projectId)}
-                                                    >
+                                                    <div className="hidden sm:block w-[110px] shrink-0 text-sm text-foreground/80 tabular-nums">
+                                                        {dayjs(task.startDate).add(task.duration, 'day').format('MMM D, YYYY')}
+                                                    </div>
+                                                    <div className="hidden sm:block w-[90px] shrink-0 text-sm text-muted-foreground tabular-nums">
                                                         {task.duration} {t('taskEdit.days')}
                                                     </div>
-                                                    <div
-                                                        className="hidden sm:block w-[100px] shrink-0 text-center font-semibold text-sm tabular-nums text-muted-foreground group-hover:text-foreground transition-colors cursor-pointer"
-                                                        onClick={() => onEditTask(task.id, task.projectId)}
-                                                    >
+                                                    <div className="hidden sm:block w-[90px] shrink-0 text-center font-semibold text-sm tabular-nums text-muted-foreground group-hover:text-foreground transition-colors">
                                                         {task.progress}%
                                                     </div>
 
-                                                    <div
-                                                        className="flex items-center justify-between sm:justify-center shrink-0 w-[130px] cursor-pointer"
-                                                        onClick={() => onEditTask(task.id, task.projectId)}
-                                                    >
+                                                    <div className="flex items-center justify-between sm:justify-center shrink-0 w-[130px] pl-4 sm:pl-0 sm:pr-10">
+                                                        {/* Sub content on mobile shows duration alongside dates */}
+                                                        <div className="sm:hidden text-xs text-muted-foreground flex gap-2">
+                                                            <span className="font-semibold text-foreground">{task.progress}%</span>
+                                                            <span className="opacity-50">•</span>
+                                                            <span>{dayjs(task.startDate).format('MMM D')} - {dayjs(task.startDate).add(task.duration, 'day').format('MMM D')}</span>
+                                                        </div>
                                                         <span className={`w-28 justify-center inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
                                                             {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
                                                         </span>
                                                     </div>
 
-                                                    {/* Remove from board button */}
-                                                    <div className="w-[40px] shrink-0 flex justify-center">
+                                                    {/* Remove from board action */}
+                                                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleRemoveTask(task.id, task.title); }}
-                                                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1 rounded-md hover:bg-destructive/10"
+                                                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-0.5 rounded-md hover:bg-destructive/10"
                                                             title={t('boards.removeFromBoard')}
                                                         >
                                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -492,70 +555,66 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                                 {minDate.format('MMM D, YYYY')} - {maxDate.format('MMM D, YYYY')}
                             </div>
                         </div>
-                        <div className="flex flex-row relative items-stretch">
-                            {/* Left Panel */}
-                            <div className="hidden lg:flex w-[300px] shrink-0 bg-card border-r flex-col z-20 py-6">
-                                <div className="flex items-end pb-1 h-6 mb-4 border-b px-5 text-[10px] font-medium text-muted-foreground uppercase">
-                                    <div className="flex-1 truncate pr-2">{t('taskEdit.title')}</div>
-                                    <div className="w-20 text-right shrink-0">{t('taskEdit.status')}</div>
-                                </div>
-                                <div className="space-y-2 pb-2 px-5">
-                                    {sortedTasks.map((task: any) => (
-                                        <div key={`sidebar-${task.id}`} className="h-8 flex items-center text-sm group cursor-pointer" onClick={() => onEditTask(task.id, task.projectId)}>
-                                            <div className="flex-1 truncate font-medium text-foreground group-hover:text-primary pr-3" title={task.title}>{task.title}</div>
-                                            <div className="w-24 shrink-0 justify-end flex">
-                                                <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold border whitespace-nowrap ${getStatusBadgeClass(task.status)}`}>
-                                                    {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Right Timeline Panel */}
-                            <div className="flex-1 overflow-x-auto p-6">
-                                <div className="min-w-[800px] overflow-hidden relative">
-                                    {/* Vertical background grid lines */}
-                                    <div className="absolute top-6 bottom-0 w-full pointer-events-none z-0">
+                        <div className="flex-1 overflow-x-auto p-4 lg:p-6 scrollbar-thin">
+                            <div className="min-w-[1000px] flex flex-col relative">
+                                {/* Grid background layer */}
+                                <div className="absolute top-10 bottom-0 w-full flex pointer-events-none z-0">
+                                    <div className="w-[25%] min-w-[300px] shrink-0 border-r bg-white dark:bg-slate-900 sticky left-0 z-40"></div>
+                                    <div className="flex-1 relative overflow-hidden">
                                         {timelineMarkers.map((m, idx) => (
                                             <div key={`grid-${idx}`} className="absolute top-0 bottom-0 border-l border-muted-foreground/20" style={{ left: `${m.percent}%` }}></div>
                                         ))}
                                     </div>
+                                </div>
 
-                                    {/* Timeline markers */}
-                                    <div className="flex relative h-6 mb-4 border-b">
-                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground left-0">
-                                            {minDate.format('MMM D, YYYY')}
-                                        </div>
-                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground right-0">
-                                            {maxDate.format('MMM D, YYYY')}
-                                        </div>
+                                {/* Header Row */}
+                                <div className="flex sticky top-0 z-[60] bg-white dark:bg-slate-900 border-b h-10 mb-4 shrink-0">
+                                    <div className="w-[25%] min-w-[300px] sticky left-0 z-[70] bg-white dark:bg-slate-900 shrink-0 flex items-end pb-1 px-5 text-[10px] font-medium text-muted-foreground uppercase border-r">
+                                        <div className="flex-1 truncate pr-2">{t('taskEdit.title')}</div>
+                                        <div className="w-20 text-right shrink-0">{t('taskEdit.status')}</div>
+                                    </div>
+                                    <div className="flex-1 relative flex items-center overflow-hidden bg-white/50 dark:bg-slate-900/50">
+                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground left-2 flex items-center">{minDate.format('MMM D, YYYY')}</div>
+                                        <div className="absolute h-full text-[10px] font-medium text-muted-foreground right-2 flex items-center">{maxDate.format('MMM D, YYYY')}</div>
                                         {timelineMarkers.map((m, idx) => (
-                                            <div key={idx} className="absolute h-full border-l border-border text-[10px] font-medium text-muted-foreground pl-1" style={{ left: `${m.percent}%` }}>
-                                                {m.label}
-                                            </div>
+                                            <div key={idx} className="absolute h-full border-l border-border text-[10px] font-medium text-muted-foreground pl-1 flex items-center" style={{ left: `${m.percent}%` }}>{m.label}</div>
                                         ))}
                                     </div>
-                                    {/* Task bars */}
-                                    <div className="space-y-2 pb-2 relative z-10">
-                                        {sortedTasks.map((task: any) => {
-                                            const colors = getRoadmapColor(task.status);
-                                            return (
-                                                <DraggableTaskBar
-                                                    key={task.id}
-                                                    task={task}
-                                                    minDate={minDate}
-                                                    totalDays={totalDays}
-                                                    colors={colors}
-                                                    onUpdate={async (id, start, duration) => {
-                                                        await db.tasks.update(id, { startDate: start, duration });
-                                                    }}
+                                </div>
+
+                                {/* Tasks Rows */}
+                                <div className="flex flex-col gap-2 relative z-10">
+                                    {sortedTasks.map((task: any) => {
+                                        const colors = getRoadmapColor(task.status);
+                                        return (
+                                            <div key={task.id} className="flex min-h-8 group">
+                                                <div
+                                                    className="w-[25%] min-w-[300px] sticky left-0 z-50 bg-white dark:bg-slate-900 flex items-start text-sm cursor-pointer border-r pr-3 pl-5 py-1"
                                                     onClick={() => onEditTask(task.id, task.projectId)}
-                                                />
-                                            );
-                                        })}
-                                    </div>
+                                                >
+                                                    <div className="flex-1 min-w-0 font-medium text-foreground group-hover:text-primary leading-tight break-words text-wrap pr-3 pt-0.5" title={task.title}>{task.title}</div>
+                                                    <div className="w-24 shrink-0 justify-end flex pt-0.5">
+                                                        <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold border whitespace-nowrap ${getStatusBadgeClass(task.status)}`}>
+                                                            {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1 relative overflow-hidden py-1">
+                                                    <div className="absolute inset-x-0 top-[15px] -translate-y-[0.5px] h-[1px] bg-border/20 z-0"></div>
+                                                    <DraggableTaskBar
+                                                        task={task}
+                                                        minDate={minDate}
+                                                        totalDays={totalDays}
+                                                        colors={colors}
+                                                        onUpdate={async (id, start, duration) => {
+                                                            await db.tasks.update(id, { startDate: start, duration });
+                                                        }}
+                                                        onClick={() => onEditTask(task.id, task.projectId)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

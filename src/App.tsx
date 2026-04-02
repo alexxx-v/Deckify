@@ -213,21 +213,20 @@ function App() {
                 projectId={selectedProjectSettingsId}
                 onBack={() => setSelectedProjectSettingsId(null)}
               />
+            ) : selectedBoardId ? (
+              <BoardTasks
+                boardId={selectedBoardId}
+                onBack={() => setSelectedBoardId(null)}
+                onEditTask={(taskId) => {
+                  setEditingTaskId(taskId);
+                }}
+              />
             ) : selectedProjectId ? (
               <ProjectTasks
                 projectId={selectedProjectId}
                 onBack={() => setSelectedProjectId(null)}
                 onEditTask={(taskId) => setEditingTaskId(taskId)}
                 onOpenSettings={() => setSelectedProjectSettingsId(selectedProjectId)}
-              />
-            ) : selectedBoardId ? (
-              <BoardTasks
-                boardId={selectedBoardId}
-                onBack={() => setSelectedBoardId(null)}
-                onEditTask={(taskId, projectId) => {
-                  setSelectedProjectId(projectId);
-                  setEditingTaskId(taskId);
-                }}
               />
             ) : activeTab === 'dashboard' ? (
               <Dashboard />
