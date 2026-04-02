@@ -1,5 +1,10 @@
-const { app, BrowserWindow, protocol, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, protocol, ipcMain, shell, dialog } = require('electron');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
+
+// Basic auto-updater configuration
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -17,8 +22,37 @@ function createWindow() {
         win.webContents.openDevTools();
     } else {
         win.loadFile(path.join(__dirname, '../dist/index.html'));
+        // Check for updates only in production
+        autoUpdater.checkForUpdates();
     }
 }
+
+// Auto updater events
+autoUpdater.on('update-available', (info) => {
+    dialog.showMessageBox({
+        type: 'info',
+        title: 'Update Available',
+        message: `Version ${info.version} is available. Would you like to download it now?`,
+        buttons: ['Yes', 'No']
+    }).then((result) => {
+        if (result.response === 0) {
+            autoUpdater.downloadUpdate();
+        }
+    });
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+    dialog.showMessageBox({
+        type: 'info',
+        title: 'Update Ready',
+        message: 'Update downloaded. It will be installed on restart. Restart now?',
+        buttons: ['Restart', 'Later']
+    }).then((result) => {
+        if (result.response === 0) {
+            autoUpdater.quitAndInstall();
+        }
+    });
+});
 
 app.whenReady().then(() => {
     // Expose folder path and open action

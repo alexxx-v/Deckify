@@ -108,6 +108,13 @@ export function Settings() {
                         Storage path is not available in the web preview mode. Please run the desktop application.
                     </div>
                 )}
+                
+                <div className="border-t pt-6 mt-6">
+                    <h3 className="text-lg font-semibold mb-2">App Version</h3>
+                    <p className="text-sm text-muted-foreground">
+                        v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown'}
+                    </p>
+                </div>
             </div>
         </div>
     );

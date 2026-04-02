@@ -122,18 +122,31 @@ export function initDb(dbPath: string): boolean {
             );
         `);
 
-        // Migrations
-        try { sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN steps TEXT`); } catch (e) { }
-        try { sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN taskTypeId TEXT`); } catch (e) { }
+        // Migrations using PRAGMA user_version
+        const versionRow = sqliteDb.prepare('PRAGMA user_version').get();
+        let dbVersion = versionRow ? versionRow.user_version : 0;
 
-        sqliteDb.exec(`
-            CREATE TABLE IF NOT EXISTS task_types (
-                id TEXT PRIMARY KEY,
-                projectId TEXT,
-                name TEXT,
-                color TEXT
-            );
-        `);
+        if (dbVersion < 1) {
+            try { sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN steps TEXT`); } catch (e) { }
+            try { sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN taskTypeId TEXT`); } catch (e) { }
+            sqliteDb.exec(`
+                CREATE TABLE IF NOT EXISTS task_types (
+                    id TEXT PRIMARY KEY,
+                    projectId TEXT,
+                    name TEXT,
+                    color TEXT
+                );
+            `);
+            sqliteDb.exec('PRAGMA user_version = 1');
+            dbVersion = 1;
+        }
+
+        // Example of how future migrations would look:
+        // if (dbVersion < 2) {
+        //     sqliteDb.exec(`ALTER TABLE some_table ADD COLUMN some_col TEXT`);
+        //     sqliteDb.exec('PRAGMA user_version = 2');
+        //     dbVersion = 2;
+        // }
 
         notifySubscribers();
         return true;
