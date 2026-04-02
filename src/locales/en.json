@@ -2,6 +2,7 @@
     "sidebar": {
         "dashboard": "Dashboard",
         "projects": "Projects",
+        "boards": "Boards",
         "templates": "Templates",
         "settings": "Settings"
     },
@@ -194,5 +195,29 @@
         "currentPeriodExt": "Current",
         "prop_groupByType": "Group by task type",
         "defaultTemplate": "Default Template"
+    },
+    "boards": {
+        "title": "Boards",
+        "addBoard": "Create Board",
+        "noBoards": "No boards yet. Create your first board to combine tasks from different projects.",
+        "boardName": "Board Name",
+        "boardNamePlaceholder": "e.g. Release v2.0",
+        "cancel": "Cancel",
+        "create": "Create",
+        "addTask": "Add Task",
+        "addTaskFromProject": "Add task from project",
+        "removeFromBoard": "Remove from board",
+        "removeFromBoardConfirm": "Remove task \"{{name}}\" from board? The task will not be deleted from the project.",
+        "noTasks": "Board is empty",
+        "noTasksHint": "Add tasks from your projects to combine them on this board.",
+        "selectProject": "Select project",
+        "searchTasks": "Search tasks...",
+        "allProjects": "All projects",
+        "taskAlreadyAdded": "Already on board",
+        "tasksCount": "tasks",
+        "exportPdf": "Export PDF",
+        "deleteBoard": "Delete Board",
+        "deleteBoardConfirm": "Are you sure you want to delete board \"{{name}}\"? Project tasks will not be affected.",
+        "fromProject": "from"
     }
 }

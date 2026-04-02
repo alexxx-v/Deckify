@@ -38,7 +38,7 @@ All data is stored entirely locally on your device using **SQLite** (via `better
 -   **PDF Generation**: `@react-pdf/renderer` for declarative, vector-based PDF generation directly in the browser/app.
 
 ## ✨ Features
-- **Sidebar Navigation**: Quickly switch between the Dashboard, Projects List, and Settings.
+- **Sidebar Navigation**: Quickly switch between the Dashboard, Projects List, Boards, Templates, and Settings.
 - **Overview Dashboard**: View high-level statistics of your total projects, task counts, and average completion rate.
 - **Project Management**: Create and delete workspaces (projects). Deleting a project also removes all its tasks; a confirmation prompt is shown before deletion.
 - **Task Tracking**:
@@ -51,6 +51,14 @@ All data is stored entirely locally on your device using **SQLite** (via `better
   - **Custom Task Types**: Create and manage project-specific task types (e.g., 'Development', 'Design', 'Meeting') via the Project Settings page. Each type can have a unique name and color. Deleting a task type resets the type of all associated tasks to "None".
   - Dynamically update real-time progress using interactive sliders from the list. Setting a task's status to 'Done' automatically locks its progress at 100%.
   - Comprehensive task editing via a dedicated, full-width page featuring a two-column layout that separates the main content (description, steps) from metadata. The description field uses a Tiptap rich-text editor with a custom toolbar (headings, bold, italic, lists, task-list, blockquote, code). The editor auto-resizes to fit content with a minimum height of 256px. Descriptions are stored as HTML and rendered correctly in both the app and PDF exports.
+- **Boards (Cross-Project Task Aggregation)**:
+  - Create boards to combine tasks from multiple projects into a single unified view for reporting purposes.
+  - **Add Tasks from Projects**: Browse all projects and search for specific tasks to add to a board. Tasks that are already on the board are visually indicated.
+  - **Remove Tasks from Board**: Remove tasks from a board without deleting them from their original project.
+  - **Dual Views**: Boards support both List and Roadmap views, identical to project task views. The list view shows the source project name for each task.
+  - **Board PDF Export**: Export all board tasks to PDF using the same template-based export system as projects.
+  - **Task Navigation**: Clicking a task on a board navigates to the same task editor within its original project context.
+  - Boards are stored in a dedicated `boards` table with a `board_tasks` junction table for the many-to-many relationship.
 - **Automated PDF Export**:
   - **Custom Export Templates**: Create and modify reusable PDF templates using a block constructor natively within the app. TEXT blocks use the Tiptap rich-text editor (same as task descriptions); content is stored as HTML and rendered in the final PDF.
   - Generates presentations with a Title, Progress Overview stats, and clean Task List slides.

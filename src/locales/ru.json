@@ -2,6 +2,7 @@
     "sidebar": {
         "dashboard": "Дашборд",
         "projects": "Проекты",
+        "boards": "Доски",
         "templates": "Шаблоны",
         "settings": "Настройки"
     },
@@ -194,5 +195,29 @@
         "currentPeriodExt": "Текущий",
         "prop_groupByType": "Группировать по типу задач",
         "defaultTemplate": "Стандартный шаблон"
+    },
+    "boards": {
+        "title": "Доски",
+        "addBoard": "Создать доску",
+        "noBoards": "Пока нет досок. Создайте первую доску для объединения задач из разных проектов.",
+        "boardName": "Название доски",
+        "boardNamePlaceholder": "Например: Релиз v2.0",
+        "cancel": "Отмена",
+        "create": "Создать",
+        "addTask": "Добавить задачу",
+        "addTaskFromProject": "Добавить задачу из проекта",
+        "removeFromBoard": "Убрать из доски",
+        "removeFromBoardConfirm": "Убрать задачу \"{{name}}\" из доски? Задача не будет удалена из проекта.",
+        "noTasks": "Доска пуста",
+        "noTasksHint": "Добавьте задачи из ваших проектов, чтобы объединить их на этой доске.",
+        "selectProject": "Выберите проект",
+        "searchTasks": "Поиск задач...",
+        "allProjects": "Все проекты",
+        "taskAlreadyAdded": "Уже на доске",
+        "tasksCount": "задач",
+        "exportPdf": "Экспорт PDF",
+        "deleteBoard": "Удалить доску",
+        "deleteBoardConfirm": "Вы действительно хотите удалить доску \"{{name}}\"? Задачи проектов не будут затронуты.",
+        "fromProject": "из"
     }
 }

@@ -6,11 +6,13 @@ import { Dashboard } from './features/dashboard/Dashboard'
 import { Settings } from './features/settings/Settings'
 import { TemplatesView } from './features/pdf/TemplatesView'
 import { ProjectSettings } from './features/projects/ProjectSettings'
+import { BoardList } from './features/boards/BoardList'
+import { BoardTasks } from './features/boards/BoardTasks'
 import { initDb } from './db/schema'
 import { Button } from './components/ui/button'
 import { useTranslation } from 'react-i18next'
 
-type Tab = 'dashboard' | 'projects' | 'settings' | 'templates';
+type Tab = 'dashboard' | 'projects' | 'boards' | 'settings' | 'templates';
 
 function App() {
   const { t } = useTranslation();
@@ -18,6 +20,7 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [selectedProjectSettingsId, setSelectedProjectSettingsId] = useState<string | null>(null);
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [dbReady, setDbReady] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [dbPathInput, setDbPathInput] = useState('');
@@ -83,10 +86,12 @@ function App() {
     setActiveTab(tab);
     setSelectedProjectId(null);
     setEditingTaskId(null);
+    setSelectedBoardId(null);
+    setSelectedProjectSettingsId(null);
   };
 
   const navItemClass = (tab: Tab) =>
-    `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 cursor-pointer font-medium ${activeTab === tab && !selectedProjectId && !editingTaskId
+    `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 cursor-pointer font-medium ${activeTab === tab && !selectedProjectId && !editingTaskId && !selectedBoardId
       ? 'bg-indigo-50 text-indigo-700'
       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
     } ${!isSidebarOpen ? 'justify-center px-0' : ''}`;
@@ -165,6 +170,10 @@ function App() {
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M4 10h12" /><path d="M4 14h9" /><path d="M19 6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6Z" /></svg>
             {isSidebarOpen && <span className="whitespace-nowrap overflow-hidden">{t('sidebar.projects')}</span>}
           </a>
+          <a className={navItemClass('boards')} onClick={() => navigateTo('boards')} title={!isSidebarOpen ? t('sidebar.boards') : undefined}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /></svg>
+            {isSidebarOpen && <span className="whitespace-nowrap overflow-hidden">{t('sidebar.boards')}</span>}
+          </a>
           <a className={navItemClass('templates')} onClick={() => navigateTo('templates')} title={!isSidebarOpen ? t('sidebar.templates') : undefined}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
             {isSidebarOpen && <span className="whitespace-nowrap overflow-hidden">{t('sidebar.templates', 'Templates')}</span>}
@@ -189,7 +198,7 @@ function App() {
       {/* Main Content Area */}
       <main className={`flex-1 p-8 overflow-y-auto min-h-screen transition-all duration-300 w-full ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
         <div className="mx-auto transition-all duration-300 max-w-none">
-          <div key={activeTab + (selectedProjectId || '') + (editingTaskId || '')} className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both">
+          <div key={activeTab + (selectedProjectId || '') + (editingTaskId || '') + (selectedBoardId || '')} className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both">
             {editingTaskId ? (
               <TaskEditView
                 taskId={editingTaskId}
@@ -211,10 +220,21 @@ function App() {
                 onEditTask={(taskId) => setEditingTaskId(taskId)}
                 onOpenSettings={() => setSelectedProjectSettingsId(selectedProjectId)}
               />
+            ) : selectedBoardId ? (
+              <BoardTasks
+                boardId={selectedBoardId}
+                onBack={() => setSelectedBoardId(null)}
+                onEditTask={(taskId, projectId) => {
+                  setSelectedProjectId(projectId);
+                  setEditingTaskId(taskId);
+                }}
+              />
             ) : activeTab === 'dashboard' ? (
               <Dashboard />
             ) : activeTab === 'templates' ? (
               <TemplatesView />
+            ) : activeTab === 'boards' ? (
+              <BoardList onSelect={(id) => { setSelectedBoardId(id); setActiveTab('boards'); }} />
             ) : activeTab === 'settings' ? (
               <Settings />
             ) : (
