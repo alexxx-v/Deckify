@@ -35,9 +35,9 @@ const DonutChart = ({ data }: { data: { percent: number, color: string }[] }) =>
     const radius = size * 0.45;
     const thickness = 60;
     const innerRadius = radius - thickness;
-    
+
     let currentAngle = 0;
-    
+
     return (
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
             <G transform={`translate(${center}, ${center})`}>
@@ -60,26 +60,26 @@ const DonutChart = ({ data }: { data: { percent: number, color: string }[] }) =>
                             </G>
                         );
                     }
-                    
+
                     const startAngle = currentAngle;
                     const endAngle = currentAngle + angle;
                     currentAngle += angle;
-                    
+
                     const startRad = (startAngle - 90) * (Math.PI / 180);
                     const endRad = (endAngle - 90) * (Math.PI / 180);
-                    
+
                     const x1 = radius * Math.cos(startRad);
                     const y1 = radius * Math.sin(startRad);
                     const x2 = radius * Math.cos(endRad);
                     const y2 = radius * Math.sin(endRad);
-                    
+
                     const ix1 = innerRadius * Math.cos(startRad);
                     const iy1 = innerRadius * Math.sin(startRad);
                     const ix2 = innerRadius * Math.cos(endRad);
                     const iy2 = innerRadius * Math.sin(endRad);
-                    
+
                     const largeArcFlag = angle > 180 ? 1 : 0;
-                    
+
                     const d = [
                         `M ${x1} ${y1}`,
                         `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
@@ -92,7 +92,7 @@ const DonutChart = ({ data }: { data: { percent: number, color: string }[] }) =>
                     const midAngleRad = (startAngle + angle / 2 - 90) * (Math.PI / 180);
                     const tx = midRad * Math.cos(midAngleRad);
                     const ty = midRad * Math.sin(midAngleRad);
-                    
+
                     return (
                         <G key={idx}>
                             <Path d={d} fill={item.color} />
@@ -549,7 +549,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
             <>
                 {filteredTasks.map((task: Task) => (
                     <Page key={task.id} size="A4" orientation="landscape" style={styles.page}>
-                        <View style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 10, marginBottom: 12 }}>
+                        <View style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 10, marginBottom: 15 }}>
                             <Text style={{ fontSize: 20, color: '#111827', fontWeight: 'bold' }}>
                                 {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
                             </Text>
@@ -567,31 +567,60 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                             })()}
                         </View>
 
-                        <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, paddingRight: 40 }}>
-                                <View>
-                                    <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.startDate')}</Text>
-                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }}>{dayjs(task.startDate).format('MMMM D, YYYY')}</Text>
-                                </View>
-                                <View>
-                                    <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.duration')}</Text>
-                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }}>{task.duration} {task.duration === 1 ? i18n.t('pdf.durationDay') : i18n.t('pdf.durationDays')}</Text>
-                                </View>
-                                <View>
-                                    <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.targetDate')}</Text>
-                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }}>{dayjs(task.startDate).add(task.duration, 'day').format('MMMM D, YYYY')}</Text>
-                                </View>
-                                <View>
-                                    <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.status')}</Text>
-                                    <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, borderColor: getPdfStatusColor(task.status).border, borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: getPdfStatusColor(task.status).text, textTransform: 'uppercase' }}>
-                                            {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
-                                        </Text>
-                                    </View>
-                                </View>
+                        <View style={{ marginBottom: 0 }}>
+                            <View style={{ flexDirection: 'row', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                {(() => {
+                                    const actStartDate = task.startDate || task.plannedStartDate;
+                                    const actDuration = task.duration || task.plannedDuration || 0;
+                                    const pStartDate = task.plannedStartDate || actStartDate;
+                                    const pDuration = task.plannedDuration || actDuration || 0;
+
+                                    const pTarget = dayjs(pStartDate).add(pDuration, 'day');
+                                    const actTarget = dayjs(actStartDate).add(actDuration, 'day');
+
+                                    const delayStart = dayjs(actStartDate).diff(dayjs(pStartDate), 'day');
+                                    const delayDuration = actDuration - pDuration;
+                                    const delayEnd = actTarget.diff(pTarget, 'day');
+
+                                    return (
+                                        <>
+                                            <View>
+                                                <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.startDate')}</Text>
+                                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>{dayjs(actStartDate).format('DD MMM YYYY')}</Text>
+                                                <Text style={{ fontSize: 8, color: '#9CA3AF', marginTop: 1 }}>План: {dayjs(pStartDate).format('DD.MM.YY')} {delayStart > 0 ? `(+${delayStart} дн)` : delayStart < 0 ? `(${delayStart} дн)` : ''}</Text>
+                                            </View>
+                                            <View>
+                                                <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.duration')}</Text>
+                                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>{actDuration} дн</Text>
+                                                <Text style={{ fontSize: 8, color: '#9CA3AF', marginTop: 1 }}>План: {pDuration} дн {delayDuration > 0 ? `(+${delayDuration})` : delayDuration < 0 ? `(${delayDuration})` : ''}</Text>
+                                            </View>
+                                            <View>
+                                                <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.targetDate')}</Text>
+                                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>{actTarget.format('DD MMM YYYY')}</Text>
+                                                <Text style={{ fontSize: 8, color: '#9CA3AF', marginTop: 1 }}>План: {pTarget.format('DD.MM.YY')}</Text>
+                                            </View>
+                                            <View>
+                                                <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2 }}>{i18n.t('pdf.delay') || 'Отклонение'}</Text>
+                                                <View style={{ backgroundColor: delayEnd > 0 ? '#FEF2F2' : delayEnd < 0 ? '#F0FDF4' : '#F3F4F6', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: delayEnd > 0 ? '#FCA5A5' : delayEnd < 0 ? '#86EFAC' : '#E5E7EB' }}>
+                                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: delayEnd > 0 ? '#DC2626' : delayEnd < 0 ? '#16A34A' : '#6B7280' }}>
+                                                        {delayEnd > 0 ? `+${delayEnd} дн` : delayEnd < 0 ? `${Math.abs(delayEnd)} дн` : 'В срок'}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            <View>
+                                                <Text style={{ fontSize: 10, color: '#6B7280', marginBottom: 2, textAlign: 'right' }}>{i18n.t('pdf.status')}</Text>
+                                                <View style={{ alignSelf: 'flex-end', backgroundColor: getPdfStatusColor(task.status).bg, borderColor: getPdfStatusColor(task.status).border, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 }}>
+                                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: getPdfStatusColor(task.status).text, textTransform: 'uppercase' }}>
+                                                        {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        </>
+                                    );
+                                })()}
                             </View>
 
-                            <View style={{ marginBottom: 16, backgroundColor: '#FFFFFF', padding: 8, paddingHorizontal: 12, borderRadius: 6, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={{ marginBottom: 10, marginTop: 10, backgroundColor: '#FFFFFF', padding: 8, paddingHorizontal: 12, borderRadius: 6, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center' }}>
                                 <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#374151', marginRight: 12 }}>{i18n.t('pdf.progressStatus')}: <Text style={{ color: '#4F46E5' }}>{task.progress}%</Text></Text>
                                 <View style={{ flex: 1, height: 6, backgroundColor: '#E5E7EB', borderRadius: 3 }}>
                                     <View style={{ height: '100%', backgroundColor: getPdfStatusColor(task.status).bar, borderRadius: 3, width: `${task.progress}%` }} />
@@ -761,7 +790,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
 
                     {(() => {
                         const groupByType = block.props.groupByType ?? false;
-                        
+
                         const renderTaskRow = (task: Task) => {
                             const effStartDate = task.startDate || task.plannedStartDate;
                             const effDuration = task.duration || task.plannedDuration || 1;
@@ -818,27 +847,27 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                                             // Draw enough lines to cover the area even with the offset
                                             for (let x = -30; x < pWidthPts + 30; x += lineStep) {
                                                 lineElements.push(
-                                                    <Line 
-                                                        key={x} 
-                                                        x1={x} y1={20} 
-                                                        x2={x + 20} y2={0} 
-                                                        stroke="#9ca3af" 
-                                                        strokeWidth={1.2} 
+                                                    <Line
+                                                        key={x}
+                                                        x1={x} y1={20}
+                                                        x2={x + 20} y2={0}
+                                                        stroke="#9ca3af"
+                                                        strokeWidth={1.2}
                                                     />
                                                 );
                                             }
                                             return (
                                                 <View style={[
-                                                    styles.roadmapBar, 
-                                                    { 
-                                                        left: `${plannedStartPercent}%`, 
-                                                        width: `${Math.max(1, plannedClampedWidthPercent)}%`, 
-                                                        backgroundColor: 'rgba(156, 163, 175, 0.05)', 
-                                                        height: 20, 
+                                                    styles.roadmapBar,
+                                                    {
+                                                        left: `${plannedStartPercent}%`,
+                                                        width: `${Math.max(1, plannedClampedWidthPercent)}%`,
+                                                        backgroundColor: 'rgba(156, 163, 175, 0.05)',
+                                                        height: 20,
                                                         top: -2,
                                                         borderWidth: 1,
                                                         borderStyle: 'solid',
-                                                        borderColor: '#9ca3af', 
+                                                        borderColor: '#9ca3af',
                                                         overflow: 'hidden'
                                                     }
                                                 ]}>
@@ -985,7 +1014,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
                 <Text style={styles.header}>{i18n.t('pdf.typeSummaryTitle')}</Text>
-                
+
                 <View style={{ flexDirection: 'row', gap: 20, flex: 1, alignItems: 'flex-start' }}>
                     {/* Table (Left side) */}
                     <View style={{ flex: 1, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' }}>
@@ -1020,7 +1049,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                             percent: totalDuration === 0 ? 0 : (s.duration / totalDuration) * 100,
                             color: s.color
                         }))} />
-                        
+
                         <View style={{ marginTop: 20, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
                             {activeStats.map((stat, idx: number) => {
                                 const percent = totalDuration === 0 ? 0 : (stat.duration / totalDuration) * 100;

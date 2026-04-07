@@ -136,6 +136,7 @@
         "durationDay": "день",
         "durationDays": "дней",
         "targetDate": "Целевая дата",
+        "delay": "Отклонение",
         "status": "Статус",
         "progressStatus": "Статус прогресса",
         "description": "Описание",

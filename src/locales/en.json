@@ -136,6 +136,7 @@
         "durationDay": "day",
         "durationDays": "days",
         "targetDate": "Target Date",
+        "delay": "Delay",
         "status": "Status",
         "progressStatus": "Progress Status",
         "description": "Description",
