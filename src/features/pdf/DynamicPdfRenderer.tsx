@@ -133,8 +133,8 @@ const styles = StyleSheet.create({
     roadmapTaskTitle: { width: 180, paddingRight: 8 },
     roadmapTaskTitleText: { fontSize: 9, color: '#374151' },
     roadmapTaskStatus: { width: 85, paddingRight: 8 },
-    roadmapTimeline: { width: 465, height: 16, backgroundColor: '#F3F4F6', borderRadius: 4, position: 'relative', overflow: 'hidden' },
-    roadmapBar: { position: 'absolute', height: 10, top: 3, borderRadius: 4 },
+    roadmapTimeline: { width: 465, height: 16, backgroundColor: '#F3F4F6', position: 'relative', overflow: 'hidden' },
+    roadmapBar: { position: 'absolute', height: 6, top: 5 },
     roadmapGroupHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, marginTop: 8, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', gap: 6 },
     roadmapGroupTitle: { fontSize: 8, fontWeight: 'bold', color: '#6B7280', textTransform: 'uppercase' },
 });
@@ -794,24 +794,6 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
 
                             if (clampedWidthPercent <= 0 && plannedClampedWidthPercent <= 0) return null;
 
-                            const isCutLeft = leftPercentRaw < 0;
-                            const isCutRight = endPercentRaw > 100;
-                            const isProgressCutRight = absoluteProgressEndPercent > 100;
-
-                            const bgBorderRadii = {
-                                borderTopLeftRadius: isCutLeft ? 0 : 4,
-                                borderBottomLeftRadius: isCutLeft ? 0 : 4,
-                                borderTopRightRadius: isCutRight ? 0 : 4,
-                                borderBottomRightRadius: isCutRight ? 0 : 4,
-                            };
-
-                            const fgBorderRadii = {
-                                borderTopLeftRadius: isCutLeft ? 0 : 4,
-                                borderBottomLeftRadius: isCutLeft ? 0 : 4,
-                                borderTopRightRadius: isProgressCutRight ? 0 : 4,
-                                borderBottomRightRadius: isProgressCutRight ? 0 : 4,
-                            };
-
                             return (
                                 <View key={task.id} style={styles.roadmapRow} wrap={false}>
                                     <View style={styles.roadmapTaskTitle}>
@@ -830,14 +812,14 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                                         ))}
 
                                         {hasPlanned && plannedClampedWidthPercent > 0 && (
-                                            <View style={[styles.roadmapBar, { left: `${plannedStartPercent}%`, width: `${Math.max(1, plannedClampedWidthPercent)}%`, backgroundColor: 'rgba(156, 163, 175, 0.2)', height: 16, top: 0, borderRadius: 4 }]} />
+                                            <View style={[styles.roadmapBar, { left: `${plannedStartPercent}%`, width: `${Math.max(1, plannedClampedWidthPercent)}%`, backgroundColor: 'rgba(156, 163, 175, 0.2)', height: 18, top: -1 }]} />
                                         )}
 
                                         {clampedWidthPercent > 0 && (
-                                            <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent)}%`, backgroundColor: getPdfStatusColor(task.status).bar, ...bgBorderRadii }]} />
+                                            <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent)}%`, backgroundColor: getPdfStatusColor(task.status).bar }]} />
                                         )}
                                         {clampedProgressWidthPercent > 0 && (
-                                            <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedProgressWidthPercent)}%`, backgroundColor: 'rgba(0,0,0,0.2)', ...fgBorderRadii }]} />
+                                            <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedProgressWidthPercent)}%`, backgroundColor: 'rgba(0,0,0,0.2)' }]} />
                                         )}
                                     </View>
                                 </View>

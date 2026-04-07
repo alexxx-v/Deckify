@@ -108,19 +108,19 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
     return (
         <div className="relative h-[24px] group flex flex-col justify-center" ref={barRef} style={{ touchAction: 'none' }}>
             {hasPlanned && (
-                <div 
-                    className="absolute rounded bg-muted-foreground/20 border border-muted-foreground/30 z-0 pointer-events-none"
+                <div
+                    className="absolute bg-muted-foreground/20 border border-muted-foreground/30 z-0 pointer-events-none"
                     style={{
                         left: `${plannedLeftPercentRaw}%`,
                         width: `${plannedWidthPercentRaw}%`,
-                        top: '-2px',
-                        bottom: '-2px'
+                        top: '-3px',
+                        bottom: '-3px'
                     }}
                 />
             )}
             <div
                 onPointerDown={handlePointerDownDrag}
-                className={`absolute top-0 bottom-0 rounded-md opacity-90 border backdrop-blur-sm shadow-sm flex items-center overflow-visible z-10 ${isDragging ? 'cursor-grabbing ring-2 ring-primary/50 shadow-md z-20 scale-[1.01]' : 'cursor-grab hover:opacity-100 hover:ring-1 mix-blend-normal'}`}
+                className={`absolute top-[2px] bottom-[2px] opacity-90 border backdrop-blur-sm shadow-sm flex items-center overflow-visible z-10 ${isDragging ? 'cursor-grabbing ring-2 ring-primary/50 shadow-md z-20 scale-[1.01]' : 'cursor-grab hover:opacity-100 hover:ring-1 mix-blend-normal'}`}
                 style={{
                     left: `${leftPercentRaw}%`,
                     width: `${widthPercentRaw}%`,
@@ -130,7 +130,7 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
                 }}
             >
                 {/* Progress fill inside bar */}
-                <div className="absolute inset-y-0 left-0 transition-all pointer-events-none rounded-l-md" style={{ width: `${task.progress}%`, backgroundColor: colors.fill }}></div>
+                <div className="absolute inset-y-0 left-0 transition-all pointer-events-none" style={{ width: `${task.progress}%`, backgroundColor: colors.fill }}></div>
 
                 <div
                     className="absolute inset-y-0 right-0 px-3 flex items-center text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-foreground shadow-sm pointer-events-none select-none lg:hidden"
@@ -151,7 +151,7 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
             {/* Visual ghost for dragging/resizing showing the new outline */}
             {(isDragging || isResizing) && (
                 <div
-                    className="absolute top-0 bottom-0 rounded-md border-2 border-primary border-dashed bg-primary/5 pointer-events-none z-0"
+                    className="absolute top-[2px] bottom-[2px] border-2 border-primary border-dashed bg-primary/5 pointer-events-none z-0"
                     style={{
                         left: `${leftPercentRaw}%`,
                         width: `${widthPercentRaw}%`,
