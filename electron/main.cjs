@@ -64,17 +64,29 @@ autoUpdater.on('error', (err) => {
 });
 
 autoUpdater.on('update-downloaded', (info) => {
-    if (mainWindow) mainWindow.webContents.send('update-status', 'downloaded');
-    dialog.showMessageBox({
-        type: 'info',
-        title: 'Update Ready',
-        message: 'Update downloaded. It will be installed on restart. Restart now?',
-        buttons: ['Restart', 'Later']
-    }).then((result) => {
-        if (result.response === 0) {
-            autoUpdater.quitAndInstall();
-        }
-    });
+    if (mainWindow) {
+        mainWindow.webContents.send('update-status', 'downloaded');
+        const dialogOpts = {
+            type: 'info',
+            buttons: process.platform === 'darwin' ? ['Open Release Page', 'Later'] : ['Restart', 'Later'],
+            title: 'Update Ready',
+            message: `Version ${info.version} has been downloaded.`,
+            detail: process.platform === 'darwin' 
+                ? 'On macOS, unsigned apps cannot be updated automatically. Please download and install the new version manually from the release page.'
+                : 'Update downloaded. It will be installed on restart. Restart now?'
+        };
+
+        dialog.showMessageBox(dialogOpts).then((result) => {
+            if (result.response === 0) {
+                if (process.platform === 'darwin') {
+                    const { shell } = require('electron');
+                    shell.openExternal('https://github.com/alexxx-v/Deckify/releases/latest');
+                } else {
+                    autoUpdater.quitAndInstall();
+                }
+            }
+        });
+    }
 });
 
 app.whenReady().then(() => {
