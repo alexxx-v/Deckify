@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](https://github.com/alexxx-v/Deckify/compare/v1.1.0...v1.2.0) (2026-04-07)
+
+
+### Features
+
+* add planned start date and duration to tasks with visual representation in timeline ([12dfa39](https://github.com/alexxx-v/Deckify/commit/12dfa3981bd87a4fbd75218f905f5880c1d0980c))
+* add task delay calculation and visualization to PDF report with updated localization strings ([ead3837](https://github.com/alexxx-v/Deckify/commit/ead38379c563754d05e8a04dc7fb94d0f86ac159))
+* add visual indicator for current date in ProjectTasks timeline view ([cd2ff5a](https://github.com/alexxx-v/Deckify/commit/cd2ff5a5f537edcc3684e83a465de9bb51552f5c))
+* update roadmap bar styling with striped patterns in PDF renderer and web UI ([44a568c](https://github.com/alexxx-v/Deckify/commit/44a568c330e4ec2f626f5fdf4fe47a53b941547e))
+
 ## 1.1.0 (2026-04-02)
 
 
