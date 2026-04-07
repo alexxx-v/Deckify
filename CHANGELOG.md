@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/alexxx-v/Deckify/compare/v1.2.0...v1.3.0) (2026-04-07)
+
+
+### Features
+
+* add manual update check button and fix build config ([9c2ccaa](https://github.com/alexxx-v/Deckify/commit/9c2ccaaa1ba5bd63585f80c486dd8a7d120d100b))
+
 ## [1.2.0](https://github.com/alexxx-v/Deckify/compare/v1.1.0...v1.2.0) (2026-04-07)
 
 
