@@ -17,13 +17,25 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
     const [tempDurationDeltaDays, setTempDurationDeltaDays] = useState(0);
     const barRef = useRef<HTMLDivElement>(null);
 
-    const taskStartDiff = dayjs(task.startDate).diff(minDate, 'day');
+    const effActualStartDate = task.startDate || task.plannedStartDate;
+    const effActualDuration = task.duration || task.plannedDuration || 1;
+
+    const taskStartDiff = dayjs(effActualStartDate).diff(minDate, 'day');
     const displayStartDiff = taskStartDiff + tempStartOffsetDays;
-    const displayDuration = Math.max(1, task.duration + tempDurationDeltaDays);
+    const displayDuration = Math.max(1, effActualDuration + tempDurationDeltaDays);
 
     const leftPercentRaw = (displayStartDiff / totalDays) * 100;
     const widthPercentRaw = (displayDuration / totalDays) * 100;
     const cutOffPercent = leftPercentRaw < 0 ? (-leftPercentRaw / widthPercentRaw) * 100 : 0;
+
+    let hasPlanned = !!task.plannedStartDate;
+    let plannedLeftPercentRaw = 0;
+    let plannedWidthPercentRaw = 0;
+    if (hasPlanned) {
+        const plannedStartDiff = dayjs(task.plannedStartDate).diff(minDate, 'day');
+        plannedLeftPercentRaw = (plannedStartDiff / totalDays) * 100;
+        plannedWidthPercentRaw = ((task.plannedDuration || 1) / totalDays) * 100;
+    }
 
     const handlePointerDownDrag = (e: React.PointerEvent) => {
         // Ignore if clicking on the resize handle
@@ -48,7 +60,7 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
             setTempStartOffsetDays(0);
 
             if (daysDelta !== 0) {
-                const newStart = dayjs(task.startDate).add(daysDelta, 'day').format('YYYY-MM-DD');
+                const newStart = dayjs(effActualStartDate).add(daysDelta, 'day').format('YYYY-MM-DD');
                 onUpdate(task.id, newStart, displayDuration);
             } else if (dx === 0) {
                 onClick(); // trigger click if no drag happened
@@ -80,9 +92,9 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
             setIsResizing(false);
             setTempDurationDeltaDays(0);
 
-            const newDuration = Math.max(1, task.duration + daysDelta);
-            if (newDuration !== task.duration) {
-                onUpdate(task.id, task.startDate, newDuration);
+            const newDuration = Math.max(1, effActualDuration + daysDelta);
+            if (newDuration !== effActualDuration) {
+                onUpdate(task.id, effActualStartDate, newDuration);
             }
 
             window.removeEventListener('pointermove', handleMove);
@@ -94,10 +106,21 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
     };
 
     return (
-        <div className="relative h-full group" ref={barRef} style={{ touchAction: 'none' }}>
+        <div className="relative h-[24px] group flex flex-col justify-center" ref={barRef} style={{ touchAction: 'none' }}>
+            {hasPlanned && (
+                <div 
+                    className="absolute rounded bg-muted-foreground/20 border border-muted-foreground/30 z-0 pointer-events-none"
+                    style={{
+                        left: `${plannedLeftPercentRaw}%`,
+                        width: `${plannedWidthPercentRaw}%`,
+                        top: '-2px',
+                        bottom: '-2px'
+                    }}
+                />
+            )}
             <div
                 onPointerDown={handlePointerDownDrag}
-                className={`absolute top-0 h-[22px] rounded-md opacity-90 border backdrop-blur-sm shadow-sm flex items-center overflow-visible z-10 ${isDragging ? 'cursor-grabbing ring-2 ring-primary/50 shadow-md z-20 scale-[1.01]' : 'cursor-grab hover:opacity-100 hover:ring-1 mix-blend-normal'}`}
+                className={`absolute top-0 bottom-0 rounded-md opacity-90 border backdrop-blur-sm shadow-sm flex items-center overflow-visible z-10 ${isDragging ? 'cursor-grabbing ring-2 ring-primary/50 shadow-md z-20 scale-[1.01]' : 'cursor-grab hover:opacity-100 hover:ring-1 mix-blend-normal'}`}
                 style={{
                     left: `${leftPercentRaw}%`,
                     width: `${widthPercentRaw}%`,
@@ -128,7 +151,7 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
             {/* Visual ghost for dragging/resizing showing the new outline */}
             {(isDragging || isResizing) && (
                 <div
-                    className="absolute top-0 h-[22px] rounded-md border-2 border-primary border-dashed bg-primary/5 pointer-events-none z-0"
+                    className="absolute top-0 bottom-0 rounded-md border-2 border-primary border-dashed bg-primary/5 pointer-events-none z-0"
                     style={{
                         left: `${leftPercentRaw}%`,
                         width: `${widthPercentRaw}%`,

@@ -31,6 +31,8 @@ export interface Task {
     description?: string; // Optional description
     startDate: string; // YYYY-MM-DD
     duration: number; // Duration in days
+    plannedStartDate?: string; // YYYY-MM-DD
+    plannedDuration?: number; // Duration in days
     progress: number; // 0-100
     status?: TaskStatus; // Enum for status
     steps?: string; // JSON string of steps
@@ -95,6 +97,8 @@ export function initDb(dbPath: string): boolean {
                 description TEXT,
                 startDate TEXT,
                 duration INTEGER,
+                plannedStartDate TEXT,
+                plannedDuration INTEGER,
                 progress INTEGER,
                 status TEXT
             );
@@ -141,11 +145,19 @@ export function initDb(dbPath: string): boolean {
             dbVersion = 1;
         }
 
+        if (dbVersion < 2) {
+            try { sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN plannedStartDate TEXT`); } catch (e) { }
+            try { sqliteDb.exec(`ALTER TABLE tasks ADD COLUMN plannedDuration INTEGER`); } catch (e) { }
+            try { sqliteDb.exec(`UPDATE tasks SET plannedStartDate = startDate, plannedDuration = duration WHERE plannedStartDate IS NULL`); } catch (e) { console.error("Migration error", e); }
+            sqliteDb.exec('PRAGMA user_version = 2');
+            dbVersion = 2;
+        }
+
         // Example of how future migrations would look:
-        // if (dbVersion < 2) {
+        // if (dbVersion < 3) {
         //     sqliteDb.exec(`ALTER TABLE some_table ADD COLUMN some_col TEXT`);
-        //     sqliteDb.exec('PRAGMA user_version = 2');
-        //     dbVersion = 2;
+        //     sqliteDb.exec('PRAGMA user_version = 3');
+        //     dbVersion = 3;
         // }
 
         notifySubscribers();
@@ -230,9 +242,9 @@ export const db = {
         add: async (t: Task) => {
             if (!sqliteDb) return;
             sqliteDb.prepare(`
-                INSERT INTO tasks (id, projectId, title, description, startDate, duration, progress, status, steps, taskTypeId)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(t.id, t.projectId, t.title, t.description || '', t.startDate, t.duration, t.progress, t.status || 'backlog', t.steps || '[]', t.taskTypeId || null);
+                INSERT INTO tasks (id, projectId, title, description, startDate, duration, plannedStartDate, plannedDuration, progress, status, steps, taskTypeId)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(t.id, t.projectId, t.title, t.description || '', t.startDate, t.duration, t.plannedStartDate || null, t.plannedDuration || null, t.progress, t.status || 'backlog', t.steps || '[]', t.taskTypeId || null);
             notifySubscribers();
         },
         update: async (id: string, obj: Partial<Task>) => {

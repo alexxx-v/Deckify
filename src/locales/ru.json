@@ -92,7 +92,11 @@
         "duplicateSuccess": "Дубликат задачи успешно создан",
         "taskCopy": "копия",
         "type": "Тип задачи",
-        "noType": "Без типа"
+        "noType": "Без типа",
+        "plannedStartDate": "План. дата начала",
+        "plannedDuration": "План. длительность",
+        "actualStartDate": "Факт. дата начала",
+        "actualDuration": "Факт. длительность"
     },
     "export": {
         "title": "Экспорт презентации",

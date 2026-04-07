@@ -763,9 +763,12 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                         const groupByType = block.props.groupByType ?? false;
                         
                         const renderTaskRow = (task: Task) => {
-                            const startOffset = dayjs(task.startDate).diff(minDate, 'day');
+                            const effStartDate = task.startDate || task.plannedStartDate;
+                            const effDuration = task.duration || task.plannedDuration || 1;
+
+                            const startOffset = dayjs(effStartDate).diff(minDate, 'day');
                             const leftPercentRaw = isNaN(totalDays) ? 0 : (startOffset / totalDays) * 100;
-                            const widthPercentRaw = isNaN(totalDays) ? 0 : (task.duration / totalDays) * 100;
+                            const widthPercentRaw = isNaN(totalDays) ? 0 : (effDuration / totalDays) * 100;
 
                             const endPercentRaw = leftPercentRaw + widthPercentRaw;
                             const absoluteProgressEndPercent = leftPercentRaw + widthPercentRaw * (task.progress / 100);
@@ -777,7 +780,19 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                             const progressEndPercent = Math.max(0, Math.min(100, absoluteProgressEndPercent || 0));
                             const clampedProgressWidthPercent = Math.max(0, progressEndPercent - startPercent);
 
-                            if (clampedWidthPercent <= 0) return null;
+                            let hasPlanned = !!task.plannedStartDate;
+                            let plannedStartPercent = 0;
+                            let plannedClampedWidthPercent = 0;
+                            if (hasPlanned) {
+                                const pStartOffset = dayjs(task.plannedStartDate).diff(minDate, 'day');
+                                const pLeftRaw = isNaN(totalDays) ? 0 : (pStartOffset / totalDays) * 100;
+                                const pWidthRaw = isNaN(totalDays) ? 0 : ((task.plannedDuration || 1) / totalDays) * 100;
+                                const pEndRaw = pLeftRaw + pWidthRaw;
+                                plannedStartPercent = Math.max(0, Math.min(100, pLeftRaw || 0));
+                                plannedClampedWidthPercent = Math.max(0, Math.min(100, pEndRaw || 0)) - plannedStartPercent;
+                            }
+
+                            if (clampedWidthPercent <= 0 && plannedClampedWidthPercent <= 0) return null;
 
                             const isCutLeft = leftPercentRaw < 0;
                             const isCutRight = endPercentRaw > 100;
@@ -813,7 +828,14 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                                         {timelineMarkers.map((m, idx) => (
                                             <View key={`grid-${idx}`} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, height: '100%', width: 1, backgroundColor: '#E5E7EB', zIndex: 0 }} />
                                         ))}
-                                        <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent)}%`, backgroundColor: getPdfStatusColor(task.status).bar, ...bgBorderRadii }]} />
+
+                                        {hasPlanned && plannedClampedWidthPercent > 0 && (
+                                            <View style={[styles.roadmapBar, { left: `${plannedStartPercent}%`, width: `${Math.max(1, plannedClampedWidthPercent)}%`, backgroundColor: 'rgba(156, 163, 175, 0.2)', height: 16, top: 0, borderRadius: 4 }]} />
+                                        )}
+
+                                        {clampedWidthPercent > 0 && (
+                                            <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent)}%`, backgroundColor: getPdfStatusColor(task.status).bar, ...bgBorderRadii }]} />
+                                        )}
                                         {clampedProgressWidthPercent > 0 && (
                                             <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedProgressWidthPercent)}%`, backgroundColor: 'rgba(0,0,0,0.2)', ...fgBorderRadii }]} />
                                         )}

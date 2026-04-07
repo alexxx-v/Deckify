@@ -66,6 +66,9 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
     const [editStartDate, setEditStartDate] = useState('');
     const [editDuration, setEditDuration] = useState('');
     const [editDurationUnit, setEditDurationUnit] = useState<'days' | 'weeks' | 'months'>('days');
+    const [editPlannedStartDate, setEditPlannedStartDate] = useState('');
+    const [editPlannedDuration, setEditPlannedDuration] = useState('');
+    const [editPlannedDurationUnit, setEditPlannedDurationUnit] = useState<'days' | 'weeks' | 'months'>('days');
     const [editProgress, setEditProgress] = useState('0');
     const [editStatus, setEditStatus] = useState<'backlog' | 'progress' | 'hold' | 'done'>('backlog');
     const [editTaskTypeId, setEditTaskTypeId] = useState<string>('');
@@ -96,9 +99,12 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
         if (task) {
             setEditTitle(task.title);
             setEditDescription(task.description || '');
-            setEditStartDate(task.startDate);
-            setEditDuration(task.duration.toString());
+            setEditStartDate(task.startDate || '');
+            setEditDuration(task.duration ? task.duration.toString() : '');
             setEditDurationUnit('days');
+            setEditPlannedStartDate(task.plannedStartDate || task.startDate || '');
+            setEditPlannedDuration(task.plannedDuration ? task.plannedDuration.toString() : (task.duration ? task.duration.toString() : '1'));
+            setEditPlannedDurationUnit('days');
             setEditProgress(task.progress.toString());
             setEditStatus(task.status || 'backlog');
             setEditTaskTypeId(task.taskTypeId || '');
@@ -144,11 +150,18 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
         e.preventDefault();
         if (!editTitle.trim()) return;
 
-        let calculatedDuration = parseInt(editDuration, 10) || 1;
-        if (editDurationUnit === 'months') {
+        let calculatedDuration = editDuration ? parseInt(editDuration, 10) || 0 : 0;
+        if (editDurationUnit === 'months' && editDuration && editStartDate) {
             calculatedDuration = dayjs(editStartDate).add(calculatedDuration, 'month').diff(dayjs(editStartDate), 'day');
-        } else if (editDurationUnit === 'weeks') {
+        } else if (editDurationUnit === 'weeks' && editDuration) {
             calculatedDuration *= 7;
+        }
+
+        let calculatedPlannedDuration = parseInt(editPlannedDuration, 10) || 1;
+        if (editPlannedDurationUnit === 'months') {
+            calculatedPlannedDuration = dayjs(editPlannedStartDate).add(calculatedPlannedDuration, 'month').diff(dayjs(editPlannedStartDate), 'day');
+        } else if (editPlannedDurationUnit === 'weeks') {
+            calculatedPlannedDuration *= 7;
         }
 
         await db.tasks.update(taskId, {
@@ -156,6 +169,8 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
             description: editDescription.trim(),
             startDate: editStartDate,
             duration: calculatedDuration,
+            plannedStartDate: editPlannedStartDate,
+            plannedDuration: calculatedPlannedDuration,
             progress: editStatus === 'done' ? 100 : (parseInt(editProgress, 10) || 0),
             status: editStatus,
             taskTypeId: editTaskTypeId || undefined,
@@ -322,9 +337,42 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                         </div>
 
                         <div>
-                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.startDate')}</label>
+                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.plannedStartDate', 'План. дата начала')}</label>
                             <input
                                 required
+                                type="date"
+                                value={editPlannedStartDate}
+                                onChange={(e) => setEditPlannedStartDate(e.target.value)}
+                                className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.plannedDuration', 'План. длительность')}</label>
+                            <div className="flex gap-2">
+                                <input
+                                    required
+                                    type="number"
+                                    min="1"
+                                    value={editPlannedDuration}
+                                    onChange={(e) => setEditPlannedDuration(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
+                                />
+                                <select
+                                    value={editPlannedDurationUnit}
+                                    onChange={(e) => setEditPlannedDurationUnit(e.target.value as any)}
+                                    className="flex h-10 w-32 rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
+                                >
+                                    <option value="days">{t('taskEdit.days')}</option>
+                                    <option value="weeks">{t('taskEdit.weeks')}</option>
+                                    <option value="months">{t('taskEdit.months')}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="border-t pt-4 mt-6 border-dashed">
+                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.actualStartDate', 'Факт. дата начала')}</label>
+                            <input
                                 type="date"
                                 value={editStartDate}
                                 onChange={(e) => setEditStartDate(e.target.value)}
@@ -333,10 +381,9 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                         </div>
 
                         <div>
-                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.duration')}</label>
+                            <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.actualDuration', 'Факт. длительность')}</label>
                             <div className="flex gap-2">
                                 <input
-                                    required
                                     type="number"
                                     min="1"
                                     value={editDuration}

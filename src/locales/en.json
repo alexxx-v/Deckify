@@ -92,7 +92,11 @@
         "duplicateSuccess": "Task duplicate created successfully",
         "taskCopy": "copy",
         "type": "Task Type",
-        "noType": "No type"
+        "noType": "No type",
+        "plannedStartDate": "Planned Start Date",
+        "plannedDuration": "Planned Duration",
+        "actualStartDate": "Actual Start Date",
+        "actualDuration": "Actual Duration"
     },
     "export": {
         "title": "Export Presentation",

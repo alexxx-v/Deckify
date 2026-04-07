@@ -38,6 +38,7 @@ Compiled artifacts will be available in the `release/` folder. Alternatively, do
 ## ✨ Features
 
 - **🔒 Local-First Storage**: 100% offline. All your data is saved locally on your device via SQLite. You own your data.
+- **📅 Plan vs. Actual Tracking**: Track both your estimated schedule and real execution timelines independently. Visualize deviations directly on the dual-layer roadmap.
 - **📈 Interactive Roadmaps**: Switch seamlessly between a classic datagrid task list and a full visual, interactive roadmap timeline.
 - **📝 Rich-Text Editing**: Tiptap-powered editor for detailed task descriptions supporting headings, tables, code blocks, and lists.
 - **📋 Cross-Project Boards**: Combine tasks from multiple independent projects into unified boards for top-level reporting.

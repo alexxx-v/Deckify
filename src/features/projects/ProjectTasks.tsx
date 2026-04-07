@@ -31,6 +31,9 @@ const getRoadmapColor = (status?: string) => {
 function TaskRow({ task, onEditTask, t, isLast, taskTypes, groupByType }: { task: any, onEditTask: (id: string) => void, t: any, isLast: boolean, taskTypes?: TaskType[], groupByType: boolean }) {
     const taskType = task.taskTypeId ? taskTypes?.find(tt => tt.id === task.taskTypeId) : null;
 
+    const effStartDate = task.startDate || task.plannedStartDate;
+    const effDuration = task.duration || task.plannedDuration || 1;
+
     return (
         <div
             onClick={() => onEditTask(task.id)}
@@ -47,13 +50,13 @@ function TaskRow({ task, onEditTask, t, isLast, taskTypes, groupByType }: { task
             </div>
 
             <div className="hidden sm:block w-[120px] shrink-0 text-sm text-foreground/80 tabular-nums">
-                {dayjs(task.startDate).format('MMM D, YYYY')}
+                {effStartDate ? dayjs(effStartDate).format('MMM D, YYYY') : '-'}
             </div>
             <div className="hidden sm:block w-[120px] shrink-0 text-sm text-foreground/80 tabular-nums">
-                {dayjs(task.startDate).add(task.duration, 'day').format('MMM D, YYYY')}
+                {effStartDate ? dayjs(effStartDate).add(effDuration, 'day').format('MMM D, YYYY') : '-'}
             </div>
             <div className="hidden sm:block w-[100px] shrink-0 text-sm text-muted-foreground tabular-nums">
-                {task.duration} {t('taskEdit.days')}
+                {effDuration} {t('taskEdit.days')}
             </div>
             <div className="hidden sm:block w-[100px] shrink-0 text-center font-semibold text-sm tabular-nums text-muted-foreground group-hover:text-foreground transition-colors">
                 {task.progress}%
@@ -63,7 +66,7 @@ function TaskRow({ task, onEditTask, t, isLast, taskTypes, groupByType }: { task
                 <div className="sm:hidden text-xs text-muted-foreground flex gap-2">
                     <span className="font-semibold text-foreground">{task.progress}%</span>
                     <span className="opacity-50">•</span>
-                    <span>{dayjs(task.startDate).format('MMM D')} - {dayjs(task.startDate).add(task.duration, 'day').format('MMM D')}</span>
+                    <span>{effStartDate ? `${dayjs(effStartDate).format('MMM D')} - ${dayjs(effStartDate).add(effDuration, 'day').format('MMM D')}` : ''}</span>
                 </div>
                 <span className={`w-28 justify-center inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
                     {task.status ? t(`taskEdit.${task.status === 'progress' ? 'inProgress' : task.status === 'hold' ? 'onHold' : task.status}`) : t('taskEdit.backlog')}
@@ -137,8 +140,11 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
     // Filter tasks by timeframe
     const filteredTasks = (tasks || []).filter((t: any) => {
         if (timeframe === 'all') return true;
-        const taskStart = dayjs(t.startDate);
-        const taskEnd = dayjs(t.startDate).add(t.duration, 'day');
+        const effStart = t.startDate || t.plannedStartDate;
+        const effDuration = t.duration || t.plannedDuration || 1;
+        if (!effStart) return false;
+        const taskStart = dayjs(effStart);
+        const taskEnd = dayjs(effStart).add(effDuration, 'day');
         const baseDate = dayjs(filterDate + '-01');
         let rangeStart = baseDate, rangeEnd = baseDate;
 
@@ -162,15 +168,17 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
         let diff = 0;
 
         if (sortType === 'duration') {
-            diff = a.duration - b.duration;
+            const da = a.duration || a.plannedDuration || 0;
+            const db = b.duration || b.plannedDuration || 0;
+            diff = da - db;
         } else if (sortType === 'status') {
             const statusOrder = { 'progress': 1, 'backlog': 2, 'hold': 3, 'done': 4 };
             const orderA = statusOrder[a.status as keyof typeof statusOrder] || 5;
             const orderB = statusOrder[b.status as keyof typeof statusOrder] || 5;
             if (orderA !== orderB) diff = orderA - orderB;
-            else diff = dayjs(a.startDate).valueOf() - dayjs(b.startDate).valueOf();
+            else diff = dayjs(a.startDate || a.plannedStartDate).valueOf() - dayjs(b.startDate || b.plannedStartDate).valueOf();
         } else {
-            diff = dayjs(a.startDate).valueOf() - dayjs(b.startDate).valueOf();
+            diff = dayjs(a.startDate || a.plannedStartDate).valueOf() - dayjs(b.startDate || b.plannedStartDate).valueOf();
         }
 
         return isDesc ? -diff : diff;
@@ -245,8 +253,10 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
             projectId,
             title: newTitle.trim(),
             description: newDescription.trim(),
-            startDate: newStartDate,
-            duration: calculatedDuration,
+            plannedStartDate: newStartDate,
+            plannedDuration: calculatedDuration,
+            startDate: '', // Initially no actual values
+            duration: 0,
             progress: newStatus === 'done' ? 100 : (parseInt(newProgress, 10) || 0),
             status: newStatus,
             taskTypeId: newTaskTypeId || undefined
@@ -446,7 +456,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium mb-1 block">{t('taskEdit.startDate')}</label>
+                                    <label className="text-sm font-medium mb-1 block">{t('taskEdit.plannedStartDate', 'План. дата начала')}</label>
                                     <input
                                         required
                                         type="date"
@@ -466,7 +476,7 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium mb-1 block">{t('taskEdit.duration')}</label>
+                                    <label className="text-sm font-medium mb-1 block">{t('taskEdit.plannedDuration', 'План. длительность')}</label>
                                     <div className="flex gap-2">
                                         <input
                                             required
