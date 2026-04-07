@@ -237,6 +237,10 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
         currentMarker = currentMarker.add(1, 'month');
     }
 
+    const today = dayjs();
+    const isTodayInView = (today.isAfter(minDate) || today.isSame(minDate, 'day')) && (today.isBefore(maxDate) || today.isSame(maxDate, 'day'));
+    const todayPercent = isTodayInView ? (today.diff(minDate, 'day') / totalDays) * 100 : -1;
+
     const addTask = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTitle.trim()) return;
@@ -650,6 +654,9 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
                                         {timelineMarkers.map((m, idx) => (
                                             <div key={`grid-${idx}`} className="absolute top-0 bottom-0 border-l border-muted-foreground/20" style={{ left: `${m.percent}%` }}></div>
                                         ))}
+                                        {isTodayInView && (
+                                            <div className="absolute top-0 bottom-0 border-l-[1.5px] border-red-800/70 dark:border-red-600/70 z-50 shadow-[0_0_3px_rgba(153,27,27,0.4)]" style={{ left: `${todayPercent}%` }}></div>
+                                        )}
                                     </div>
                                 </div>
 
