@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Svg, Path, G } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Svg, Path, G, Line } from '@react-pdf/renderer';
 import { Project, Task, TaskStatus, TemplateBlock, TaskType } from '@/db/schema';
 import dayjs from 'dayjs';
 import i18n from '@/i18n';
@@ -133,8 +133,8 @@ const styles = StyleSheet.create({
     roadmapTaskTitle: { width: 180, paddingRight: 8 },
     roadmapTaskTitleText: { fontSize: 9, color: '#374151' },
     roadmapTaskStatus: { width: 85, paddingRight: 8 },
-    roadmapTimeline: { width: 465, height: 16, backgroundColor: '#F3F4F6', position: 'relative', overflow: 'hidden' },
-    roadmapBar: { position: 'absolute', height: 6, top: 5 },
+    roadmapTimeline: { width: 465, height: 16, position: 'relative', overflow: 'hidden' },
+    roadmapBar: { position: 'absolute', height: 10, top: 3 },
     roadmapGroupHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, marginTop: 8, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', gap: 6 },
     roadmapGroupTitle: { fontSize: 8, fontWeight: 'bold', color: '#6B7280', textTransform: 'uppercase' },
 });
@@ -748,12 +748,12 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                             <Text style={{ fontSize: 7, color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' }}>{i18n.t('pdf.status')}</Text>
                         </View>
                         <View style={{ width: 465, position: 'relative', height: 16, overflow: 'hidden' }}>
-                            <Text style={{ position: 'absolute', left: 4, bottom: 2, fontSize: 8, color: '#9CA3AF' }}>{minDate.format(edgeLabelFormat)}</Text>
-                            <Text style={{ position: 'absolute', right: 4, bottom: 2, fontSize: 8, color: '#9CA3AF' }}>{maxDate.format(edgeLabelFormat)}</Text>
+                            <Text style={{ position: 'absolute', left: 4, bottom: 2, fontSize: 8, color: '#9ca3af' }}>{minDate.format(edgeLabelFormat)}</Text>
+                            <Text style={{ position: 'absolute', right: 4, bottom: 2, fontSize: 8, color: '#9ca3af' }}>{maxDate.format(edgeLabelFormat)}</Text>
 
                             {timelineMarkers.map((m, idx) => (
-                                <View key={idx} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, paddingLeft: 4, borderLeftWidth: 1, borderLeftColor: '#D1D5DB', height: 16 }}>
-                                    <Text style={{ fontSize: 10, color: '#6B7280', paddingTop: 2 }}>{m.label}</Text>
+                                <View key={idx} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, paddingLeft: 4, borderLeftWidth: 1, borderLeftColor: '#E5E7EB', height: 16, justifyContent: 'flex-end' }}>
+                                    <Text style={{ fontSize: 8, color: '#9ca3af', paddingBottom: 2 }}>{m.label}</Text>
                                 </View>
                             ))}
                         </View>
@@ -811,9 +811,43 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                                             <View key={`grid-${idx}`} style={{ position: 'absolute', left: `${m.percent}%`, top: 0, height: '100%', width: 1, backgroundColor: '#E5E7EB', zIndex: 0 }} />
                                         ))}
 
-                                        {hasPlanned && plannedClampedWidthPercent > 0 && (
-                                            <View style={[styles.roadmapBar, { left: `${plannedStartPercent}%`, width: `${Math.max(1, plannedClampedWidthPercent)}%`, backgroundColor: 'rgba(156, 163, 175, 0.2)', height: 18, top: -1 }]} />
-                                        )}
+                                        {hasPlanned && plannedClampedWidthPercent > 0 && (() => {
+                                            const pWidthPts = 465 * (plannedClampedWidthPercent / 100);
+                                            const lineStep = 5; // More frequent lines
+                                            const lineElements = [];
+                                            // Draw enough lines to cover the area even with the offset
+                                            for (let x = -30; x < pWidthPts + 30; x += lineStep) {
+                                                lineElements.push(
+                                                    <Line 
+                                                        key={x} 
+                                                        x1={x} y1={20} 
+                                                        x2={x + 20} y2={0} 
+                                                        stroke="#9ca3af" 
+                                                        strokeWidth={1.2} 
+                                                    />
+                                                );
+                                            }
+                                            return (
+                                                <View style={[
+                                                    styles.roadmapBar, 
+                                                    { 
+                                                        left: `${plannedStartPercent}%`, 
+                                                        width: `${Math.max(1, plannedClampedWidthPercent)}%`, 
+                                                        backgroundColor: 'rgba(156, 163, 175, 0.05)', 
+                                                        height: 20, 
+                                                        top: -2,
+                                                        borderWidth: 1,
+                                                        borderStyle: 'solid',
+                                                        borderColor: '#9ca3af', 
+                                                        overflow: 'hidden'
+                                                    }
+                                                ]}>
+                                                    <Svg style={{ width: '100%', height: '100%' }}>
+                                                        {lineElements}
+                                                    </Svg>
+                                                </View>
+                                            );
+                                        })()}
 
                                         {clampedWidthPercent > 0 && (
                                             <View style={[styles.roadmapBar, { left: `${startPercent}%`, width: `${Math.max(1, clampedWidthPercent)}%`, backgroundColor: getPdfStatusColor(task.status).bar }]} />

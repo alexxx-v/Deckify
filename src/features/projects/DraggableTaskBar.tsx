@@ -109,12 +109,19 @@ export function DraggableTaskBar({ task, minDate, totalDays, colors, onUpdate, o
         <div className="relative h-[24px] group flex flex-col justify-center" ref={barRef} style={{ touchAction: 'none' }}>
             {hasPlanned && (
                 <div
-                    className="absolute bg-muted-foreground/20 border border-muted-foreground/30 z-0 pointer-events-none"
+                    className="absolute border border-muted-foreground/40 z-0 pointer-events-none"
                     style={{
                         left: `${plannedLeftPercentRaw}%`,
                         width: `${plannedWidthPercentRaw}%`,
                         top: '-3px',
-                        bottom: '-3px'
+                        bottom: '-3px',
+                        backgroundImage: `repeating-linear-gradient(
+                            -45deg,
+                            transparent,
+                            transparent 4px,
+                            rgba(156, 163, 175, 0.25) 4px,
+                            rgba(156, 163, 175, 0.25) 8px
+                        )`
                     }}
                 />
             )}
