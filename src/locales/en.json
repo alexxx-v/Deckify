@@ -121,7 +121,13 @@
         "applyChanges": "Apply Changes",
         "invalidPath": "Invalid path",
         "invalidPathDesc": "Please enter a valid absolute path ending with .db or .sqlite",
-        "language": "Interface Language"
+        "language": "Interface Language",
+        "appVersion": "App Version",
+        "checkUpdates": "Check for updates",
+        "checking": "Checking...",
+        "upToDate": "App is up to date",
+        "updateAvailable": "Update available",
+        "updateError": "Error checking for updates"
     },
     "pdf": {
         "progressOverview": "Progress Overview",

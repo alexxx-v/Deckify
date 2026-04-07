@@ -8,6 +8,8 @@ export function Settings() {
     const [userDataPath, setUserDataPath] = useState<string | null>(null);
     const [dbPathInput, setDbPathInput] = useState('');
     const [isSaved, setIsSaved] = useState(false);
+    const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'uptodate' | 'error' | 'downloaded'>('idle');
+    const [updateErrorMessage, setUpdateErrorMessage] = useState<string | null>(null);
 
     const changeLanguage = (lng: string) => {
         i18n.changeLanguage(lng);
@@ -17,10 +19,35 @@ export function Settings() {
     useEffect(() => {
         const path = localStorage.getItem('sqliteDataPath');
         if (path) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setUserDataPath(path);
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setDbPathInput(path);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && 'require' in window) {
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const { ipcRenderer } = (window as any).require('electron');
+                
+                const handleStatus = (_event: any, status: any, message?: string) => {
+                    setUpdateStatus(status);
+                    if (message) setUpdateErrorMessage(message);
+                    if (status === 'uptodate' || status === 'error') {
+                        setTimeout(() => {
+                             setUpdateStatus('idle');
+                             setUpdateErrorMessage(null);
+                        }, 8000);
+                    }
+                };
+
+                ipcRenderer.on('update-status', handleStatus);
+                return () => {
+                    ipcRenderer.removeListener('update-status', handleStatus);
+                };
+            } catch (err) {
+                console.error("Could not setup update listener:", err);
+            }
         }
     }, []);
 
@@ -52,6 +79,20 @@ export function Settings() {
                 ipcRenderer.send('open-folder', folderPath || userDataPath);
             } catch (err) {
                 console.error("Could not load electron module:", err);
+            }
+        }
+    };
+
+    const handleCheckUpdate = () => {
+        if (typeof window !== 'undefined' && 'require' in window) {
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const { ipcRenderer } = (window as any).require('electron');
+                setUpdateStatus('checking');
+                setUpdateErrorMessage(null);
+                ipcRenderer.send('manual-check-for-updates');
+            } catch (err) {
+                console.error("Could not send update check:", err);
             }
         }
     };
@@ -110,10 +151,36 @@ export function Settings() {
                 )}
                 
                 <div className="border-t pt-6 mt-6">
-                    <h3 className="text-lg font-semibold mb-2">App Version</h3>
-                    <p className="text-sm text-muted-foreground">
-                        v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown'}
-                    </p>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-semibold mb-1">{t('settings.appVersion')}</h3>
+                            <p className="text-sm text-muted-foreground">
+                                v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown'}
+                            </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                            <Button 
+                                onClick={handleCheckUpdate} 
+                                variant="secondary" 
+                                disabled={updateStatus === 'checking' || updateStatus === 'available'}
+                                className="min-w-[160px]"
+                            >
+                                {updateStatus === 'checking' ? t('settings.checking') : t('settings.checkUpdates')}
+                            </Button>
+                            {updateStatus === 'uptodate' && (
+                                <p className="text-xs text-green-600 font-medium">{t('settings.upToDate')}</p>
+                            )}
+                            {updateStatus === 'available' && (
+                                <p className="text-xs text-blue-600 font-medium">{t('settings.updateAvailable')}</p>
+                            )}
+                            {updateStatus === 'error' && (
+                                <div className="text-right max-w-[250px]">
+                                    <p className="text-xs text-red-600 font-medium">{t('settings.updateError')}</p>
+                                    <p className="text-[10px] text-red-500 mt-1 italic leading-tight">{updateErrorMessage}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
