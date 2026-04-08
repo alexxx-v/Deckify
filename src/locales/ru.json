@@ -96,7 +96,8 @@
         "plannedStartDate": "План. дата начала",
         "plannedDuration": "План. длительность",
         "actualStartDate": "Факт. дата начала",
-        "actualDuration": "Факт. длительность"
+        "actualDuration": "Факт. длительность",
+        "unsavedChangesWarning": "У вас есть несохраненные изменения. Вы уверены, что хотите выйти? Все изменения будут потеряны."
     },
     "export": {
         "title": "Экспорт презентации",

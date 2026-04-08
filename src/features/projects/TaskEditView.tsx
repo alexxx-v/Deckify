@@ -58,6 +58,9 @@ function SortableStepItem({ step, onUpdate, onDelete, t }: { step: TaskStep, onU
 
 export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, onBack: () => void, onDuplicate?: (newId: string) => void }) {
     const { t } = useTranslation();
+    const [isDirty, setIsDirty] = useState(false);
+    const [saved, setSaved] = useState(false);
+    
     // Initial fetch of the task using live query to keep it reactive if updated elsewhere
     const task = useLiveQuery(() => db.tasks.get(taskId));
 
@@ -82,19 +85,20 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
         })
     );
 
-    function handleDragEnd(event: any) {
-        const { active, over } = event;
+     function handleDragEnd(event: any) {
+         const { active, over } = event;
+ 
+         if (active.id !== over?.id && over) {
+             setEditSteps((items) => {
+                 const oldIndex = items.findIndex(i => i.id === active.id);
+                 const newIndex = items.findIndex(i => i.id === over.id);
+                 return arrayMove(items, oldIndex, newIndex);
+             });
+             setIsDirty(true);
+         }
+     }
 
-        if (active.id !== over?.id && over) {
-            setEditSteps((items) => {
-                const oldIndex = items.findIndex(i => i.id === active.id);
-                const newIndex = items.findIndex(i => i.id === over.id);
-                return arrayMove(items, oldIndex, newIndex);
-            });
-        }
-    }
-
-    // Populate local state once the task loads
+    // Populating state once the task loads
     useEffect(() => {
         if (task) {
             setEditTitle(task.title);
@@ -113,10 +117,32 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
             } catch (e) {
                 setEditSteps([]);
             }
+            // Ensure we start clean
+            setIsDirty(false);
         }
     }, [task]);
 
-    const [saved, setSaved] = useState(false);
+    // Browser-level warning for unsaved changes
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = ''; // Required for most browsers
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
+
+    const handleBack = () => {
+        if (isDirty) {
+            if (window.confirm(t('taskEdit.unsavedChangesWarning', 'У вас есть несохраненные изменения. Вы уверены, что хотите выйти? Все изменения будут потеряны.'))) {
+                onBack();
+            }
+        } else {
+            onBack();
+        }
+    };
 
     const handleDeleteTask = async () => {
         if (window.confirm(t('taskEdit.deleteTaskConfirm'))) {
@@ -177,18 +203,24 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
             steps: JSON.stringify(editSteps)
         });
 
+        setIsDirty(false);
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
     };
 
     if (!task) return <div>Loading...</div>;
 
+    const setDirtyWrap = (setter: any) => (val: any) => {
+        setter(val);
+        setIsDirty(true);
+    };
+
     return (
         <div className="space-y-6 w-full animate-in fade-in duration-300">
             {/* Header: Back, Title, Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={onBack} className="shrink-0 bg-background/50 backdrop-blur-sm">
+                    <Button variant="outline" size="icon" onClick={handleBack} className="shrink-0 bg-background/50 backdrop-blur-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                     </Button>
                     <h2 className="text-2xl font-bold tracking-tight">{t('taskEdit.editTask')}</h2>
@@ -203,7 +235,7 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                         {t('taskEdit.deleteTask')}
                     </Button>
                     <div className="w-px h-6 bg-border mx-1 hidden sm:block"></div>
-                    <Button type="button" variant="ghost" onClick={onBack}>{t('taskEdit.cancel')}</Button>
+                    <Button type="button" variant="ghost" onClick={handleBack}>{t('taskEdit.cancel')}</Button>
                     <Button
                         type="submit"
                         form="task-edit-form"
@@ -229,17 +261,17 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                                 required
                                 type="text"
                                 value={editTitle}
-                                onChange={(e) => setEditTitle(e.target.value)}
+                                onChange={(e) => setDirtyWrap(setEditTitle)(e.target.value)}
                                 className="flex h-11 w-full rounded-md border border-input bg-card px-4 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-shadow font-medium"
                             />
                         </div>
-
+ 
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-semibold block">{t('taskEdit.descriptionLabel')}</label>
                             <div className="border rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 transition-shadow">
                                 <RichTextEditor
                                     value={editDescription}
-                                    onChange={setEditDescription}
+                                    onChange={setDirtyWrap(setEditDescription)}
                                     minHeight={256}
                                 />
                             </div>
@@ -253,7 +285,10 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setEditSteps([...editSteps, { id: uuidv4(), text: '', completed: false }])}
+                                onClick={() => {
+                                    setEditSteps([...editSteps, { id: uuidv4(), text: '', completed: false }]);
+                                    setIsDirty(true);
+                                }}
                                 className="bg-background/50"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
@@ -280,9 +315,11 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                                                 const newSteps = [...editSteps];
                                                 newSteps[index] = updated;
                                                 setEditSteps(newSteps);
+                                                setIsDirty(true);
                                             }}
                                             onDelete={() => {
                                                 setEditSteps(editSteps.filter(s => s.id !== step.id));
+                                                setIsDirty(true);
                                             }}
                                         />
                                     ))}
@@ -312,6 +349,7 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                                     if (nextStatus === 'done') {
                                         setEditProgress('100');
                                     }
+                                    setIsDirty(true);
                                 }}
                                 className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
                             >
@@ -326,7 +364,7 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                             <label className="text-sm font-semibold mb-2 block text-muted-foreground">{t('taskEdit.taskType', 'Тип задачи')}</label>
                             <select
                                 value={editTaskTypeId}
-                                onChange={(e) => setEditTaskTypeId(e.target.value)}
+                                onChange={(e) => setDirtyWrap(setEditTaskTypeId)(e.target.value)}
                                 className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
                             >
                                 <option value="">{t('taskEdit.noType', 'Без типа')}</option>
@@ -342,7 +380,7 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                                 required
                                 type="date"
                                 value={editPlannedStartDate}
-                                onChange={(e) => setEditPlannedStartDate(e.target.value)}
+                                onChange={(e) => setDirtyWrap(setEditPlannedStartDate)(e.target.value)}
                                 className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
                             />
                         </div>
@@ -355,12 +393,12 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                                     type="number"
                                     min="1"
                                     value={editPlannedDuration}
-                                    onChange={(e) => setEditPlannedDuration(e.target.value)}
+                                    onChange={(e) => setDirtyWrap(setEditPlannedDuration)(e.target.value)}
                                     className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
                                 />
                                 <select
                                     value={editPlannedDurationUnit}
-                                    onChange={(e) => setEditPlannedDurationUnit(e.target.value as any)}
+                                    onChange={(e) => setDirtyWrap(setEditPlannedDurationUnit)(e.target.value as any)}
                                     className="flex h-10 w-32 rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
                                 >
                                     <option value="days">{t('taskEdit.days')}</option>
@@ -375,7 +413,7 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                             <input
                                 type="date"
                                 value={editStartDate}
-                                onChange={(e) => setEditStartDate(e.target.value)}
+                                onChange={(e) => setDirtyWrap(setEditStartDate)(e.target.value)}
                                 className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
                             />
                         </div>
@@ -387,12 +425,12 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                                     type="number"
                                     min="1"
                                     value={editDuration}
-                                    onChange={(e) => setEditDuration(e.target.value)}
+                                    onChange={(e) => setDirtyWrap(setEditDuration)(e.target.value)}
                                     className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
                                 />
                                 <select
                                     value={editDurationUnit}
-                                    onChange={(e) => setEditDurationUnit(e.target.value as any)}
+                                    onChange={(e) => setDirtyWrap(setEditDurationUnit)(e.target.value as any)}
                                     className="flex h-10 w-32 rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors"
                                 >
                                     <option value="days">{t('taskEdit.days')}</option>
@@ -413,7 +451,7 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                                     type="range"
                                     min="0" max="100" step="5"
                                     value={editProgress}
-                                    onChange={(e) => setEditProgress(e.target.value)}
+                                    onChange={setDirtyWrap(setEditProgress)}
                                     disabled={editStatus === 'done'}
                                     className={`w-full h-2 bg-secondary rounded-lg appearance-none accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${editStatus === 'done' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                                 />

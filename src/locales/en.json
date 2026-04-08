@@ -96,7 +96,8 @@
         "plannedStartDate": "Planned Start Date",
         "plannedDuration": "Planned Duration",
         "actualStartDate": "Actual Start Date",
-        "actualDuration": "Actual Duration"
+        "actualDuration": "Actual Duration",
+        "unsavedChangesWarning": "You have unsaved changes. Are you sure you want to leave? All changes will be lost."
     },
     "export": {
         "title": "Export Presentation",
