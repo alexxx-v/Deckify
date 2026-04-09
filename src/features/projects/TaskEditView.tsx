@@ -60,9 +60,11 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
     const { t } = useTranslation();
     const [isDirty, setIsDirty] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [lastLoadedTaskId, setLastLoadedTaskId] = useState<string | null>(null);
     
     // Initial fetch of the task using live query to keep it reactive if updated elsewhere
-    const task = useLiveQuery(() => db.tasks.get(taskId));
+    const task = useLiveQuery(() => db.tasks.get(taskId), [taskId]);
 
     const [editTitle, setEditTitle] = useState('');
     const [editDescription, setEditDescription] = useState('');
@@ -79,28 +81,33 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
     const taskTypes = useLiveQuery(() => task ? db.taskTypes.where('projectId').equals(task.projectId).toArray() : [], [task?.projectId]);
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
     );
 
-     function handleDragEnd(event: any) {
-         const { active, over } = event;
- 
-         if (active.id !== over?.id && over) {
-             setEditSteps((items) => {
-                 const oldIndex = items.findIndex(i => i.id === active.id);
-                 const newIndex = items.findIndex(i => i.id === over.id);
-                 return arrayMove(items, oldIndex, newIndex);
-             });
-             setIsDirty(true);
-         }
-     }
+    function handleDragEnd(event: any) {
+        const { active, over } = event;
+
+        if (active.id !== over?.id && over) {
+            setEditSteps((items) => {
+                const oldIndex = items.findIndex(i => i.id === active.id);
+                const newIndex = items.findIndex(i => i.id === over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+            setIsDirty(true);
+        }
+    }
 
     // Populating state once the task loads
     useEffect(() => {
-        if (task) {
+        // Only initialize if we have a task and either it's the first time or the taskId changed
+        if (task && (taskId !== lastLoadedTaskId || !isInitialized)) {
             setEditTitle(task.title);
             setEditDescription(task.description || '');
             setEditStartDate(task.startDate || '');
@@ -117,10 +124,17 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
             } catch (e) {
                 setEditSteps([]);
             }
-            // Ensure we start clean
+            
+            setLastLoadedTaskId(taskId);
+            setIsInitialized(true);
             setIsDirty(false);
         }
-    }, [task]);
+    }, [task, taskId, lastLoadedTaskId, isInitialized]);
+
+    // Reset initialization when taskId changes to ensure fresh load
+    useEffect(() => {
+        setIsInitialized(false);
+    }, [taskId]);
 
     // Browser-level warning for unsaved changes
     useEffect(() => {
@@ -137,7 +151,9 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
     const handleBack = () => {
         if (isDirty) {
             if (window.confirm(t('taskEdit.unsavedChangesWarning', 'У вас есть несохраненные изменения. Вы уверены, что хотите выйти? Все изменения будут потеряны.'))) {
-                onBack();
+                // Use setTimeout to allow the dialog to fully close before unmounting
+                // This prevents focus-trap issues in Electron/Windows
+                setTimeout(onBack, 0);
             }
         } else {
             onBack();
@@ -147,7 +163,7 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
     const handleDeleteTask = async () => {
         if (window.confirm(t('taskEdit.deleteTaskConfirm'))) {
             await db.tasks.delete(taskId);
-            onBack();
+            setTimeout(onBack, 0);
         }
     };
 
@@ -168,7 +184,7 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
         await db.tasks.add(newTask);
         
         if (onDuplicate) {
-            onDuplicate(newTaskId);
+            setTimeout(() => onDuplicate(newTaskId), 0);
         }
     };
 

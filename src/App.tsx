@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ProjectList } from './features/projects/ProjectList'
 import { ProjectTasks } from './features/projects/ProjectTasks'
 import { TaskEditView } from './features/projects/TaskEditView'
@@ -82,13 +82,13 @@ function App() {
     }
   };
 
-  const navigateTo = (tab: Tab) => {
+  const navigateTo = useCallback((tab: Tab) => {
     setActiveTab(tab);
     setSelectedProjectId(null);
     setEditingTaskId(null);
     setSelectedBoardId(null);
     setSelectedProjectSettingsId(null);
-  };
+  }, []);
 
   const navItemClass = (tab: Tab) =>
     `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 cursor-pointer font-medium ${activeTab === tab && !selectedProjectId && !editingTaskId && !selectedBoardId
@@ -201,6 +201,7 @@ function App() {
           <div key={activeTab + (selectedProjectId || '') + (editingTaskId || '') + (selectedBoardId || '')} className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both">
             {editingTaskId ? (
               <TaskEditView
+                key={editingTaskId}
                 taskId={editingTaskId}
                 onBack={() => setEditingTaskId(null)}
                 onDuplicate={(newId) => {
