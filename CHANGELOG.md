@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.4.4](https://github.com/alexxx-v/Deckify/compare/v1.4.3...v1.4.4) (2026-04-09)
+
+
+### Bug Fixes
+
+* improve TaskEditView state synchronization and add drag activation threshold ([c8c2dc2](https://github.com/alexxx-v/Deckify/commit/c8c2dc23bfd8f3522974ff86b35491fbb1b097a6))
+* improve TaskEditView state synchronization and drag-and-drop reliability ([5053364](https://github.com/alexxx-v/Deckify/commit/505336434343c35dbaf70fe002a36a7f09504e55))
+
 ### [1.4.3](https://github.com/alexxx-v/Deckify/compare/v1.4.2...v1.4.3) (2026-04-09)
 
 ### [1.4.2](https://github.com/alexxx-v/Deckify/compare/v1.4.1...v1.4.2) (2026-04-08)
