@@ -451,7 +451,7 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
                                     type="range"
                                     min="0" max="100" step="5"
                                     value={editProgress}
-                                    onChange={setDirtyWrap(setEditProgress)}
+                                    onChange={(e) => setDirtyWrap(setEditProgress)(e.target.value)}
                                     disabled={editStatus === 'done'}
                                     className={`w-full h-2 bg-secondary rounded-lg appearance-none accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${editStatus === 'done' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                                 />
