@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/alexxx-v/Deckify/compare/v1.4.4...v1.5.0) (2026-04-14)
+
+
+### Features
+
+* add duration column to board task list view and increase container width ([ffa488c](https://github.com/alexxx-v/Deckify/commit/ffa488cb260d0bb52ce64739d01f5de5b0b5d41a))
+* add task duration column and table headers to PDF renderer and project presentation views ([ee4ad49](https://github.com/alexxx-v/Deckify/commit/ee4ad492bee8aaa7bba260af112df72d88b4774c))
+* introduce global task types and refactor management logic into a reusable component ([8d2aa04](https://github.com/alexxx-v/Deckify/commit/8d2aa04a23165d8c91cc9e4ada8729d778bcc7a9))
+
 ### [1.4.4](https://github.com/alexxx-v/Deckify/compare/v1.4.3...v1.4.4) (2026-04-09)
 
 
