@@ -41,7 +41,7 @@ export interface Task {
 
 export interface TaskType {
     id: string;
-    projectId: string;
+    projectId?: string; // Optional for global types
     name: string;
     color: string;
 }
@@ -136,7 +136,7 @@ export function initDb(dbPath: string): boolean {
             sqliteDb.exec(`
                 CREATE TABLE IF NOT EXISTS task_types (
                     id TEXT PRIMARY KEY,
-                    projectId TEXT,
+                    projectId TEXT, -- Nullable for global types
                     name TEXT,
                     color TEXT
                 );
@@ -314,17 +314,25 @@ export const db = {
             if (!sqliteDb) return [];
             return sqliteDb.prepare(`SELECT * FROM task_types`).all();
         },
+        getGlobal: () => {
+            if (!sqliteDb) return [];
+            return sqliteDb.prepare(`SELECT * FROM task_types WHERE projectId IS NULL`).all();
+        },
         where: (field: string) => ({
             equals: (val: string) => ({
                 toArray: () => {
                     if (!sqliteDb) return [];
+                    if (field === 'projectId') {
+                        // Special case: include global types when fetching for a project
+                        return sqliteDb.prepare(`SELECT * FROM task_types WHERE projectId = ? OR projectId IS NULL`).all(val);
+                    }
                     return sqliteDb.prepare(`SELECT * FROM task_types WHERE ${field} = ?`).all(val);
                 }
             })
         }),
         add: async (tt: TaskType) => {
             if (!sqliteDb) return;
-            sqliteDb.prepare(`INSERT INTO task_types (id, projectId, name, color) VALUES (?, ?, ?, ?)`).run(tt.id, tt.projectId, tt.name, tt.color);
+            sqliteDb.prepare(`INSERT INTO task_types (id, projectId, name, color) VALUES (?, ?, ?, ?)`).run(tt.id, tt.projectId || null, tt.name, tt.color);
             notifySubscribers();
         },
         update: async (id: string, obj: Partial<TaskType>) => {
