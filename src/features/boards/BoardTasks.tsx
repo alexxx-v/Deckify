@@ -368,12 +368,13 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                     </div>
                 ) : viewMode === 'list' ? (
                     <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
-                        <div className="overflow-x-auto min-w-[900px]">
+                        <div className="overflow-x-auto min-w-[1020px]">
                             <div className="hidden sm:flex sm:items-center gap-x-2 px-4 py-3 text-xs font-semibold text-muted-foreground uppercase border-b bg-muted/10">
                                 <div className="flex-1 min-w-[200px] pl-4">{t('taskEdit.title')}</div>
                                 <div className="w-[130px] shrink-0">{t('boards.fromProject')}</div>
                                 <div className="w-[110px] shrink-0">{t('taskEdit.startDate')}</div>
                                 <div className="w-[110px] shrink-0">{t('taskEdit.endDate')}</div>
+                                <div className="w-[110px] shrink-0 text-center">{t('taskEdit.duration')}</div>
                                 <div className="w-[90px] shrink-0 text-center">{t('taskEdit.progressStatus', 'Progress').replace(/\s*\(.*?\)/, '')}</div>
                                 <div className="w-[130px] shrink-0 text-center pr-10">{t('taskEdit.status')}</div>
                             </div>
@@ -515,6 +516,7 @@ function TaskRow({ task, projectName, onEdit, onRemove, isLast, t }: any) {
             </div>
             <div className="hidden sm:block w-[110px] shrink-0 text-sm text-foreground/80">{dayjs(task.startDate).format('MMM D, YYYY')}</div>
             <div className="hidden sm:block w-[110px] shrink-0 text-sm text-foreground/80">{dayjs(task.startDate).add(task.duration, 'day').format('MMM D, YYYY')}</div>
+            <div className="hidden sm:block w-[110px] shrink-0 text-center text-sm text-muted-foreground">{task.duration} {t('taskEdit.days').toLowerCase()}</div>
             <div className="hidden sm:block w-[90px] shrink-0 text-center font-semibold text-sm text-muted-foreground group-hover:text-foreground">{task.progress}%</div>
             <div className="flex items-center justify-between sm:justify-center shrink-0 w-[130px] pl-4 sm:pl-0 sm:pr-10">
                 <span className={`w-28 justify-center inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>
