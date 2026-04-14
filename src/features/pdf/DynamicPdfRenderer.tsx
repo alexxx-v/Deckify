@@ -467,11 +467,21 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                                 {taskType?.name || i18n.t('taskEdit.noType', 'Без типа')} ({groupTasks.length})
                             </Text>
                         </View>
+                        <View style={{ flexDirection: 'row', paddingBottom: 4, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginLeft: 10 }}>
+                            <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#9CA3AF', flex: 1 }}>{i18n.t('taskEdit.title').toUpperCase()}</Text>
+                            <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#9CA3AF', width: 80, textAlign: 'center', paddingRight: 10 }}>{i18n.t('pdf.duration').toUpperCase()}</Text>
+                            <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#9CA3AF', width: 90, textAlign: 'center' }}>{i18n.t('pdf.status').toUpperCase()}</Text>
+                        </View>
                         {groupTasks.map((task: Task) => (
-                            <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10, minHeight: 32 }}>
+                            <View key={task.id} style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10, minHeight: 32 }}>
                                 <Text style={{ fontSize: 13, color: '#374151', flex: 1, paddingRight: 10 }}>
                                     {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
                                 </Text>
+                                <View style={{ width: 80, alignItems: 'center', paddingRight: 10 }}>
+                                    <Text style={{ fontSize: 11, color: '#6B7280' }}>
+                                        {task.duration || task.plannedDuration || 0} {i18n.t('pdf.durationDays')}
+                                    </Text>
+                                </View>
                                 <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, borderColor: getPdfStatusColor(task.status).border, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, width: 90, alignItems: 'center' }}>
                                     <Text style={{ fontSize: 9, fontWeight: 'bold', color: getPdfStatusColor(task.status).text, textTransform: 'uppercase' }}>
                                         {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}

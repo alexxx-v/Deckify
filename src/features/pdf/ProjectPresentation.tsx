@@ -310,11 +310,23 @@ export const ProjectPresentation = ({ project, tasks, taskTypes, period, startDa
                                                             {taskType?.name || i18n.t('taskEdit.noType')}
                                                         </Text>
                                                     </View>
+                                                    <View style={{ flexDirection: 'row', paddingBottom: 2, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', marginLeft: 10 }}>
+                                                        <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#9CA3AF', flex: 1 }}>{i18n.t('taskEdit.title').toUpperCase()}</Text>
+                                                        <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#9CA3AF', width: 60, textAlign: 'center' }}>{i18n.t('pdf.duration').toUpperCase()}</Text>
+                                                        <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#9CA3AF', width: 80, textAlign: 'center' }}>{i18n.t('pdf.status').toUpperCase()}</Text>
+                                                    </View>
                                                     {groupTasks.map((task: Task) => (
-                                                        <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', alignItems: 'center', marginLeft: 10 }}>
+                                                        <View key={task.id} style={{ flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', alignItems: 'center', marginLeft: 10 }}>
                                                             <Text style={{ fontSize: 11, color: '#374151', flex: 1 }}>{task.title}</Text>
+                                                            <View style={{ width: 60, alignItems: 'center' }}>
+                                                                <Text style={{ fontSize: 9, color: '#6B7280' }}>
+                                                                    {task.duration || task.plannedDuration || 0} {i18n.t('pdf.durationDays')}
+                                                                </Text>
+                                                            </View>
                                                             <View style={{ backgroundColor: getPdfStatusColor(task.status).bg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3, width: 80, alignItems: 'center' }}>
-                                                                <Text style={{ fontSize: 8, fontWeight: 'bold', color: getPdfStatusColor(task.status).text }}>{task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}</Text>
+                                                                <Text style={{ fontSize: 8, fontWeight: 'bold', color: getPdfStatusColor(task.status).text }}>
+                                                                    {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
+                                                                </Text>
                                                             </View>
                                                         </View>
                                                     ))}
@@ -345,11 +357,21 @@ export const ProjectPresentation = ({ project, tasks, taskTypes, period, startDa
                                             {taskType?.name || i18n.t('taskEdit.noType', 'Без типа')} ({groupTasks.length})
                                         </Text>
                                     </View>
+                                    <View style={{ flexDirection: 'row', paddingBottom: 4, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginLeft: 10 }}>
+                                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#9CA3AF', flex: 1 }}>{i18n.t('taskEdit.title').toUpperCase()}</Text>
+                                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#9CA3AF', width: 80, textAlign: 'center', paddingRight: 10 }}>{i18n.t('pdf.duration').toUpperCase()}</Text>
+                                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#9CA3AF', width: 90, textAlign: 'center' }}>{i18n.t('pdf.status').toUpperCase()}</Text>
+                                    </View>
                                     {groupTasks.map((task: Task) => (
-                                        <View key={task.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10 }}>
+                                        <View key={task.id} style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', alignItems: 'center', marginLeft: 10 }}>
                                             <Text style={{ fontSize: 13, color: '#374151', flex: 1, paddingRight: 10 }}>
                                                 {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
                                             </Text>
+                                            <View style={{ width: 80, alignItems: 'center', paddingRight: 10 }}>
+                                                <Text style={{ fontSize: 11, color: '#6B7280' }}>
+                                                    {task.duration || task.plannedDuration || 0} {i18n.t('pdf.durationDays')}
+                                                </Text>
+                                            </View>
                                             <View style={{
                                                 backgroundColor: getPdfStatusColor(task.status).bg,
                                                 borderColor: getPdfStatusColor(task.status).border,
