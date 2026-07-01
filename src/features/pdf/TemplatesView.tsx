@@ -10,7 +10,7 @@ const AVAILABLE_BLOCKS: { type: TemplateBlockType, defaultProps: any }[] = [
     { type: 'STATS', defaultProps: { showCompleted: true, showProgress: true, showTotalTasks: true, showInProgress: true, showHoldTasks: true } },
     { type: 'TASKS_LIST', defaultProps: {} },
     { type: 'TASK_DETAIL', defaultProps: { includeDescription: true, includeSteps: true, dateRange: 'export' } },
-    { type: 'ROADMAP', defaultProps: { dateRange: 'export' } },
+    { type: 'ROADMAP', defaultProps: { dateRange: 'export', sortBy: 'startDate' } },
     { type: 'TEXT', defaultProps: { title: 'Custom Section', content: 'Enter your text here...' } },
     { type: 'TYPE_SUMMARY', defaultProps: {} },
 ];
@@ -694,7 +694,7 @@ export function TemplatesView() {
                                                             </select>
                                                         </div>
 
-                                                        <div className="pt-2">
+                                                        <div className="pt-2 space-y-4">
                                                             <label className="flex items-center gap-3 cursor-pointer">
                                                                 <input
                                                                     type="checkbox"
@@ -704,6 +704,22 @@ export function TemplatesView() {
                                                                 />
                                                                 <span className="text-sm">{t('templates.prop_groupByType')}</span>
                                                             </label>
+
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">{t('boards.sortBy')}</label>
+                                                                <select
+                                                                    value={selectedBlock.props.sortBy || 'startDate'}
+                                                                    onChange={(e) => updateBlockProp(selectedBlock.id, 'sortBy', e.target.value)}
+                                                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                >
+                                                                    <option value="startDate">{t('boards.sortByStartDate')}</option>
+                                                                    <option value="startDate_desc">{t('boards.sortByStartDateDesc')}</option>
+                                                                    <option value="duration">{t('boards.sortByDuration')}</option>
+                                                                    <option value="duration_desc">{t('boards.sortByDurationDesc')}</option>
+                                                                    <option value="status">{t('boards.sortByStatus')}</option>
+                                                                    <option value="status_desc">{t('boards.sortByStatusDesc')}</option>
+                                                                </select>
+                                                            </div>
                                                         </div>
 
                                                         {selectedBlock.props.dateRange === 'month' && (

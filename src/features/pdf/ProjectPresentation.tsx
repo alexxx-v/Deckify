@@ -209,7 +209,11 @@ export const ProjectPresentation = ({ project, tasks, taskTypes, period, startDa
         Math.round(tasks.reduce((sum, t) => sum + (t.progress || 0), 0) / totalTasks);
 
     // Roadmap logic
-    const sortedTasks = tasks;
+    const sortedTasks = [...tasks].sort((a: Task, b: Task) => {
+        const aStart = a.startDate || a.plannedStartDate;
+        const bStart = b.startDate || b.plannedStartDate;
+        return dayjs(aStart).valueOf() - dayjs(bStart).valueOf();
+    });
     const minDate = startDate ? dayjs(startDate) : (sortedTasks.length > 0 ? dayjs(Math.min(...sortedTasks.map(t => dayjs(t.startDate || t.plannedStartDate).valueOf()))) : dayjs());
     const maxDate = endDate ? dayjs(endDate) : (sortedTasks.length > 0
         ? dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate || t.plannedStartDate).add(t.duration || t.plannedDuration || 1, 'day').valueOf())))

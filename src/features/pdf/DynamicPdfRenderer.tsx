@@ -744,7 +744,31 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
     }
 
     if (block.type === 'ROADMAP') {
-        const sortedTasks = allProjectTasks || tasks;
+        const sortBy = block.props.sortBy || 'startDate';
+        const sortedTasks = [...(allProjectTasks || tasks)].sort((a: Task, b: Task) => {
+            const isDesc = sortBy.endsWith('_desc');
+            const sortType = sortBy.replace('_desc', '');
+            let diff = 0;
+
+            const aStart = a.startDate || a.plannedStartDate;
+            const bStart = b.startDate || b.plannedStartDate;
+            const aDuration = a.duration || a.plannedDuration || 1;
+            const bDuration = b.duration || b.plannedDuration || 1;
+
+            if (sortType === 'duration') {
+                diff = aDuration - bDuration;
+            } else if (sortType === 'status') {
+                const statusOrder = { 'progress': 1, 'backlog': 2, 'hold': 3, 'done': 4 };
+                const orderA = statusOrder[a.status as keyof typeof statusOrder] || 5;
+                const orderB = statusOrder[b.status as keyof typeof statusOrder] || 5;
+                if (orderA !== orderB) diff = orderA - orderB;
+                else diff = dayjs(aStart).valueOf() - dayjs(bStart).valueOf();
+            } else {
+                diff = dayjs(aStart).valueOf() - dayjs(bStart).valueOf();
+            }
+
+            return isDesc ? -diff : diff;
+        });
         if (sortedTasks.length === 0) return null;
 
         const { minDate, maxDate } = getBlockRangeDates(block, startDate, endDate, sortedTasks);
