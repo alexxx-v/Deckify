@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.8.0](https://github.com/alexxx-v/Deckify/compare/v1.7.0...v1.8.0) (2026-07-01)
+
+
+### Features
+
+* добавил префиксы проектов в Фокусе команды на одной странице при отключенной группировке ([096fa29](https://github.com/alexxx-v/Deckify/commit/096fa2996254dcceb36711f5fb1238c2b861bf01))
+
 ## [1.7.0](https://github.com/alexxx-v/Deckify/compare/v1.6.0...v1.7.0) (2026-07-01)
 
 
