@@ -210,9 +210,9 @@ export const ProjectPresentation = ({ project, tasks, taskTypes, period, startDa
 
     // Roadmap logic
     const sortedTasks = tasks;
-    const minDate = startDate ? dayjs(startDate) : (sortedTasks.length > 0 ? dayjs(Math.min(...sortedTasks.map(t => dayjs(t.startDate).valueOf()))) : dayjs());
+    const minDate = startDate ? dayjs(startDate) : (sortedTasks.length > 0 ? dayjs(Math.min(...sortedTasks.map(t => dayjs(t.startDate || t.plannedStartDate).valueOf()))) : dayjs());
     const maxDate = endDate ? dayjs(endDate) : (sortedTasks.length > 0
-        ? dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())))
+        ? dayjs(Math.max(...sortedTasks.map(t => dayjs(t.startDate || t.plannedStartDate).add(t.duration || t.plannedDuration || 1, 'day').valueOf())))
         : dayjs().add(30, 'day'));
 
     let totalDays = maxDate.diff(minDate, 'day');
@@ -401,156 +401,160 @@ export const ProjectPresentation = ({ project, tasks, taskTypes, period, startDa
             </Page>
 
             {/* Task Detail Slides - One Page Per Task */}
-            {tasks.map((task) => (
-                <Page key={task.id} size="A4" orientation="landscape" style={styles.page}>
-                    <View style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 16, marginBottom: 24 }}>
-                        <Text style={{ fontSize: 26, color: '#111827', fontWeight: 'bold' }}>
-                            {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
-                        </Text>
-                        {(() => {
-                            const taskType = taskTypes?.find(tt => tt.id === task.taskTypeId);
-                            if (!taskType) return null;
-                            return (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: taskType.color, marginRight: 6 }} />
-                                    <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: 'medium' }}>
-                                        {taskType.name}
-                                    </Text>
-                                </View>
-                            );
-                        })()}
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                        {/* Timeline Information */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, paddingRight: 40 }}>
-                            <View>
-                                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.startDate')}</Text>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>
-                                    {dayjs(task.startDate).format('MMMM D, YYYY')}
-                                </Text>
-                            </View>
-                            <View>
-                                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.duration')}</Text>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>
-                                    {task.duration} {task.duration === 1 ? i18n.t('pdf.durationDay') : i18n.t('pdf.durationDays')}
-                                </Text>
-                            </View>
-                            <View>
-                                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.targetDate')}</Text>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>
-                                    {dayjs(task.startDate).add(task.duration, 'day').format('MMMM D, YYYY')}
-                                </Text>
-                            </View>
-                            <View>
-                                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.status')}</Text>
-                                <View style={{
-                                    backgroundColor: getPdfStatusColor(task.status).bg,
-                                    borderColor: getPdfStatusColor(task.status).border,
-                                    borderWidth: 1,
-                                    paddingHorizontal: 10,
-                                    paddingVertical: 4,
-                                    borderRadius: 4
-                                }}>
-                                    <Text style={{
-                                        fontSize: 12,
-                                        fontWeight: 'bold',
-                                        color: getPdfStatusColor(task.status).text,
-                                        textTransform: 'uppercase'
-                                    }}>
-                                        {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-
-                        {/* Progress Bar */}
-                        <View style={{ marginBottom: 20, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#374151', marginRight: 16 }}>
-                                {i18n.t('pdf.progressStatus')}: <Text style={{ color: '#4F46E5' }}>{task.progress}%</Text>
+            {tasks.map((task) => {
+                const effStartDate = task.startDate || task.plannedStartDate;
+                const effDuration = task.duration || task.plannedDuration || 1;
+                return (
+                    <Page key={task.id} size="A4" orientation="landscape" style={styles.page}>
+                        <View style={{ borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 16, marginBottom: 24 }}>
+                            <Text style={{ fontSize: 26, color: '#111827', fontWeight: 'bold' }}>
+                                {task.title.replace(/^Задача\s*№?\s*\d+\s*:\s*/i, '')}
                             </Text>
-                            <View style={{ flex: 1, height: 8, backgroundColor: '#E5E7EB', borderRadius: 4 }}>
-                                <View style={{ height: '100%', backgroundColor: getPdfStatusColor(task.status).bar, borderRadius: 4, width: `${task.progress}%` }} />
-                            </View>
+                            {(() => {
+                                const taskType = taskTypes?.find(tt => tt.id === task.taskTypeId);
+                                if (!taskType) return null;
+                                return (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: taskType.color, marginRight: 6 }} />
+                                        <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: 'medium' }}>
+                                            {taskType.name}
+                                        </Text>
+                                    </View>
+                                );
+                            })()}
                         </View>
 
-                        {/* Task Description & Steps Side-by-Side */}
-                        {(() => {
-                            let steps: any[] = [];
-                            try {
-                                steps = task.steps ? JSON.parse(task.steps) : [];
-                            } catch (e) {
-                                // ignore
-                            }
-                            const showSteps = steps.length > 0;
-                            const hasDesc = !!task.description;
-
-                            if (!hasDesc && !showSteps) return null;
-
-                            return (
-                                <View style={{ flexDirection: 'row', width: '100%', marginBottom: 20 }}>
-                                    {/* Description Column */}
-                                    {hasDesc && (
-                                        <View style={{ flex: showSteps ? 3 : 1, paddingRight: showSteps ? 20 : 0 }}>
-                                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827', marginBottom: 8 }}>
-                                                {i18n.t('pdf.description')}
-                                            </Text>
-                                            <View style={{ backgroundColor: '#F9FAFB', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
-                                                <Text style={{ fontSize: 12, color: '#4B5563', lineHeight: 1.5 }}>
-                                                    {task.description}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    )}
-
-                                    {/* Steps Column */}
-                                    {showSteps && (
-                                        <View style={{ flex: hasDesc ? 2 : 1 }}>
-                                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>
-                                                {i18n.t('pdf.steps')}
-                                            </Text>
-                                            <View style={{ marginLeft: 30 }}>
-                                                {steps.map((step, stepIdx) => {
-                                                    const isCompleted = step.completed;
-                                                    const hasCompletedAfter = steps.slice(stepIdx + 1).some((s: any) => s.completed);
-                                                    const isMissed = !isCompleted && hasCompletedAfter;
-                                                    const currentStepIndex = steps.findIndex((s: any) => !s.completed);
-                                                    const isCurrent = stepIdx === currentStepIndex && !hasCompletedAfter;
-                                                    const isLast = stepIdx === steps.length - 1;
-
-                                                    const dotBgColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#FFFFFF');
-                                                    const dotBorderColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#D1D5DB');
-                                                    const textColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#6B7280');
-                                                    const numColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#9CA3AF');
-
-                                                    return (
-                                                        <View key={step.id || stepIdx} style={{ flexDirection: 'row' }} wrap={false}>
-                                                            <View style={{ width: 20, alignItems: 'center', position: 'relative' }}>
-                                                                <Text style={{ position: 'absolute', left: -25, top: 0, fontSize: 12, fontWeight: 'bold', color: numColor }}>
-                                                                    {(stepIdx + 1).toString().padStart(2, '0')}
-                                                                </Text>
-                                                                {!isLast && (
-                                                                    <View style={{ position: 'absolute', top: 12, bottom: -4, width: 2, backgroundColor: isCompleted ? '#111827' : '#E5E7EB', zIndex: 0 }} />
-                                                                )}
-                                                                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: dotBgColor, borderColor: dotBorderColor, borderWidth: 2, zIndex: 1, marginTop: 2 }} />
-                                                            </View>
-                                                            <View style={{ flex: 1, paddingLeft: 10, paddingBottom: 15, flexDirection: 'row', alignItems: 'flex-start' }}>
-                                                                <Text style={{ fontSize: 14, color: textColor, fontWeight: isCurrent || isMissed ? 'bold' : 'normal' }}>
-                                                                    {step.text}
-                                                                </Text>
-                                                            </View>
-                                                        </View>
-                                                    );
-                                                })}
-                                            </View>
-                                        </View>
-                                    )}
+                        <View style={{ flex: 1 }}>
+                            {/* Timeline Information */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, paddingRight: 40 }}>
+                                <View>
+                                    <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.startDate')}</Text>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>
+                                        {effStartDate ? dayjs(effStartDate).format('MMMM D, YYYY') : '-'}
+                                    </Text>
                                 </View>
-                            );
-                        })()}
-                    </View>
-                </Page>
-            ))}
+                                <View>
+                                    <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.duration')}</Text>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>
+                                        {effDuration} {effDuration === 1 ? i18n.t('pdf.durationDay') : i18n.t('pdf.durationDays')}
+                                    </Text>
+                                </View>
+                                <View>
+                                    <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.targetDate')}</Text>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>
+                                        {effStartDate ? dayjs(effStartDate).add(effDuration, 'day').format('MMMM D, YYYY') : '-'}
+                                    </Text>
+                                </View>
+                                <View>
+                                    <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{i18n.t('pdf.status')}</Text>
+                                    <View style={{
+                                        backgroundColor: getPdfStatusColor(task.status).bg,
+                                        borderColor: getPdfStatusColor(task.status).border,
+                                        borderWidth: 1,
+                                        paddingHorizontal: 10,
+                                        paddingVertical: 4,
+                                        borderRadius: 4
+                                    }}>
+                                        <Text style={{
+                                            fontSize: 12,
+                                            fontWeight: 'bold',
+                                            color: getPdfStatusColor(task.status).text,
+                                            textTransform: 'uppercase'
+                                        }}>
+                                            {task.status ? i18n.t(`pdf.${task.status}`) : i18n.t('pdf.backlog')}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Progress Bar */}
+                            <View style={{ marginBottom: 20, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#374151', marginRight: 16 }}>
+                                    {i18n.t('pdf.progressStatus')}: <Text style={{ color: '#4F46E5' }}>{task.progress}%</Text>
+                                </Text>
+                                <View style={{ flex: 1, height: 8, backgroundColor: '#E5E7EB', borderRadius: 4 }}>
+                                    <View style={{ height: '100%', backgroundColor: getPdfStatusColor(task.status).bar, borderRadius: 4, width: `${task.progress}%` }} />
+                                </View>
+                            </View>
+
+                            {/* Task Description & Steps Side-by-Side */}
+                            {(() => {
+                                let steps: any[] = [];
+                                try {
+                                    steps = task.steps ? JSON.parse(task.steps) : [];
+                                } catch (e) {
+                                    // ignore
+                                }
+                                const showSteps = steps.length > 0;
+                                const hasDesc = !!task.description;
+
+                                if (!hasDesc && !showSteps) return null;
+
+                                return (
+                                    <View style={{ flexDirection: 'row', width: '100%', marginBottom: 20 }}>
+                                        {/* Description Column */}
+                                        {hasDesc && (
+                                            <View style={{ flex: showSteps ? 1.2 : 1, marginRight: showSteps ? 20 : 0 }}>
+                                                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6, fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                                    {i18n.t('taskEdit.descriptionLabel')}
+                                                </Text>
+                                                <View style={{ backgroundColor: '#F9FAFB', padding: 15, borderRadius: 8, borderWidth: 1, borderColor: '#F3F4F6' }}>
+                                                    <Text style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>
+                                                        {task.description}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {/* Steps Column */}
+                                        {showSteps && (
+                                            <View style={{ flex: 1, paddingLeft: 20 }}>
+                                                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12, fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                                    {i18n.t('taskEdit.steps')}
+                                                </Text>
+                                                <View style={{ flexDirection: 'column' }}>
+                                                    {steps.map((step, stepIdx) => {
+                                                        const isCompleted = step.completed;
+                                                        const hasCompletedAfter = steps.slice(stepIdx + 1).some((s: any) => s.completed);
+                                                        const isMissed = !isCompleted && hasCompletedAfter;
+                                                        const currentStepIndex = steps.findIndex((s: any) => !s.completed);
+                                                        const isCurrent = stepIdx === currentStepIndex && !hasCompletedAfter;
+                                                        const isLast = stepIdx === steps.length - 1;
+
+                                                        const dotBgColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#FFFFFF');
+                                                        const dotBorderColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#D1D5DB');
+                                                        const textColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#6B7280');
+                                                        const numColor = isMissed ? '#EF4444' : (isCompleted || isCurrent ? '#111827' : '#9CA3AF');
+
+                                                        return (
+                                                            <View key={step.id || stepIdx} style={{ flexDirection: 'row' }} wrap={false}>
+                                                                <View style={{ width: 20, alignItems: 'center', position: 'relative' }}>
+                                                                    <Text style={{ position: 'absolute', left: -25, top: 0, fontSize: 12, fontWeight: 'bold', color: numColor }}>
+                                                                        {(stepIdx + 1).toString().padStart(2, '0')}
+                                                                    </Text>
+                                                                    {!isLast && (
+                                                                        <View style={{ position: 'absolute', top: 12, bottom: -4, width: 2, backgroundColor: isCompleted ? '#111827' : '#E5E7EB', zIndex: 0 }} />
+                                                                    )}
+                                                                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: dotBgColor, borderColor: dotBorderColor, borderWidth: 2, zIndex: 1, marginTop: 2 }} />
+                                                                </View>
+                                                                <View style={{ flex: 1, paddingLeft: 10, paddingBottom: 15, flexDirection: 'row', alignItems: 'flex-start' }}>
+                                                                    <Text style={{ fontSize: 14, color: textColor, fontWeight: isCurrent || isMissed ? 'bold' : 'normal' }}>
+                                                                        {step.text}
+                                                                    </Text>
+                                                                </View>
+                                                            </View>
+                                                        );
+                                                    })}
+                                                </View>
+                                            </View>
+                                        )}
+                                    </View>
+                                );
+                            })()}
+                        </View>
+                    </Page>
+                );
+            })}
 
             {/* Slide 4: Roadmap */}
             {sortedTasks.length > 0 && (
@@ -583,9 +587,11 @@ export const ProjectPresentation = ({ project, tasks, taskTypes, period, startDa
 
                         {(() => {
                             const renderTaskLine = (task: Task) => {
-                                const startOffset = dayjs(task.startDate).diff(minDate, 'day');
+                                const effStart = task.startDate || task.plannedStartDate;
+                                const effDur = task.duration || task.plannedDuration || 1;
+                                const startOffset = dayjs(effStart).diff(minDate, 'day');
                                 const leftPercentRaw = (startOffset / totalDays) * 100;
-                                const widthPercentRaw = (task.duration / totalDays) * 100;
+                                const widthPercentRaw = (effDur / totalDays) * 100;
 
                                 const endPercentRaw = leftPercentRaw + widthPercentRaw;
                                 const absoluteProgressEndPercent = leftPercentRaw + widthPercentRaw * (task.progress / 100);

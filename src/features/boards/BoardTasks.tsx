@@ -71,8 +71,10 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
     const filteredBoardTasks = useMemo(() => {
         return (boardTasks || []).filter((t: any) => {
             if (timeframe === 'all') return true;
-            const taskStart = dayjs(t.startDate);
-            const taskEnd = dayjs(t.startDate).add(t.duration, 'day');
+            const effStart = t.startDate || t.plannedStartDate;
+            const effDur = t.duration || t.plannedDuration || 1;
+            const taskStart = dayjs(effStart);
+            const taskEnd = dayjs(effStart).add(effDur, 'day');
             const baseDate = dayjs(filterDate + '-01');
             let rangeStart = baseDate, rangeEnd = baseDate;
 
@@ -126,16 +128,21 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
             const sortType = sortBy.replace('_desc', '');
             let diff = 0;
 
+            const aStart = a.startDate || a.plannedStartDate;
+            const bStart = b.startDate || b.plannedStartDate;
+            const aDuration = a.duration || a.plannedDuration || 1;
+            const bDuration = b.duration || b.plannedDuration || 1;
+
             if (sortType === 'duration') {
-                diff = a.duration - b.duration;
+                diff = aDuration - bDuration;
             } else if (sortType === 'status') {
                 const statusOrder = { 'progress': 1, 'backlog': 2, 'hold': 3, 'done': 4 };
                 const orderA = statusOrder[a.status as keyof typeof statusOrder] || 5;
                 const orderB = statusOrder[b.status as keyof typeof statusOrder] || 5;
                 if (orderA !== orderB) diff = orderA - orderB;
-                else diff = dayjs(a.startDate).valueOf() - dayjs(b.startDate).valueOf();
+                else diff = dayjs(aStart).valueOf() - dayjs(bStart).valueOf();
             } else {
-                diff = dayjs(a.startDate).valueOf() - dayjs(b.startDate).valueOf();
+                diff = dayjs(aStart).valueOf() - dayjs(bStart).valueOf();
             }
 
             return isDesc ? -diff : diff;
@@ -158,11 +165,15 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
         let min = dayjs(), max = dayjs();
         if (timeframe === 'all') {
             if (sortedTasks.length > 0) {
-                min = dayjs(sortedTasks[0].startDate);
-                max = min.add(sortedTasks[0].duration, 'day');
+                const firstStart = sortedTasks[0].startDate || sortedTasks[0].plannedStartDate;
+                const firstDur = sortedTasks[0].duration || sortedTasks[0].plannedDuration || 1;
+                min = dayjs(firstStart);
+                max = min.add(firstDur, 'day');
                 sortedTasks.forEach((t: any) => {
-                    const s = dayjs(t.startDate);
-                    const e = s.add(t.duration, 'day');
+                    const effStart = t.startDate || t.plannedStartDate;
+                    const effDur = t.duration || t.plannedDuration || 1;
+                    const s = dayjs(effStart);
+                    const e = s.add(effDur, 'day');
                     if (s.isBefore(min)) min = s;
                     if (e.isAfter(max)) max = e;
                 });
@@ -336,7 +347,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
                                                         </span>
                                                     </div>
                                                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                                                        {t('boards.fromProject')} <span className="font-medium">{getProjectName(task.projectId)}</span> · {dayjs(task.startDate).format('MMM D, YYYY')}
+                                                        {t('boards.fromProject')} <span className="font-medium">{getProjectName(task.projectId)}</span> · {(task.startDate || task.plannedStartDate) ? dayjs(task.startDate || task.plannedStartDate).format('MMM D, YYYY') : '-'}
                                                     </p>
                                                 </div>
                                                 {isOnBoard ? <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">{t('boards.taskAlreadyAdded')}</span> : (
@@ -503,6 +514,9 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
 // --- Helpers ---
 
 function TaskRow({ task, projectName, onEdit, onRemove, isLast, t }: any) {
+    const effStartDate = task.startDate || task.plannedStartDate;
+    const effDuration = task.duration || task.plannedDuration || 1;
+
     return (
         <div onClick={() => onEdit(task.id, task.projectId)} className={`px-4 py-3 cursor-pointer flex flex-col sm:flex-row sm:items-center gap-x-2 group hover:bg-muted/50 transition-colors relative ${!isLast ? 'border-b border-border/20' : ''}`}>
             <div className="flex-1 min-w-[200px] flex flex-col gap-1 pl-4 pr-4">
@@ -514,9 +528,9 @@ function TaskRow({ task, projectName, onEdit, onRemove, isLast, t }: any) {
                     {projectName}
                 </span>
             </div>
-            <div className="hidden sm:block w-[110px] shrink-0 text-sm text-foreground/80">{dayjs(task.startDate).format('MMM D, YYYY')}</div>
-            <div className="hidden sm:block w-[110px] shrink-0 text-sm text-foreground/80">{dayjs(task.startDate).add(task.duration, 'day').format('MMM D, YYYY')}</div>
-            <div className="hidden sm:block w-[110px] shrink-0 text-center text-sm text-muted-foreground">{task.duration} {t('taskEdit.days').toLowerCase()}</div>
+            <div className="hidden sm:block w-[110px] shrink-0 text-sm text-foreground/80">{effStartDate ? dayjs(effStartDate).format('MMM D, YYYY') : '-'}</div>
+            <div className="hidden sm:block w-[110px] shrink-0 text-sm text-foreground/80">{effStartDate ? dayjs(effStartDate).add(effDuration, 'day').format('MMM D, YYYY') : '-'}</div>
+            <div className="hidden sm:block w-[110px] shrink-0 text-center text-sm text-muted-foreground">{effDuration} {t('taskEdit.days').toLowerCase()}</div>
             <div className="hidden sm:block w-[90px] shrink-0 text-center font-semibold text-sm text-muted-foreground group-hover:text-foreground">{task.progress}%</div>
             <div className="flex items-center justify-between sm:justify-center shrink-0 w-[130px] pl-4 sm:pl-0 sm:pr-10">
                 <span className={`w-28 justify-center inline-flex items-center px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${getStatusBadgeClass(task.status)}`}>

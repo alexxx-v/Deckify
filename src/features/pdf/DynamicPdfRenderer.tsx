@@ -361,8 +361,8 @@ const getBlockRangeDates = (block: TemplateBlock, baseStartDate?: string, baseEn
     let maxDate: dayjs.Dayjs;
 
     if (dateRange === 'export') {
-        minDate = baseStartDate ? dayjs(baseStartDate) : dayjs(Math.min(...allTasks.map(t => dayjs(t.startDate).valueOf())));
-        maxDate = baseEndDate ? dayjs(baseEndDate) : dayjs(Math.max(...allTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
+        minDate = baseStartDate ? dayjs(baseStartDate) : dayjs(Math.min(...allTasks.map(t => dayjs(t.startDate || t.plannedStartDate).valueOf())));
+        maxDate = baseEndDate ? dayjs(baseEndDate) : dayjs(Math.max(...allTasks.map(t => dayjs(t.startDate || t.plannedStartDate).add(t.duration || t.plannedDuration || 1, 'day').valueOf())));
     } else if (dateRange === 'month') {
         const base = baseStartDate ? dayjs(baseStartDate) : dayjs();
         const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
@@ -388,8 +388,8 @@ const getBlockRangeDates = (block: TemplateBlock, baseStartDate?: string, baseEn
         minDate = dayjs(new Date(y, 0, 1)).startOf('year');
         maxDate = dayjs(new Date(y, 0, 1)).endOf('year');
     } else {
-        minDate = baseStartDate ? dayjs(baseStartDate) : dayjs(Math.min(...allTasks.map(t => dayjs(t.startDate).valueOf())));
-        maxDate = baseEndDate ? dayjs(baseEndDate) : dayjs(Math.max(...allTasks.map(t => dayjs(t.startDate).add(t.duration, 'day').valueOf())));
+        minDate = baseStartDate ? dayjs(baseStartDate) : dayjs(Math.min(...allTasks.map(t => dayjs(t.startDate || t.plannedStartDate).valueOf())));
+        maxDate = baseEndDate ? dayjs(baseEndDate) : dayjs(Math.max(...allTasks.map(t => dayjs(t.startDate || t.plannedStartDate).add(t.duration || t.plannedDuration || 1, 'day').valueOf())));
     }
 
     return { minDate, maxDate };
@@ -550,8 +550,10 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
         const { includeDescription, includeSteps } = block.props;
         const { minDate, maxDate } = getBlockRangeDates(block, startDate, endDate, allProjectTasks || tasks);
         const filteredTasks = (allProjectTasks || tasks).filter((t: Task) => {
-            const tStart = dayjs(t.startDate);
-            const tEnd = dayjs(t.startDate).add(t.duration, 'day');
+            const effStart = t.startDate || t.plannedStartDate;
+            const effDur = t.duration || t.plannedDuration || 1;
+            const tStart = dayjs(effStart);
+            const tEnd = dayjs(effStart).add(effDur, 'day');
             return tStart.isBefore(maxDate) && tEnd.isAfter(minDate);
         });
 
@@ -770,8 +772,10 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
 
         // Only render tasks that overlap with the calculated min/max of the roadmap block
         const roadmapTasks = sortedTasks.filter((t: Task) => {
-            const tStart = dayjs(t.startDate);
-            const tEnd = dayjs(t.startDate).add(t.duration, 'day');
+            const effStart = t.startDate || t.plannedStartDate;
+            const effDur = t.duration || t.plannedDuration || 1;
+            const tStart = dayjs(effStart);
+            const tEnd = dayjs(effStart).add(effDur, 'day');
             return tStart.isBefore(maxDate) && tEnd.isAfter(minDate);
         });
 
