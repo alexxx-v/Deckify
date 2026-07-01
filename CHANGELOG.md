@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.1](https://github.com/alexxx-v/Deckify/compare/v1.5.0...v1.5.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* исправил отображение дат на досках и в PDF ([f2bbe8e](https://github.com/alexxx-v/Deckify/commit/f2bbe8ebc1fb3cf34dc7dd3fc351230358f521c1))
+
 ## [1.5.0](https://github.com/alexxx-v/Deckify/compare/v1.4.4...v1.5.0) (2026-04-14)
 
 
