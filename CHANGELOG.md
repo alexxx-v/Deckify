@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.2](https://github.com/alexxx-v/Deckify/compare/v1.5.1...v1.5.2) (2026-07-01)
+
+
+### Bug Fixes
+
+* исправил сортировку задач на доске при включенной группировке по проектам ([a5a7981](https://github.com/alexxx-v/Deckify/commit/a5a7981a5bfcfac626a7eb2845f5d6c87a33fbe6))
+
 ### [1.5.1](https://github.com/alexxx-v/Deckify/compare/v1.5.0...v1.5.1) (2026-07-01)
 
 
