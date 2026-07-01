@@ -1031,19 +1031,37 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
     if (block.type === 'TYPE_SUMMARY') {
         const groupByProject = block.props.groupByProject ?? false;
 
-        const getStatsForTasks = (projectTasks: Task[]) => {
+        const getStatsForTasks = (projectTasks: Task[], addProjectPrefix = false) => {
             const typeStats: Record<string, { count: number, duration: number, color: string, name: string }> = {};
-            // Initialize with all types for this project
-            taskTypes?.forEach((tt: TaskType) => {
-                typeStats[tt.id] = { count: 0, duration: 0, color: tt.color, name: tt.name };
-            });
-            typeStats['no-type'] = { count: 0, duration: 0, color: '#94a3b8', name: i18n.t('taskEdit.noType') };
 
             let totalDuration = 0;
             projectTasks.forEach((t: Task) => {
-                const tid = t.taskTypeId && typeStats[t.taskTypeId] ? t.taskTypeId : 'no-type';
-                typeStats[tid].count += 1;
-                typeStats[tid].duration += t.duration || 0;
+                const typeId = t.taskTypeId || 'no-type';
+                const key = addProjectPrefix ? `${t.projectId}_${typeId}` : typeId;
+
+                if (!typeStats[key]) {
+                    let typeName = i18n.t('taskEdit.noType');
+                    let color = '#94a3b8';
+                    if (t.taskTypeId) {
+                        const tt = taskTypes?.find(type => type.id === t.taskTypeId);
+                        if (tt) {
+                            typeName = tt.name;
+                            color = tt.color;
+                        }
+                    }
+
+                    let displayName = typeName;
+                    if (addProjectPrefix && allProjects) {
+                        const currentProj = allProjects.find((p: Project) => p.id === t.projectId);
+                        const projName = currentProj?.name || t.projectId;
+                        displayName = `[${projName}] ${typeName}`;
+                    }
+
+                    typeStats[key] = { count: 0, duration: 0, color, name: displayName };
+                }
+
+                typeStats[key].count += 1;
+                typeStats[key].duration += t.duration || 0;
                 totalDuration += t.duration || 0;
             });
 
@@ -1053,8 +1071,8 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
             return { activeStats, totalDuration };
         };
 
-        const renderSinglePage = (pageTasks: Task[], title: string) => {
-            const { activeStats, totalDuration } = getStatsForTasks(pageTasks);
+        const renderSinglePage = (pageTasks: Task[], title: string, addPrefix = false) => {
+            const { activeStats, totalDuration } = getStatsForTasks(pageTasks, addPrefix);
             if (activeStats.length === 0) return null;
 
             return (
@@ -1126,13 +1144,15 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                 const currentProj = allProjects.find((p: Project) => p.id === projId);
                 const projName = currentProj?.name || projId;
                 const pageTitle = `${i18n.t('pdf.typeSummaryTitle')} - ${projName}`;
-                return renderSinglePage(projTasks, pageTitle);
+                return renderSinglePage(projTasks, pageTitle, false);
             }).filter(Boolean);
 
             return pages.length > 0 ? <>{pages}</> : null;
         }
 
-        return renderSinglePage(tasks, i18n.t('pdf.typeSummaryTitle'));
+        // If it's a board, prefix with project name to keep attribution clear
+        const shouldAddPrefix = isBoard && allProjects !== undefined;
+        return renderSinglePage(tasks, i18n.t('pdf.typeSummaryTitle'), shouldAddPrefix);
     }
 
     return null;
