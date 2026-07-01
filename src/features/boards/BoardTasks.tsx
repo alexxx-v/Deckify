@@ -94,19 +94,7 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
         });
     }, [boardTasks, timeframe, filterDate]);
 
-    // Grouping logic helper: Group by Project AND Task Type
-    const groupedTasks = useMemo(() => {
-        if (!groupByProject) return null;
-        const groups: Record<string, Record<string, any[]>> = {};
 
-        filteredBoardTasks.forEach(task => {
-            if (!groups[task.projectId]) groups[task.projectId] = {};
-            const typeKey = task.taskTypeId || 'none';
-            if (!groups[task.projectId][typeKey]) groups[task.projectId][typeKey] = [];
-            groups[task.projectId][typeKey].push(task);
-        });
-        return groups;
-    }, [filteredBoardTasks, groupByProject]);
 
     // Get project name
     const getProjectName = (projectId: string) => {
@@ -148,6 +136,20 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
             return isDesc ? -diff : diff;
         });
     }, [filteredBoardTasks, sortBy]);
+
+    // Grouping logic helper: Group by Project AND Task Type (uses sortedTasks to keep sorting inside groups)
+    const groupedTasks = useMemo(() => {
+        if (!groupByProject) return null;
+        const groups: Record<string, Record<string, any[]>> = {};
+
+        sortedTasks.forEach(task => {
+            if (!groups[task.projectId]) groups[task.projectId] = {};
+            const typeKey = task.taskTypeId || 'none';
+            if (!groups[task.projectId][typeKey]) groups[task.projectId][typeKey] = [];
+            groups[task.projectId][typeKey].push(task);
+        });
+        return groups;
+    }, [sortedTasks, groupByProject]);
 
     const pageSize = 10;
     const totalTasks = sortedTasks.length;
