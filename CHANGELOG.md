@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.7.0](https://github.com/alexxx-v/Deckify/compare/v1.6.0...v1.7.0) (2026-07-01)
+
+
+### Features
+
+* добавил группировку по проектам для блока Фокус команды в PDF отчетах ([87e422d](https://github.com/alexxx-v/Deckify/commit/87e422d3afe117b57ab4c241b015dc30f5f496e0))
+
 ## [1.6.0](https://github.com/alexxx-v/Deckify/compare/v1.5.2...v1.6.0) (2026-07-01)
 
 
