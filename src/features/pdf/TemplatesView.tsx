@@ -12,7 +12,7 @@ const AVAILABLE_BLOCKS: { type: TemplateBlockType, defaultProps: any }[] = [
     { type: 'TASK_DETAIL', defaultProps: { includeDescription: true, includeSteps: true, dateRange: 'export' } },
     { type: 'ROADMAP', defaultProps: { dateRange: 'export', sortBy: 'startDate' } },
     { type: 'TEXT', defaultProps: { title: 'Custom Section', content: 'Enter your text here...' } },
-    { type: 'TYPE_SUMMARY', defaultProps: {} },
+    { type: 'TYPE_SUMMARY', defaultProps: { groupByProject: false } },
 ];
 
 export function TemplatesView() {
@@ -806,6 +806,20 @@ export function TemplatesView() {
                                                         )}
 
                                                         <p className="text-xs text-muted-foreground mt-2">{t('templates.dateRange_hint')}</p>
+                                                    </div>
+                                                )}
+
+                                                {selectedBlock.type === 'TYPE_SUMMARY' && (
+                                                    <div className="space-y-4">
+                                                        <label className="flex items-center gap-3 cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedBlock.props.groupByProject ?? false}
+                                                                onChange={(e) => updateBlockProp(selectedBlock.id, 'groupByProject', e.target.checked)}
+                                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                                                            />
+                                                            <span className="text-sm">{t('templates.prop_groupByProject')}</span>
+                                                        </label>
                                                     </div>
                                                 )}
 

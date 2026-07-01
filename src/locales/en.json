@@ -223,6 +223,7 @@
         "currentPeriodExport": "Current (from export)",
         "currentPeriodExt": "Current",
         "prop_groupByType": "Group by task type",
+        "prop_groupByProject": "Group by projects",
         "defaultTemplate": "Default Template"
     },
     "boards": {

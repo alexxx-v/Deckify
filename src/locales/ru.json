@@ -223,6 +223,7 @@
         "currentPeriodExport": "Текущий (по экспорту)",
         "currentPeriodExt": "Текущий",
         "prop_groupByType": "Группировать по типу задач",
+        "prop_groupByProject": "Группировать по проектам",
         "defaultTemplate": "Стандартный шаблон"
     },
     "boards": {

@@ -1029,80 +1029,110 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
     }
 
     if (block.type === 'TYPE_SUMMARY') {
-        const typeStats: Record<string, { count: number, duration: number, color: string, name: string }> = {};
+        const groupByProject = block.props.groupByProject ?? false;
 
-        // Initialize with all types for this project
-        taskTypes?.forEach((tt: TaskType) => {
-            typeStats[tt.id] = { count: 0, duration: 0, color: tt.color, name: tt.name };
-        });
-        typeStats['no-type'] = { count: 0, duration: 0, color: '#94a3b8', name: i18n.t('taskEdit.noType') };
+        const getStatsForTasks = (projectTasks: Task[]) => {
+            const typeStats: Record<string, { count: number, duration: number, color: string, name: string }> = {};
+            // Initialize with all types for this project
+            taskTypes?.forEach((tt: TaskType) => {
+                typeStats[tt.id] = { count: 0, duration: 0, color: tt.color, name: tt.name };
+            });
+            typeStats['no-type'] = { count: 0, duration: 0, color: '#94a3b8', name: i18n.t('taskEdit.noType') };
 
-        let totalDuration = 0;
-        tasks.forEach((t: Task) => {
-            const tid = t.taskTypeId && typeStats[t.taskTypeId] ? t.taskTypeId : 'no-type';
-            typeStats[tid].count += 1;
-            typeStats[tid].duration += t.duration || 0;
-            totalDuration += t.duration || 0;
-        });
+            let totalDuration = 0;
+            projectTasks.forEach((t: Task) => {
+                const tid = t.taskTypeId && typeStats[t.taskTypeId] ? t.taskTypeId : 'no-type';
+                typeStats[tid].count += 1;
+                typeStats[tid].duration += t.duration || 0;
+                totalDuration += t.duration || 0;
+            });
 
-        const activeStats = Object.values(typeStats).filter(s => s.count > 0);
-        // Sort by duration descending
-        activeStats.sort((a, b) => b.duration - a.duration);
+            const activeStats = Object.values(typeStats).filter(s => s.count > 0);
+            activeStats.sort((a, b) => b.duration - a.duration);
 
-        return (
-            <Page size="A4" orientation="landscape" style={styles.page}>
-                <Text style={styles.header}>{i18n.t('pdf.typeSummaryTitle')}</Text>
+            return { activeStats, totalDuration };
+        };
 
-                <View style={{ flexDirection: 'row', gap: 20, flex: 1, alignItems: 'flex-start' }}>
-                    {/* Table (Left side) */}
-                    <View style={{ flex: 1, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' }}>
-                        {/* Table Header */}
-                        <View style={{ flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', padding: 8, borderTopLeftRadius: 7, borderTopRightRadius: 7 }}>
-                            <Text style={{ flex: 3, fontSize: 10, fontWeight: 'bold', color: '#374151' }}>{i18n.t('pdf.typeColumn')}</Text>
-                            <Text style={{ flex: 1, fontSize: 10, fontWeight: 'bold', color: '#374151', textAlign: 'center' }}>{i18n.t('pdf.countColumn')}</Text>
-                            <Text style={{ flex: 1, fontSize: 10, fontWeight: 'bold', color: '#374151', textAlign: 'right' }}>{i18n.t('pdf.timePercentColumn')}</Text>
-                        </View>
+        const renderSinglePage = (pageTasks: Task[], title: string) => {
+            const { activeStats, totalDuration } = getStatsForTasks(pageTasks);
+            if (activeStats.length === 0) return null;
 
-                        {/* Table Body */}
-                        {activeStats.map((stat, idx: number) => {
-                            const percent = totalDuration === 0 ? 0 : (stat.duration / totalDuration) * 100;
-                            return (
-                                <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: idx === activeStats.length - 1 ? 0 : 1, borderBottomColor: '#F3F4F6', padding: 8, alignItems: 'center' }}>
-                                    <View style={{ flex: 3, flexDirection: 'row', alignItems: 'center' }}>
-                                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: stat.color, marginRight: 8 }} />
-                                        <Text style={{ fontSize: 10, color: '#111827' }}>{stat.name}</Text>
-                                    </View>
-                                    <Text style={{ flex: 1, fontSize: 10, color: '#4B5563', textAlign: 'center' }}>{stat.count}</Text>
-                                    <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#111827' }}>{percent.toFixed(2)}%</Text>
-                                    </View>
-                                </View>
-                            );
-                        })}
-                    </View>
+            return (
+                <Page size="A4" orientation="landscape" style={styles.page}>
+                    <Text style={styles.header}>{title}</Text>
 
-                    {/* Chart (Right side) */}
-                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', padding: 20, height: '100%' }}>
-                        <DonutChart data={activeStats.map(s => ({
-                            percent: totalDuration === 0 ? 0 : (s.duration / totalDuration) * 100,
-                            color: s.color
-                        }))} />
+                    <View style={{ flexDirection: 'row', gap: 20, flex: 1, alignItems: 'flex-start' }}>
+                        {/* Table (Left side) */}
+                        <View style={{ flex: 1, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' }}>
+                            {/* Table Header */}
+                            <View style={{ flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', padding: 8, borderTopLeftRadius: 7, borderTopRightRadius: 7 }}>
+                                <Text style={{ flex: 3, fontSize: 10, fontWeight: 'bold', color: '#374151' }}>{i18n.t('pdf.typeColumn')}</Text>
+                                <Text style={{ flex: 1, fontSize: 10, fontWeight: 'bold', color: '#374151', textAlign: 'center' }}>{i18n.t('pdf.countColumn')}</Text>
+                                <Text style={{ flex: 1, fontSize: 10, fontWeight: 'bold', color: '#374151', textAlign: 'right' }}>{i18n.t('pdf.timePercentColumn')}</Text>
+                            </View>
 
-                        <View style={{ marginTop: 20, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
+                            {/* Table Body */}
                             {activeStats.map((stat, idx: number) => {
                                 const percent = totalDuration === 0 ? 0 : (stat.duration / totalDuration) * 100;
                                 return (
-                                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: stat.color }} />
-                                        <Text style={{ fontSize: 8, color: '#6B7280' }}>{stat.name} ({percent.toFixed(1)}%)</Text>
+                                    <View key={idx} style={{ flexDirection: 'row', borderBottomWidth: idx === activeStats.length - 1 ? 0 : 1, borderBottomColor: '#F3F4F6', padding: 8, alignItems: 'center' }}>
+                                        <View style={{ flex: 3, flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: stat.color, marginRight: 8 }} />
+                                            <Text style={{ fontSize: 10, color: '#111827' }}>{stat.name}</Text>
+                                        </View>
+                                        <Text style={{ flex: 1, fontSize: 10, color: '#4B5563', textAlign: 'center' }}>{stat.count}</Text>
+                                        <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#111827' }}>{percent.toFixed(2)}%</Text>
+                                        </View>
                                     </View>
                                 );
                             })}
                         </View>
+
+                        {/* Chart (Right side) */}
+                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', padding: 20, height: '100%' }}>
+                            <DonutChart data={activeStats.map(s => ({
+                                percent: totalDuration === 0 ? 0 : (s.duration / totalDuration) * 100,
+                                color: s.color
+                            }))} />
+
+                            <View style={{ marginTop: 20, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
+                                {activeStats.map((stat, idx: number) => {
+                                    const percent = totalDuration === 0 ? 0 : (stat.duration / totalDuration) * 100;
+                                    return (
+                                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: stat.color }} />
+                                            <Text style={{ fontSize: 8, color: '#6B7280' }}>{stat.name} ({percent.toFixed(1)}%)</Text>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        </View>
                     </View>
-                </View>
-            </Page>
-        );
+                </Page>
+            );
+        };
+
+        if (groupByProject && isBoard && allProjects) {
+            // Group tasks by project
+            const projectGroups: Record<string, Task[]> = {};
+            tasks.forEach((t: Task) => {
+                if (!projectGroups[t.projectId]) projectGroups[t.projectId] = [];
+                projectGroups[t.projectId].push(t);
+            });
+
+            // Map each project to a page
+            const pages = Object.entries(projectGroups).map(([projId, projTasks]: [string, Task[]]) => {
+                const currentProj = allProjects.find((p: Project) => p.id === projId);
+                const projName = currentProj?.name || projId;
+                const pageTitle = `${i18n.t('pdf.typeSummaryTitle')} - ${projName}`;
+                return renderSinglePage(projTasks, pageTitle);
+            }).filter(Boolean);
+
+            return pages.length > 0 ? <>{pages}</> : null;
+        }
+
+        return renderSinglePage(tasks, i18n.t('pdf.typeSummaryTitle'));
     }
 
     return null;
