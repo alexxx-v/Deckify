@@ -60,6 +60,67 @@ Deckify uses an internal SQLite engine (`better-sqlite3`). On the first launch, 
 
 ---
 
+## 🤖 Model Context Protocol (MCP) Server
+
+Deckify comes with a built-in, autonomous MCP Server. This allows AI clients (like Qwen Desktop, Claude Desktop, Cursor, or Antigravity) to connect to your local Deckify installation and manage your projects, tasks, and boards.
+
+### Setup and Build
+
+Before using the MCP server, you must install its dependencies and compile the TypeScript source code:
+
+```bash
+cd mcp
+npm install
+npm run build
+```
+
+### Integration Configuration
+
+Add the following configuration to your AI client's MCP settings file (e.g., `claude_desktop_config.json` or Qwen Desktop settings):
+
+```json
+{
+  "mcpServers": {
+    "deckify": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "node",
+        "/Users/alexvdovin/Documents/_WORK/app/task_to_pdf/mcp/dist/index.js"
+      ],
+      "env": {
+        "PATH": "/Users/alexvdovin/local/nodejs/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "DECKIFY_DB_PATH": "/Users/alexvdovin/Library/Application Support/deckify/deckify.db"
+      }
+    }
+  }
+}
+```
+
+*Note: Qwen Desktop translates `npx` into `bun x`, which does not support running local directories directly. To bypass this, we configure it to execute `node` and pass the path to the compiled `dist/index.js`.*
+*Note: Make sure your `PATH` points to the directory containing the node executable you used to compile the project (e.g. `/Users/alexvdovin/local/nodejs/bin`), and `DECKIFY_DB_PATH` points to your actual database path.*
+*Note: If the `DECKIFY_DB_PATH` environment variable is not defined, the server will automatically attempt to find the database in your operating system's default user data path (e.g., `~/Library/Application Support/Deckify/deckify.db` on macOS).*
+
+### Exposed AI Tools
+
+The server registers the following tools with the connected AI agent:
+
+- `list_projects`: List all current projects.
+- `create_project`: Create a new project (takes `name`).
+- `list_tasks`: List tasks, optionally filtered by `projectId` and `status`.
+- `get_task`: Get a specific task by its UUID (takes `id`).
+- `create_task`: Create a new task in a project (takes `projectId`, `title`, `startDate`, `duration`, `description`, etc.).
+- `update_task`: Modify any parameter of an existing task (takes `id`).
+- `delete_task`: Delete a task by UUID.
+- `list_task_types`: Get available task categories / color labels.
+- `create_task_type`: Create a new color label / category.
+- `list_boards`: List Kanban boards.
+- `create_board`: Create a new board.
+- `add_task_to_board`: Link a task to a board.
+- `remove_task_from_board`: Unlink a task from a board.
+
+---
+
 ## 📚 Documentation
 
 For deeper dives into the project setup and deployment mechanics, check the following docs:
