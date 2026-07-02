@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.9.0](https://github.com/alexxx-v/Deckify/compare/v1.8.0...v1.9.0) (2026-07-02)
+
+
+### Features
+
+* add autonomous MCP server with get_task tool ([74b9acb](https://github.com/alexxx-v/Deckify/commit/74b9acb6d2dce08a415d304b93fbfab9466d05f6))
+
 ## [1.8.0](https://github.com/alexxx-v/Deckify/compare/v1.7.0...v1.8.0) (2026-07-01)
 
 
