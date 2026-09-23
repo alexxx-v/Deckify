@@ -168,6 +168,22 @@ db.exec(`
   );
 `);
 
+// Columns a client may write through update_task.
+// Keys arriving in tool arguments are attacker-controlled (the MCP SDK does not
+// enforce inputSchema), so they must never be interpolated into SQL unchecked.
+const UPDATABLE_TASK_COLUMNS = new Set([
+  'title',
+  'description',
+  'startDate',
+  'duration',
+  'plannedStartDate',
+  'plannedDuration',
+  'progress',
+  'status',
+  'steps',
+  'taskTypeId',
+]);
+
 // Initialize MCP Server
 const server = new Server(
   {
@@ -659,7 +675,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Task with UUID ${updateArgs.id} not found.`);
         }
 
-        const keys = Object.keys(updateArgs).filter((k) => k !== 'id');
+        const requestedKeys = Object.keys(updateArgs).filter((k) => k !== 'id');
+        const unknownKeys = requestedKeys.filter((k) => !UPDATABLE_TASK_COLUMNS.has(k));
+        if (unknownKeys.length > 0) {
+          throw new Error(
+            `Unknown field(s): ${unknownKeys.join(', ')}. Updatable fields: ${[...UPDATABLE_TASK_COLUMNS].join(', ')}.`
+          );
+        }
+
+        const keys = requestedKeys;
         if (keys.length === 0) {
           return {
             content: [{ type: 'text', text: JSON.stringify({ message: 'No fields to update', task }, null, 2) }],
