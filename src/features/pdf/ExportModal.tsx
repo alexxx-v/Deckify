@@ -7,6 +7,7 @@ import { ProjectPresentation } from './ProjectPresentation';
 import { DynamicPdfRenderer } from './DynamicPdfRenderer';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
+import { getPeriodRange, taskOverlapsRange } from '@/lib/taskDates';
 
 interface ExportModalProps {
     project: Project;
@@ -75,27 +76,14 @@ export function ExportModal({ project, tasks, onClose, isBoard }: ExportModalPro
     const handleExport = async () => {
         setIsGenerating(true);
         try {
-            let rangeStart = dayjs();
-            let rangeEnd = dayjs();
+            const year = parseInt(selectedYear, 10);
+            const baseMonth = periodType === 'quarter'
+                ? (parseInt(selectedQuarter.replace('Q', ''), 10) - 1) * 3
+                : periodType === 'month' ? months.indexOf(selectedMonth) : 0;
+            const { rangeStart, rangeEnd } = getPeriodRange(periodType, dayjs(new Date(year, baseMonth, 1)));
 
-            if (periodType === 'month') {
-                const monthIndex = months.indexOf(selectedMonth);
-                rangeStart = dayjs(new Date(parseInt(selectedYear, 10), monthIndex, 1)).startOf('month');
-                rangeEnd = rangeStart.clone().endOf('month');
-            } else if (periodType === 'quarter') {
-                const qIndex = parseInt(selectedQuarter.replace('Q', ''), 10) - 1;
-                rangeStart = dayjs(new Date(parseInt(selectedYear, 10), qIndex * 3, 1)).startOf('month');
-                rangeEnd = rangeStart.clone().add(2, 'month').endOf('month');
-            } else if (periodType === 'year') {
-                rangeStart = dayjs(new Date(parseInt(selectedYear, 10), 0, 1)).startOf('year');
-                rangeEnd = rangeStart.clone().endOf('year');
-            }
-
-            const filteredTasks = tasks.filter(t => {
-                const tStart = dayjs(t.startDate);
-                const tEnd = dayjs(t.startDate).add(t.duration, 'day');
-                return tStart.isBefore(rangeEnd) && tEnd.isAfter(rangeStart);
-            });
+            // Effective dates: a task that has not started yet only carries planned ones.
+            const filteredTasks = tasks.filter(t => taskOverlapsRange(t, rangeStart, rangeEnd));
 
             const template = templates.find(t => t.id === selectedTemplateId);
             const doc = template
