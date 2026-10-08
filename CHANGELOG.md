@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.9.1](https://github.com/alexxx-v/Deckify/compare/v1.9.0...v1.9.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **db:** cascade deletes, guard migrations and harden updates ([5e4b0f9](https://github.com/alexxx-v/Deckify/commit/5e4b0f92b64d976e30895837cf4e4b87b4f39c8b))
+* **export:** include tasks that only have planned dates in PDF export ([b5f49f2](https://github.com/alexxx-v/Deckify/commit/b5f49f2d371560b542348c53c1d15a828c5b3f24))
+* **mcp:** reject unknown columns in update_task ([5c6a6e2](https://github.com/alexxx-v/Deckify/commit/5c6a6e209d9c75dc2d51eb655e30331b8bebc883))
+
 ## [1.9.0](https://github.com/alexxx-v/Deckify/compare/v1.8.0...v1.9.0) (2026-07-02)
 
 
