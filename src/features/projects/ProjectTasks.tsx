@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import { ExportModal } from '../pdf/ExportModal';
 import { useTranslation } from 'react-i18next';
 import { DraggableTaskBar } from './DraggableTaskBar';
+import { getEffectiveStartDate, getEffectiveDuration, getPeriodRangeForMonthInput, taskOverlapsRange, getTasksBounds } from '@/lib/taskDates';
 
 const getStatusBadgeClass = (status?: string) => {
     switch (status) {
@@ -140,45 +141,24 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
     // Filter tasks by timeframe
     const filteredTasks = (tasks || []).filter((t: any) => {
         if (timeframe === 'all') return true;
-        const effStart = t.startDate || t.plannedStartDate;
-        const effDuration = t.duration || t.plannedDuration || 1;
-        if (!effStart) return false;
-        const taskStart = dayjs(effStart);
-        const taskEnd = dayjs(effStart).add(effDuration, 'day');
-        const baseDate = dayjs(filterDate + '-01');
-        let rangeStart = baseDate, rangeEnd = baseDate;
-
-        if (timeframe === 'month') {
-            rangeStart = baseDate.startOf('month');
-            rangeEnd = baseDate.endOf('month');
-        } else if (timeframe === 'quarter') {
-            const startMonth = Math.floor(baseDate.month() / 3) * 3;
-            rangeStart = baseDate.month(startMonth).startOf('month');
-            rangeEnd = rangeStart.add(2, 'month').endOf('month');
-        } else if (timeframe === 'year') {
-            rangeStart = baseDate.startOf('year');
-            rangeEnd = baseDate.endOf('year');
-        }
-
-        // Check if task overlaps with the timeframe
-        return taskStart.isBefore(rangeEnd) && taskEnd.isAfter(rangeStart);
+        const { rangeStart, rangeEnd } = getPeriodRangeForMonthInput(timeframe, filterDate);
+        return taskOverlapsRange(t, rangeStart, rangeEnd);
     }).sort((a: any, b: any) => {
         const isDesc = sortBy.endsWith('_desc');
         const sortType = sortBy.replace('_desc', '');
         let diff = 0;
 
+        const startDiff = dayjs(getEffectiveStartDate(a)).valueOf() - dayjs(getEffectiveStartDate(b)).valueOf();
+
         if (sortType === 'duration') {
-            const da = a.duration || a.plannedDuration || 0;
-            const db = b.duration || b.plannedDuration || 0;
-            diff = da - db;
+            diff = getEffectiveDuration(a) - getEffectiveDuration(b);
         } else if (sortType === 'status') {
             const statusOrder = { 'progress': 1, 'backlog': 2, 'hold': 3, 'done': 4 };
             const orderA = statusOrder[a.status as keyof typeof statusOrder] || 5;
             const orderB = statusOrder[b.status as keyof typeof statusOrder] || 5;
-            if (orderA !== orderB) diff = orderA - orderB;
-            else diff = dayjs(a.startDate || a.plannedStartDate).valueOf() - dayjs(b.startDate || b.plannedStartDate).valueOf();
+            diff = orderA !== orderB ? orderA - orderB : startDiff;
         } else {
-            diff = dayjs(a.startDate || a.plannedStartDate).valueOf() - dayjs(b.startDate || b.plannedStartDate).valueOf();
+            diff = startDiff;
         }
 
         return isDesc ? -diff : diff;
@@ -195,28 +175,14 @@ export function ProjectTasks({ projectId, onBack, onEditTask, onOpenSettings }: 
     }
 
     // Roadmap calculations based on timeframe
-    let minDate = dayjs(), maxDate = dayjs();
+    let minDate: dayjs.Dayjs, maxDate: dayjs.Dayjs;
 
     if (timeframe === 'all') {
-        minDate = filteredTasks.length > 0 ? dayjs(filteredTasks[0].startDate) : dayjs();
-        maxDate = minDate;
-        filteredTasks.forEach((t: any) => {
-            const end = dayjs(t.startDate).add(t.duration, 'day');
-            if (end.isAfter(maxDate)) maxDate = end;
-        });
+        ({ minDate, maxDate } = getTasksBounds(filteredTasks));
     } else {
-        const baseDate = dayjs(filterDate + '-01');
-        if (timeframe === 'month') {
-            minDate = baseDate.startOf('month');
-            maxDate = baseDate.endOf('month');
-        } else if (timeframe === 'quarter') {
-            const startMonth = Math.floor(baseDate.month() / 3) * 3;
-            minDate = baseDate.month(startMonth).startOf('month');
-            maxDate = minDate.add(2, 'month').endOf('month');
-        } else if (timeframe === 'year') {
-            minDate = baseDate.startOf('year');
-            maxDate = baseDate.endOf('year');
-        }
+        const { rangeStart, rangeEnd } = getPeriodRangeForMonthInput(timeframe, filterDate);
+        minDate = rangeStart;
+        maxDate = rangeEnd;
     }
     const totalDays = Math.max(1, maxDate.diff(minDate, 'day'));
 

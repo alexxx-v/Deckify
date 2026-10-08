@@ -25,9 +25,7 @@ export function ProjectList({ onSelect }: { onSelect: (id: string) => void }) {
     const deleteProject = async (e: React.MouseEvent, id: string, name: string) => {
         e.stopPropagation();
         if (confirm(t('tasks.deleteProjectConfirm', { name }))) {
-            const tasksToDelete = await db.tasks.where('projectId').equals(id).toArray() as any[];
-            const taskIds = tasksToDelete.map((t: any) => t.id);
-            if (taskIds.length > 0) await db.tasks.bulkDelete(taskIds);
+            // Cascades to the project's tasks, their board links and its task types.
             await db.projects.delete(id);
         }
     }

@@ -3,6 +3,7 @@ import { Document, Page, Text, View, StyleSheet, Svg, Path, G, Line } from '@rea
 import { Project, Task, TaskStatus, TemplateBlock, TaskType } from '@/db/schema';
 import dayjs from 'dayjs';
 import i18n from '@/i18n';
+import { getEffectiveStartDate, getEffectiveDuration, getPeriodRange, taskOverlapsRange, getTasksBounds } from '@/lib/taskDates';
 
 const getPdfStatusColor = (status?: TaskStatus) => {
     switch (status) {
@@ -357,42 +358,35 @@ interface BlockRendererProps {
 
 const getBlockRangeDates = (block: TemplateBlock, baseStartDate?: string, baseEndDate?: string, allTasks: Task[] = []) => {
     const dateRange = block.props.dateRange || 'export';
-    let minDate: dayjs.Dayjs;
-    let maxDate: dayjs.Dayjs;
+    const base = baseStartDate ? dayjs(baseStartDate) : dayjs();
 
-    if (dateRange === 'export') {
-        minDate = baseStartDate ? dayjs(baseStartDate) : dayjs(Math.min(...allTasks.map(t => dayjs(t.startDate || t.plannedStartDate).valueOf())));
-        maxDate = baseEndDate ? dayjs(baseEndDate) : dayjs(Math.max(...allTasks.map(t => dayjs(t.startDate || t.plannedStartDate).add(t.duration || t.plannedDuration || 1, 'day').valueOf())));
-    } else if (dateRange === 'month') {
-        const base = baseStartDate ? dayjs(baseStartDate) : dayjs();
-        const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
-        const m = block.props.specificMonth === 'current' ? dayjs().month() : (block.props.specificMonth !== undefined && block.props.specificMonth !== '' ? parseInt(block.props.specificMonth) : base.month());
-        minDate = dayjs(new Date(y, m, 1)).startOf('month');
-        maxDate = minDate.clone().endOf('month');
-    } else if (dateRange === 'quarter') {
-        const base = baseStartDate ? dayjs(baseStartDate) : dayjs();
-        const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
-        let quarterStartMonth: number;
-        if (block.props.specificQuarter === 'current') {
-            quarterStartMonth = Math.floor(dayjs().month() / 3) * 3;
-        } else if (block.props.specificQuarter !== undefined && block.props.specificQuarter !== '') {
-            quarterStartMonth = (parseInt(block.props.specificQuarter) - 1) * 3;
-        } else {
-            quarterStartMonth = Math.floor(base.month() / 3) * 3;
+    const resolveYear = () => block.props.specificYear === 'current'
+        ? dayjs().year()
+        : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
+
+    if (dateRange === 'month' || dateRange === 'quarter' || dateRange === 'year') {
+        let baseMonth = 0;
+        if (dateRange === 'month') {
+            baseMonth = block.props.specificMonth === 'current'
+                ? dayjs().month()
+                : (block.props.specificMonth !== undefined && block.props.specificMonth !== '' ? parseInt(block.props.specificMonth) : base.month());
+        } else if (dateRange === 'quarter') {
+            baseMonth = block.props.specificQuarter === 'current'
+                ? Math.floor(dayjs().month() / 3) * 3
+                : (block.props.specificQuarter !== undefined && block.props.specificQuarter !== ''
+                    ? (parseInt(block.props.specificQuarter) - 1) * 3
+                    : Math.floor(base.month() / 3) * 3);
         }
-        minDate = dayjs(new Date(y, quarterStartMonth, 1)).startOf('month');
-        maxDate = minDate.clone().add(2, 'month').endOf('month');
-    } else if (dateRange === 'year') {
-        const base = baseStartDate ? dayjs(baseStartDate) : dayjs();
-        const y = block.props.specificYear === 'current' ? dayjs().year() : (block.props.specificYear !== undefined && block.props.specificYear !== '' ? parseInt(block.props.specificYear) : base.year());
-        minDate = dayjs(new Date(y, 0, 1)).startOf('year');
-        maxDate = dayjs(new Date(y, 0, 1)).endOf('year');
-    } else {
-        minDate = baseStartDate ? dayjs(baseStartDate) : dayjs(Math.min(...allTasks.map(t => dayjs(t.startDate || t.plannedStartDate).valueOf())));
-        maxDate = baseEndDate ? dayjs(baseEndDate) : dayjs(Math.max(...allTasks.map(t => dayjs(t.startDate || t.plannedStartDate).add(t.duration || t.plannedDuration || 1, 'day').valueOf())));
+        const { rangeStart, rangeEnd } = getPeriodRange(dateRange, dayjs(new Date(resolveYear(), baseMonth, 1)));
+        return { minDate: rangeStart, maxDate: rangeEnd };
     }
 
-    return { minDate, maxDate };
+    // 'export' and any unknown value: the export period, falling back to the span of the tasks themselves
+    const bounds = getTasksBounds(allTasks);
+    return {
+        minDate: baseStartDate ? dayjs(baseStartDate) : bounds.minDate,
+        maxDate: baseEndDate ? dayjs(baseEndDate) : bounds.maxDate,
+    };
 };
 
 const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, period, startDate, endDate, allProjects, isBoard }: BlockRendererProps) => {
@@ -549,13 +543,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
     if (block.type === 'TASK_DETAIL') {
         const { includeDescription, includeSteps } = block.props;
         const { minDate, maxDate } = getBlockRangeDates(block, startDate, endDate, allProjectTasks || tasks);
-        const filteredTasks = (allProjectTasks || tasks).filter((t: Task) => {
-            const effStart = t.startDate || t.plannedStartDate;
-            const effDur = t.duration || t.plannedDuration || 1;
-            const tStart = dayjs(effStart);
-            const tEnd = dayjs(effStart).add(effDur, 'day');
-            return tStart.isBefore(maxDate) && tEnd.isAfter(minDate);
-        });
+        const filteredTasks = (allProjectTasks || tasks).filter((t: Task) => taskOverlapsRange(t, minDate, maxDate));
 
         return (
             <>
@@ -750,10 +738,10 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
             const sortType = sortBy.replace('_desc', '');
             let diff = 0;
 
-            const aStart = a.startDate || a.plannedStartDate;
-            const bStart = b.startDate || b.plannedStartDate;
-            const aDuration = a.duration || a.plannedDuration || 1;
-            const bDuration = b.duration || b.plannedDuration || 1;
+            const aStart = getEffectiveStartDate(a);
+            const bStart = getEffectiveStartDate(b);
+            const aDuration = getEffectiveDuration(a);
+            const bDuration = getEffectiveDuration(b);
 
             if (sortType === 'duration') {
                 diff = aDuration - bDuration;
@@ -795,13 +783,7 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
         }
 
         // Only render tasks that overlap with the calculated min/max of the roadmap block
-        const roadmapTasks = sortedTasks.filter((t: Task) => {
-            const effStart = t.startDate || t.plannedStartDate;
-            const effDur = t.duration || t.plannedDuration || 1;
-            const tStart = dayjs(effStart);
-            const tEnd = dayjs(effStart).add(effDur, 'day');
-            return tStart.isBefore(maxDate) && tEnd.isAfter(minDate);
-        });
+        const roadmapTasks = sortedTasks.filter((t: Task) => taskOverlapsRange(t, minDate, maxDate));
 
         return (
             <Page size="A4" orientation="landscape" style={styles.page}>
@@ -830,8 +812,8 @@ const BlockRenderer = ({ block, project, tasks, allProjectTasks, taskTypes, peri
                         const groupByType = block.props.groupByType ?? false;
 
                         const renderTaskRow = (task: Task) => {
-                            const effStartDate = task.startDate || task.plannedStartDate;
-                            const effDuration = task.duration || task.plannedDuration || 1;
+                            const effStartDate = getEffectiveStartDate(task);
+                            const effDuration = getEffectiveDuration(task);
 
                             const startOffset = dayjs(effStartDate).diff(minDate, 'day');
                             const leftPercentRaw = isNaN(totalDays) ? 0 : (startOffset / totalDays) * 100;

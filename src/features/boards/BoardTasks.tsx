@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import { ExportModal } from '../pdf/ExportModal';
 import { useTranslation } from 'react-i18next';
 import { DraggableTaskBar } from '../projects/DraggableTaskBar';
+import { getEffectiveStartDate, getEffectiveDuration, getPeriodRangeForMonthInput, taskOverlapsRange, getTasksBounds } from '@/lib/taskDates';
 
 interface BoardTasksProps {
     boardId: string;
@@ -69,29 +70,9 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
 
     // Filter tasks by timeframe
     const filteredBoardTasks = useMemo(() => {
-        return (boardTasks || []).filter((t: any) => {
-            if (timeframe === 'all') return true;
-            const effStart = t.startDate || t.plannedStartDate;
-            const effDur = t.duration || t.plannedDuration || 1;
-            const taskStart = dayjs(effStart);
-            const taskEnd = dayjs(effStart).add(effDur, 'day');
-            const baseDate = dayjs(filterDate + '-01');
-            let rangeStart = baseDate, rangeEnd = baseDate;
-
-            if (timeframe === 'month') {
-                rangeStart = baseDate.startOf('month');
-                rangeEnd = baseDate.endOf('month');
-            } else if (timeframe === 'quarter') {
-                const startMonth = Math.floor(baseDate.month() / 3) * 3;
-                rangeStart = baseDate.month(startMonth).startOf('month');
-                rangeEnd = rangeStart.add(2, 'month').endOf('month');
-            } else if (timeframe === 'year') {
-                rangeStart = baseDate.startOf('year');
-                rangeEnd = baseDate.endOf('year');
-            }
-
-            return taskStart.isBefore(rangeEnd.add(1, 'day')) && taskEnd.isAfter(rangeStart.subtract(1, 'day'));
-        });
+        if (timeframe === 'all') return boardTasks || [];
+        const { rangeStart, rangeEnd } = getPeriodRangeForMonthInput(timeframe, filterDate);
+        return (boardTasks || []).filter((t: any) => taskOverlapsRange(t, rangeStart, rangeEnd));
     }, [boardTasks, timeframe, filterDate]);
 
 
@@ -116,21 +97,17 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
             const sortType = sortBy.replace('_desc', '');
             let diff = 0;
 
-            const aStart = a.startDate || a.plannedStartDate;
-            const bStart = b.startDate || b.plannedStartDate;
-            const aDuration = a.duration || a.plannedDuration || 1;
-            const bDuration = b.duration || b.plannedDuration || 1;
+            const startDiff = dayjs(getEffectiveStartDate(a)).valueOf() - dayjs(getEffectiveStartDate(b)).valueOf();
 
             if (sortType === 'duration') {
-                diff = aDuration - bDuration;
+                diff = getEffectiveDuration(a) - getEffectiveDuration(b);
             } else if (sortType === 'status') {
                 const statusOrder = { 'progress': 1, 'backlog': 2, 'hold': 3, 'done': 4 };
                 const orderA = statusOrder[a.status as keyof typeof statusOrder] || 5;
                 const orderB = statusOrder[b.status as keyof typeof statusOrder] || 5;
-                if (orderA !== orderB) diff = orderA - orderB;
-                else diff = dayjs(aStart).valueOf() - dayjs(bStart).valueOf();
+                diff = orderA !== orderB ? orderA - orderB : startDiff;
             } else {
-                diff = dayjs(aStart).valueOf() - dayjs(bStart).valueOf();
+                diff = startDiff;
             }
 
             return isDesc ? -diff : diff;
@@ -164,35 +141,13 @@ export function BoardTasks({ boardId, onBack, onEditTask }: BoardTasksProps) {
 
     // Roadmap calculations
     const { minDate, maxDate, totalDays, timelineMarkers } = useMemo(() => {
-        let min = dayjs(), max = dayjs();
+        let min: dayjs.Dayjs, max: dayjs.Dayjs;
         if (timeframe === 'all') {
-            if (sortedTasks.length > 0) {
-                const firstStart = sortedTasks[0].startDate || sortedTasks[0].plannedStartDate;
-                const firstDur = sortedTasks[0].duration || sortedTasks[0].plannedDuration || 1;
-                min = dayjs(firstStart);
-                max = min.add(firstDur, 'day');
-                sortedTasks.forEach((t: any) => {
-                    const effStart = t.startDate || t.plannedStartDate;
-                    const effDur = t.duration || t.plannedDuration || 1;
-                    const s = dayjs(effStart);
-                    const e = s.add(effDur, 'day');
-                    if (s.isBefore(min)) min = s;
-                    if (e.isAfter(max)) max = e;
-                });
-            }
+            ({ minDate: min, maxDate: max } = getTasksBounds(sortedTasks));
         } else {
-            const baseDate = dayjs(filterDate + '-01');
-            if (timeframe === 'month') {
-                min = baseDate.startOf('month');
-                max = baseDate.endOf('month');
-            } else if (timeframe === 'quarter') {
-                const sm = Math.floor(baseDate.month() / 3) * 3;
-                min = baseDate.month(sm).startOf('month');
-                max = min.add(2, 'month').endOf('month');
-            } else if (timeframe === 'year') {
-                min = baseDate.startOf('year');
-                max = baseDate.endOf('year');
-            }
+            const { rangeStart, rangeEnd } = getPeriodRangeForMonthInput(timeframe, filterDate);
+            min = rangeStart;
+            max = rangeEnd;
         }
         const diff = Math.max(1, max.diff(min, 'day'));
 
