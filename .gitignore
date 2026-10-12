@@ -29,3 +29,6 @@ GEMINI.md
 .agent
 skills-lock.json
 RELEASE_INSTRUCTIONS.md
+
+# TypeScript build info
+*.tsbuildinfo
