@@ -345,8 +345,14 @@
             "cancel": "Cancel",
             "showAll": "Show all ({{count}})",
             "showLess": "Show less",
-            "cascade": "Also removed: {{tasks}} tasks, {{links}} board links, {{types}} task types",
-            "result": "Created {{created}}, changed {{updated}}, deleted {{deleted}}"
+            "cascade": "Also removed: {{parts}}",
+            "result": "Created {{created}}, changed {{updated}}, deleted {{deleted}}",
+            "cascadeTasks": "{{count}} tasks",
+            "cascadeLinks": "{{count}} board links",
+            "cascadeTypes": "{{count}} task types",
+            "cascadeUnassigned": "The type is removed from {{count}} tasks",
+            "resultLinked": "added to boards: {{count}}",
+            "resultUnlinked": "removed from boards: {{count}}"
         },
         "ops": {
             "create": "Create",
@@ -355,7 +361,9 @@
         },
         "entity": {
             "task": "task",
-            "project": "project"
+            "project": "project",
+            "board": "board",
+            "task_type": "task type"
         },
         "fields": {
             "title": "Title",
@@ -367,13 +375,18 @@
             "plannedStartDate": "Start (plan)",
             "plannedDuration": "Duration (plan)",
             "description": "Description",
-            "steps": "Steps"
+            "steps": "Steps",
+            "board": "Board",
+            "taskType": "Type",
+            "color": "Color",
+            "scope": "Scope"
         },
         "values": {
             "days": "{{count}} d",
             "updated": "updated",
             "items": "{{count}} items",
-            "empty": "—"
+            "empty": "—",
+            "global": "all projects"
         },
         "errors": {
             "invalid": "The model could not produce a valid plan. Nothing was changed. Try rephrasing the request.",
@@ -383,6 +396,16 @@
         "info": {
             "undone": "Undone: {{labels}}",
             "aborted": "Request stopped."
+        },
+        "warnings": {
+            "duplicate_project_name": "A project named “{{name}}” already exists; a second one will be created.",
+            "duplicate_board_name": "A board named “{{name}}” already exists; a second one will be created.",
+            "duplicate_task_type_name": "A task type named “{{name}}” already exists in this scope; a second one will be created.",
+            "no_change": "Nothing to change for “{{name}}”.",
+            "already_on_board": "{{count}} of {{total}} tasks are already on the board “{{board}}” and are skipped.",
+            "already_on_board_all": "All {{count}} tasks are already on the board “{{board}}”.",
+            "not_on_board": "{{count}} of {{total}} tasks were not on the board “{{board}}” anyway.",
+            "not_on_board_all": "None of the selected tasks is on the board “{{board}}”."
         }
     }
 }

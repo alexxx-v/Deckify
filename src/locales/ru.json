@@ -345,8 +345,14 @@
             "cancel": "Отмена",
             "showAll": "Показать все ({{count}})",
             "showLess": "Свернуть",
-            "cascade": "Также будет удалено: задач — {{tasks}}, привязок к доскам — {{links}}, типов задач — {{types}}",
-            "result": "Создано {{created}}, изменено {{updated}}, удалено {{deleted}}"
+            "cascade": "Также будет удалено: {{parts}}",
+            "result": "Создано {{created}}, изменено {{updated}}, удалено {{deleted}}",
+            "cascadeTasks": "задач — {{count}}",
+            "cascadeLinks": "привязок к доскам — {{count}}",
+            "cascadeTypes": "типов задач — {{count}}",
+            "cascadeUnassigned": "Тип снимется у задач: {{count}}",
+            "resultLinked": "добавлено в доски: {{count}}",
+            "resultUnlinked": "убрано из досок: {{count}}"
         },
         "ops": {
             "create": "Создать",
@@ -355,7 +361,9 @@
         },
         "entity": {
             "task": "задачу",
-            "project": "проект"
+            "project": "проект",
+            "board": "доску",
+            "task_type": "тип задач"
         },
         "fields": {
             "title": "Название",
@@ -367,13 +375,18 @@
             "plannedStartDate": "Начало (план)",
             "plannedDuration": "Длительность (план)",
             "description": "Описание",
-            "steps": "Шаги"
+            "steps": "Шаги",
+            "board": "Доска",
+            "taskType": "Тип",
+            "color": "Цвет",
+            "scope": "Область"
         },
         "values": {
             "days": "{{count}} дн.",
             "updated": "обновлено",
             "items": "{{count}} шт.",
-            "empty": "—"
+            "empty": "—",
+            "global": "все проекты"
         },
         "errors": {
             "invalid": "Модель не смогла составить корректный план. Ничего не изменено. Попробуйте переформулировать запрос.",
@@ -383,6 +396,16 @@
         "info": {
             "undone": "Отменено: {{labels}}",
             "aborted": "Запрос остановлен."
+        },
+        "warnings": {
+            "duplicate_project_name": "Проект «{{name}}» уже есть; будет создан второй.",
+            "duplicate_board_name": "Доска «{{name}}» уже есть; будет создана вторая.",
+            "duplicate_task_type_name": "Тип задач «{{name}}» уже есть в этой области; будет создан второй.",
+            "no_change": "«{{name}}»: менять нечего.",
+            "already_on_board": "{{count}} из {{total}} задач уже в доске «{{board}}», они пропущены.",
+            "already_on_board_all": "Все задачи ({{count}}) уже в доске «{{board}}».",
+            "not_on_board": "{{count}} из {{total}} задач и так не были в доске «{{board}}».",
+            "not_on_board_all": "Выбранных задач нет в доске «{{board}}»."
         }
     }
 }

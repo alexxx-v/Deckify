@@ -21,12 +21,21 @@ export interface TaskSet {
 
 /** The plan contract fixed by the Phase 1 spike (docs/plans/2026-10-13-ai-assistant-spike-results.md). */
 export type Action =
-    | { type: 'create_task'; project: string; title: string; description?: string; start: string; duration: string; steps?: string[]; status?: TaskStatusValue }
+    | { type: 'create_task'; project: string; title: string; description?: string; start: string; duration: string; steps?: string[]; status?: TaskStatusValue; taskType?: string }
     | { type: 'update_tasks'; filter: TaskFilter; set: TaskSet }
     | { type: 'delete_tasks'; ids: string[] }
     | { type: 'create_project'; name: string }
     | { type: 'rename_project'; project: string; name: string }
-    | { type: 'delete_project'; project: string };
+    | { type: 'delete_project'; project: string }
+    | { type: 'create_board'; name: string }
+    | { type: 'rename_board'; board: string; name: string }
+    | { type: 'delete_board'; board: string }
+    | { type: 'add_to_board'; board: string; filter: TaskFilter }
+    | { type: 'remove_from_board'; board: string; filter: TaskFilter }
+    | { type: 'create_task_type'; name: string; color?: string; project?: string }
+    | { type: 'update_task_type'; taskType: string; name?: string; color?: string; global?: boolean }
+    | { type: 'delete_task_type'; taskType: string }
+    | { type: 'set_task_type'; filter: TaskFilter; taskType: string };
 
 export type ActionType = Action['type'];
 
@@ -41,6 +50,8 @@ export interface PlanIssue {
     code: string;
     message: string;
     actionIndex?: number;
+    /** Values for the localized UI text of this code (the Russian `message` stays for the model). */
+    params?: Record<string, string | number>;
 }
 
 export type Mutation =
@@ -62,15 +73,15 @@ export interface FieldChange {
 }
 
 export interface DiffItem {
-    entity: 'task' | 'project';
+    entity: 'task' | 'project' | 'board' | 'task_type';
     op: 'create' | 'update' | 'delete';
     id: string;
     label: string;
     projectId?: string;
     projectName?: string;
     changes: FieldChange[];
-    /** delete_project: what goes away with it (tasks are not listed one by one). */
-    cascade?: { tasks: number; boardLinks: number; taskTypes: number };
+    /** What goes away or changes with the entity (affected tasks are not listed one by one). Only non-zero parts matter. */
+    cascade?: { tasks?: number; boardLinks?: number; taskTypes?: number; unassignedTasks?: number };
 }
 
 export interface ResolvedPlan {
@@ -111,11 +122,14 @@ export interface UndoRecord {
     entries: UndoEntry[];
 }
 
-/** Rows of `tasks` and `projects` only (board links and task types are bookkeeping, not what the user sees). */
+/** Rows of tasks, projects, boards and task types; board links are counted separately in `linked` / `unlinked`. */
 export interface Counts {
     created: number;
     updated: number;
     deleted: number;
+    /** Board links added / removed on their own (not as a cascade of deleting a task or a board). Present only when non-zero. */
+    linked?: number;
+    unlinked?: number;
 }
 
 export type ExecuteResult =

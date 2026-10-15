@@ -105,8 +105,12 @@ function App() {
       setSelectedProjectSettingsId(null);
       closed = true;
     }
+    if (selectedBoardId && change.removedBoardIds.includes(selectedBoardId)) {
+      setSelectedBoardId(null);
+      closed = true;
+    }
     if (closed) showNotification(t('assistant.viewClosed'), 'info');
-  }, [editingTaskId, selectedProjectId, selectedProjectSettingsId, t]);
+  }, [editingTaskId, selectedProjectId, selectedProjectSettingsId, selectedBoardId, t]);
 
   const navigateTo = useCallback((tab: Tab) => {
     setActiveTab(tab);

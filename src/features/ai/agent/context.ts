@@ -55,7 +55,7 @@ function screenLine(ops: DbOps, screen: ScreenInfo): { line: string; focusProjec
     }
     if (screen.boardId) {
         const board = ops.get('boards', screen.boardId);
-        if (board) return { line: `доска «${String(board.name)}»`, focusProjectId: null };
+        if (board) return { line: `доска «${String(board.name)}» (id ${String(board.id)})`, focusProjectId: null };
     }
     if (screen.projectId) {
         const project = ops.get('projects', screen.projectId);
@@ -84,6 +84,7 @@ export function buildContext(
     const projects = ops.select('projects', {}, ['createdAt']);
     const names = new Map(projects.map(p => [String(p.id), String(p.name)]));
     const tasks = ops.select('tasks');
+    const typeNames = new Map(ops.select('task_types').map(t => [String(t.id), String(t.name)]));
     const counts = new Map<string, number>();
     for (const t of tasks) counts.set(String(t.projectId), (counts.get(String(t.projectId)) ?? 0) + 1);
 
@@ -110,7 +111,7 @@ export function buildContext(
     for (const e of entries) {
         if (taskLines.length >= maxTasks) break;
         const t = e.row;
-        const text = `${String(t.id)} | ${names.get(String(t.projectId)) ?? ''} | ${String(t.title)} | ${String(t.status ?? 'backlog')} | ${e.start} | ${getEffectiveDuration(t as unknown as TaskDates)}${e.overdue ? ' | просрочена' : ''}`;
+        const text = `${String(t.id)} | ${names.get(String(t.projectId)) ?? ''} | ${String(t.title)} | ${String(t.status ?? 'backlog')} | ${e.start} | ${getEffectiveDuration(t as unknown as TaskDates)}${t.taskTypeId && typeNames.has(String(t.taskTypeId)) ? ` | тип «${typeNames.get(String(t.taskTypeId))}»` : ''}${e.overdue ? ' | просрочена' : ''}`;
         if (chars + text.length > maxChars) break;
         chars += text.length + 1;
         taskLines.push(text);
@@ -126,12 +127,19 @@ export function buildContext(
     out.push('', 'Задачи (id | проект | название | статус | старт | длительность, дн.):');
     out.push(...taskLines);
     if (truncated) {
-        out.push(`Показаны ${taskLines.length} из ${entries.length} задач (сначала открытый проект и активные). Если нужной задачи нет в списке, попроси уточнить название и проект.`);
+        out.push(`Показаны ${taskLines.length} из ${entries.length} задач (сначала открытый проект и активные). Если нужной задачи нет в списке, найди её запросом list_tasks через queries, а не проси пользователя уточнить.`);
     }
 
-    const types = [...new Set(ops.select('task_types').map(t => String(t.name)))].slice(0, MAX_NAMES);
-    out.push('', `Типы задач: ${types.join(', ')}`);
-    out.push(`Доски: ${ops.select('boards').map(b => String(b.name)).slice(0, MAX_NAMES).join(', ')}`);
+    // Boards and task types carry ids: the model must be able to tell two same-named ones apart.
+    const boardTasks = ops.select('board_tasks');
+    const boards = ops.select('boards', {}, ['createdAt']);
+    out.push('', 'Доски (id | название | задач):');
+    for (const b of boards.slice(0, MAX_NAMES)) out.push(`${String(b.id)} | ${String(b.name)} | ${boardTasks.filter(l => l.boardId === b.id).length}`);
+    if (boards.length > MAX_NAMES) out.push(`… и ещё ${boards.length - MAX_NAMES} досок`);
+    const types = ops.select('task_types');
+    out.push('', 'Типы задач (id | название | область):');
+    for (const t of types.slice(0, MAX_NAMES)) out.push(`${String(t.id)} | ${String(t.name)} | ${t.projectId ? (names.get(String(t.projectId)) ?? 'проект') : 'общий'}`);
+    if (types.length > MAX_NAMES) out.push(`… и ещё ${types.length - MAX_NAMES} типов`);
 
     return { text: out.join('\n'), shownTasks: taskLines.length, totalTasks: entries.length, truncated };
 }

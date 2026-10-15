@@ -55,6 +55,10 @@ export const PLAN_PROPERTIES: Record<string, JsonSchema> = {
             progress: { type: 'integer', minimum: 0, maximum: 100, description: 'Прогресс, 0–100' },
         },
     },
+    board: { type: 'string', description: 'Название доски или её id из контекста' },
+    taskType: { type: 'string', description: 'Название типа задач или его id из контекста. Для set_task_type значение none снимает тип' },
+    color: { type: 'string', description: 'Цвет в формате #RRGGBB' },
+    global: { type: 'boolean', description: 'true — сделать тип общим для всех проектов' },
 };
 
 export interface ActionSpec {
@@ -65,12 +69,21 @@ export interface ActionSpec {
 }
 
 export const ACTION_SPECS: ActionSpec[] = [
-    { type: 'create_task', description: 'Создать задачу в проекте.', props: ['project', 'title', 'description', 'start', 'duration', 'steps', 'status'], required: ['project', 'title', 'start', 'duration'] },
+    { type: 'create_task', description: 'Создать задачу в проекте.', props: ['project', 'title', 'description', 'start', 'duration', 'steps', 'status', 'taskType'], required: ['project', 'title', 'start', 'duration'] },
     { type: 'update_tasks', description: 'Изменить существующие задачи (в том числе массово).', props: ['filter', 'set'], required: ['filter', 'set'] },
     { type: 'delete_tasks', description: 'Удалить задачи по id.', props: ['ids'], required: ['ids'] },
     { type: 'create_project', description: 'Создать проект.', props: ['name'], required: ['name'] },
     { type: 'rename_project', description: 'Переименовать проект.', props: ['project', 'name'], required: ['project', 'name'] },
     { type: 'delete_project', description: 'Удалить проект вместе со всеми его задачами.', props: ['project'], required: ['project'] },
+    { type: 'create_board', description: 'Создать доску.', props: ['name'], required: ['name'] },
+    { type: 'rename_board', description: 'Переименовать доску.', props: ['board', 'name'], required: ['board', 'name'] },
+    { type: 'delete_board', description: 'Удалить доску (задачи остаются).', props: ['board'], required: ['board'] },
+    { type: 'add_to_board', description: 'Добавить задачи в доску.', props: ['board', 'filter'], required: ['board', 'filter'] },
+    { type: 'remove_from_board', description: 'Убрать задачи из доски.', props: ['board', 'filter'], required: ['board', 'filter'] },
+    { type: 'create_task_type', description: 'Создать тип задач. Без project тип общий для всех проектов.', props: ['name', 'color', 'project'], required: ['name'] },
+    { type: 'update_task_type', description: 'Изменить тип задач: название, цвет или сделать общим.', props: ['taskType', 'name', 'color', 'global'], required: ['taskType'] },
+    { type: 'delete_task_type', description: 'Удалить тип задач (у задач тип снимется).', props: ['taskType'], required: ['taskType'] },
+    { type: 'set_task_type', description: 'Назначить тип задачам или снять его (none).', props: ['filter', 'taskType'], required: ['filter', 'taskType'] },
 ];
 
 /** Mechanism A (tool calling): one tool per action. */
@@ -88,6 +101,47 @@ export function buildActionTools() {
         },
     }));
 }
+
+/** Read tools the model may call through `queries` (implemented in readTools.ts, dispatched by runtime.ts). */
+export const QUERY_TOOLS = ['list_projects', 'list_tasks', 'get_task', 'list_boards', 'list_task_types'] as const;
+export const QUERY_ARG_KEYS: Record<(typeof QUERY_TOOLS)[number], readonly string[]> = {
+    list_projects: [],
+    list_tasks: ['project', 'status', 'overdue', 'from', 'to', 'query', 'board', 'type', 'limit'],
+    get_task: ['id'],
+    list_boards: [],
+    list_task_types: [],
+};
+export const MAX_QUERY_ROUNDS = 2;
+export const MAX_QUERIES_PER_ROUND = 3;
+export const MAX_QUERY_RESULT_CHARS = 6000;
+
+const QUERIES_SCHEMA: JsonSchema = {
+    type: 'array',
+    description: 'Запросы данных, если в контексте их не хватает. Только вместе с пустым actions.',
+    items: {
+        type: 'object',
+        properties: {
+            tool: { type: 'string', enum: [...QUERY_TOOLS] },
+            args: {
+                type: 'object',
+                description: 'Аргументы инструмента',
+                properties: {
+                    project: { type: 'string', description: 'Название проекта или id' },
+                    status: { type: 'string', enum: [...STATUSES] },
+                    overdue: { type: 'boolean', description: 'true — только просроченные' },
+                    from: { type: 'string', description: 'Начало периода YYYY-MM-DD' },
+                    to: { type: 'string', description: 'Конец периода YYYY-MM-DD' },
+                    query: { type: 'string', description: 'Подстрока в названии задачи' },
+                    board: { type: 'string', description: 'Название доски или id: только задачи этой доски' },
+                    type: { type: 'string', description: 'Название типа задач или id; none — задачи без типа' },
+                    limit: { type: 'integer', minimum: 1, maximum: 200 },
+                    id: { type: 'string', description: 'id задачи (для get_task)' },
+                },
+            },
+        },
+        required: ['tool'],
+    },
+};
 
 /**
  * Mechanism B (`format`): one flat object schema — a flat shape decodes more reliably than `oneOf` on small
@@ -107,6 +161,7 @@ export function buildPlanFormatSchema(): JsonSchema {
                     required: ['type'],
                 },
             },
+            queries: QUERIES_SCHEMA,
         },
         required: ['reply', 'actions'],
     };
@@ -143,10 +198,28 @@ export const READ_TOOL_SPECS = [
                     from: { type: 'string', description: 'Пересекается с периодом начиная с YYYY-MM-DD' },
                     to: { type: 'string', description: 'Пересекается с периодом до YYYY-MM-DD' },
                     query: { type: 'string', description: 'Подстрока в названии' },
+                    board: { type: 'string', description: 'Название доски или id: только задачи этой доски' },
+                    type: { type: 'string', description: 'Название типа задач или id; none — задачи без типа' },
                     limit: { type: 'integer', minimum: 1, maximum: 200 },
                 },
                 required: [] as string[],
             },
+        },
+    },
+    {
+        type: 'function' as const,
+        function: {
+            name: 'list_boards',
+            description: 'Список досок с id, названием и числом задач.',
+            parameters: { type: 'object', properties: {}, required: [] as string[] },
+        },
+    },
+    {
+        type: 'function' as const,
+        function: {
+            name: 'list_task_types',
+            description: 'Список типов задач: id, название, цвет, область (общий или проект), число задач.',
+            parameters: { type: 'object', properties: {}, required: [] as string[] },
         },
     },
     {

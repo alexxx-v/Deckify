@@ -21,6 +21,10 @@ const FIELD_KEYS: Record<string, string> = {
     plannedDuration: 'assistant.fields.plannedDuration',
     description: 'assistant.fields.description',
     steps: 'assistant.fields.steps',
+    board: 'assistant.fields.board',
+    taskType: 'assistant.fields.taskType',
+    color: 'assistant.fields.color',
+    scope: 'assistant.fields.scope',
 };
 
 export const fieldLabel = (t: TFunction, field: string): string => (FIELD_KEYS[field] ? t(FIELD_KEYS[field]) : field);
@@ -44,6 +48,9 @@ export function formatValue(t: TFunction, field: string, value: unknown): string
             return isEmpty(value) ? empty : t('assistant.values.updated');
         case 'steps':
             return Array.isArray(value) ? t('assistant.values.items', { count: value.length }) : empty;
+        case 'scope':
+            // null = a global task type
+            return value === null || value === undefined || value === '' ? t('assistant.values.global') : String(value);
         default:
             return isEmpty(value) ? empty : String(value);
     }

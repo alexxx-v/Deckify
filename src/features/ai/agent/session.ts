@@ -6,7 +6,7 @@ import { loadAiConfig } from '../aiConfig';
 import { createOllamaProvider } from '../ollamaProvider';
 import { createIpcTransport, isAiAvailable, keyStore } from '../transport';
 import { AiError } from '../types';
-import { executeAiPlan, getAiUndoInfo, resolveAiPlan, undoAiPlan } from '../actions/runtime';
+import { executeAiPlan, getAiUndoInfo, resolveAiPlan, runAiReadTool, undoAiPlan } from '../actions/runtime';
 import type { ResolvedPlan } from '../actions/types';
 import { runAgentTurn } from './agent';
 import type { TurnResult } from './agent';
@@ -30,6 +30,7 @@ export interface DataChange {
     touchedTaskIds: string[];
     removedTaskIds: string[];
     removedProjectIds: string[];
+    removedBoardIds: string[];
 }
 
 export type ConfirmResult = { needsConfirm: true; taskId: string } | { needsConfirm: false };
@@ -49,7 +50,7 @@ export function setDataChangedHandler(handler: (change: DataChange) => void): ()
 }
 
 function notifyDataChanged(change: DataChange) {
-    if (change.touchedTaskIds.length || change.removedTaskIds.length || change.removedProjectIds.length) dataChangedHandler?.(change);
+    if (change.touchedTaskIds.length || change.removedTaskIds.length || change.removedProjectIds.length || change.removedBoardIds.length) dataChangedHandler?.(change);
 }
 
 export async function getReadiness(): Promise<Readiness> {
@@ -83,6 +84,7 @@ export async function sendMessage(text: string, screen: ScreenInfo): Promise<voi
                 resolve: resolveAiPlan,
                 context: s => dbRead(ops => buildContext(ops, { today: today(), screen: s })),
                 today,
+                runQuery: runAiReadTool,
             },
         );
     } catch (err) {
@@ -140,6 +142,7 @@ function changeFromPlan(plan: ResolvedPlan): DataChange {
         touchedTaskIds: plan.affectedTaskIds,
         removedTaskIds: plan.mutations.flatMap(m => (m.table === 'tasks' && m.op === 'delete' ? [m.id] : [])),
         removedProjectIds: plan.mutations.flatMap(m => (m.table === 'projects' && m.op === 'delete' ? [m.id] : [])),
+        removedBoardIds: plan.mutations.flatMap(m => (m.table === 'boards' && m.op === 'delete' ? [m.id] : [])),
     };
 }
 
@@ -180,6 +183,7 @@ export function undoLast(): void {
             touchedTaskIds: result.touched.filter(e => e.table === 'tasks').map(e => e.id),
             removedTaskIds: result.removed.filter(e => e.table === 'tasks').map(e => e.id),
             removedProjectIds: result.removed.filter(e => e.table === 'projects').map(e => e.id),
+            removedBoardIds: result.removed.filter(e => e.table === 'boards').map(e => e.id),
         });
         return;
     }

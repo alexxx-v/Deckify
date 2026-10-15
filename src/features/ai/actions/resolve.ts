@@ -3,7 +3,7 @@ import { TABLE_COLUMNS } from '../../../db/ops.ts';
 import { getEffectiveDuration, getEffectiveStartDate } from '../../../lib/taskDates.ts';
 import type { TaskDates } from '../../../lib/taskDates.ts';
 import type {
-    Action, DiffItem, FieldChange, Mutation, Plan, PlanIssue, Precondition, ResolvedPlan, ResolveResult,
+    Action, DiffItem, FieldChange, Mutation, Plan, PlanIssue, Precondition, ResolvedPlan, ResolveResult, TaskFilter,
 } from './types.ts';
 import { markdownToHtml, resolveDate, resolveDuration } from './dates.ts';
 import { MAX_MUTATIONS } from './specs.ts';
@@ -30,33 +30,57 @@ export interface ResolveContext {
 
 const MAX_TASK_DAYS = 3650;
 
+const norm = (s: unknown) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+interface Noun {
+    nom: string;          // «проект»
+    gen: string;          // «проекта»
+    plural: string;       // «проектов»
+    notFound: string;     // «не найден» / «не найдена»
+    unknownCode: string;
+    ambiguousCode: string;
+}
+const PROJECT: Noun = { nom: 'проект', gen: 'проекта', plural: 'проектов', notFound: 'не найден', unknownCode: 'unknown_project', ambiguousCode: 'ambiguous_project' };
+const BOARD: Noun = { nom: 'доска', gen: 'доски', plural: 'досок', notFound: 'не найдена', unknownCode: 'unknown_board', ambiguousCode: 'ambiguous_board' };
+const TASK_TYPE: Noun = { nom: 'тип задач', gen: 'типа задач', plural: 'типов', notFound: 'не найден', unknownCode: 'unknown_task_type', ambiguousCode: 'ambiguous_task_type' };
+
+export type RefResult = { ok: true; row: Row } | { ok: false; code: string; message: string };
+
+/** id first, then case-insensitive exact name; an ambiguous name is an error listing the ids, never a guess. */
+function resolveRef(ref: string, rows: Row[], noun: Noun, describe?: (row: Row) => string): RefResult {
+    const q = ref.trim();
+    const byId = rows.find(r => r.id === q);
+    if (byId) return { ok: true, row: byId };
+    const exact = rows.filter(r => norm(r.name) === norm(q));
+    if (exact.length === 1) return { ok: true, row: exact[0] };
+    if (exact.length > 1) {
+        const list = exact.map(r => `${String(r.name)} [id ${String(r.id)}${describe ? `, ${describe(r)}` : ''}]`).join('; ');
+        return { ok: false, code: noun.ambiguousCode, message: `название ${noun.gen} «${q}» неоднозначно (${list}); укажи id` };
+    }
+    const nq = norm(q);
+    const similar = rows.filter(r => nq && (norm(r.name).includes(nq) || nq.includes(norm(r.name)))).slice(0, 3);
+    const hint = similar.length
+        ? `похожие: ${similar.map(r => `«${String(r.name)}»`).join(', ')}`
+        : `доступные: ${rows.slice(0, 5).map(r => `«${String(r.name)}»`).join(', ') || `${noun.plural} нет`}`;
+    return { ok: false, code: noun.unknownCode, message: `${noun.nom} «${q}» ${noun.notFound} (${hint})` };
+}
+
 export type ProjectRefResult =
     | { ok: true; project: Row }
     | { ok: false; code: 'unknown_project' | 'ambiguous_project'; message: string };
 
-const norm = (s: unknown) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-
-/** id first, then case-insensitive exact name. Shared with the read tools so both accept the same references. */
+/** Shared with the read tools so reads and writes accept the same references. */
 export function resolveProjectRef(ref: string, projects: Row[]): ProjectRefResult {
-    const q = ref.trim();
-    const byId = projects.find(p => p.id === q);
-    if (byId) return { ok: true, project: byId };
-    const exact = projects.filter(p => norm(p.name) === norm(q));
-    if (exact.length === 1) return { ok: true, project: exact[0] };
-    if (exact.length > 1) {
-        return {
-            ok: false,
-            code: 'ambiguous_project',
-            message: `название проекта «${q}» неоднозначно (${exact.map(p => `${String(p.name)} [id ${String(p.id)}]`).join('; ')}); укажи id`,
-        };
-    }
-    const nq = norm(q);
-    const similar = projects.filter(p => nq && (norm(p.name).includes(nq) || nq.includes(norm(p.name)))).slice(0, 3);
-    const hint = similar.length
-        ? `похожие: ${similar.map(p => `«${String(p.name)}»`).join(', ')}`
-        : `доступные: ${projects.slice(0, 5).map(p => `«${String(p.name)}»`).join(', ') || 'проектов нет'}`;
-    return { ok: false, code: 'unknown_project', message: `проект «${q}» не найден (${hint})` };
+    const r = resolveRef(ref, projects, PROJECT);
+    return r.ok ? { ok: true, project: r.row } : { ok: false, code: r.code as 'unknown_project' | 'ambiguous_project', message: r.message };
 }
+
+export const resolveBoardRef = (ref: string, boards: Row[]): RefResult => resolveRef(ref, boards, BOARD);
+
+/** `scopeLabel` says where a type lives («общий» or a project name) so an ambiguity message is actionable. */
+export const resolveTypeRef = (ref: string, types: Row[], scopeLabel?: (type: Row) => string): RefResult => resolveRef(ref, types, TASK_TYPE, scopeLabel);
+
+const DEFAULT_TYPE_COLOR = '#4F46E5';
 
 const rowKey = (table: TableName, id: unknown) => `${table}:${String(id)}`;
 const sameValue = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -121,6 +145,8 @@ function createOverlay(ops: DbOps) {
 }
 
 type Overlay = ReturnType<typeof createOverlay>;
+type Cascade = NonNullable<DiffItem['cascade']>;
+type Cascades = Map<string, Cascade>;
 
 function changedColumns(table: TableName, before: Row, after: Row): Row {
     const patch: Row = {};
@@ -138,14 +164,14 @@ export function resolvePlan(input: Plan | unknown, ops: DbOps, ctx: ResolveConte
     const issues: PlanIssue[] = [];
     const warnings: PlanIssue[] = [];
     const overlay = createOverlay(ops);
-    const cascades = new Map<string, { tasks: number; boardLinks: number; taskTypes: number }>();
+    const cascades: Cascades = new Map();
 
     plan.actions.forEach((action, index) => {
         const fail = (code: string, message: string) => {
             issues.push({ severity: 'error', code, message: `Действие ${index + 1}: ${message}`, actionIndex: index });
         };
-        const warn = (code: string, message: string) => {
-            warnings.push({ severity: 'warning', code, message: `Действие ${index + 1}: ${message}`, actionIndex: index });
+        const warn: Warn = (code, message, params) => {
+            warnings.push({ severity: 'warning', code, message: `Действие ${index + 1}: ${message}`, actionIndex: index, ...(params ? { params } : {}) });
         };
         applyAction(action, overlay, ctx, fail, warn, cascades);
     });
@@ -170,7 +196,8 @@ export function resolvePlan(input: Plan | unknown, ops: DbOps, ctx: ResolveConte
     }
 
     if (plan.actions.length > 0 && mutations.length === 0) {
-        return { ok: false, issues: [{ severity: 'error', code: 'nothing_to_do', message: 'План ничего не меняет в данных' }] };
+        const why = warnings.map(w => w.message).join('; ');
+        return { ok: false, issues: [{ severity: 'error', code: 'nothing_to_do', message: `План ничего не меняет в данных${why ? `: ${why}` : ''}` }] };
     }
     if (mutations.length > MAX_MUTATIONS) {
         return {
@@ -208,15 +235,17 @@ export function resolvePlan(input: Plan | unknown, ops: DbOps, ctx: ResolveConte
     return { ok: true, plan: resolved };
 }
 
+
 type Fail = (code: string, message: string) => void;
+type Warn = (code: string, message: string, params?: Record<string, string | number>) => void;
 
 function applyAction(
     action: Action,
     overlay: Overlay,
     ctx: ResolveContext,
     fail: Fail,
-    warn: Fail,
-    cascades: Map<string, { tasks: number; boardLinks: number; taskTypes: number }>,
+    warn: Warn,
+    cascades: Cascades,
 ): void {
     const projectByRef = (ref: string): Row | null => {
         const result = resolveProjectRef(ref, overlay.select('projects'));
@@ -227,7 +256,61 @@ function applyAction(
         overlay.use('projects', result.project);
         return result.project;
     };
+    const boardByRef = (ref: string): Row | null => {
+        const result = resolveBoardRef(ref, overlay.select('boards'));
+        if (!result.ok) {
+            fail(result.code, result.message);
+            return null;
+        }
+        overlay.use('boards', result.row);
+        return result.row;
+    };
+    const scopeLabel = (type: Row): string => {
+        if (type.projectId === null || type.projectId === undefined) return 'общий';
+        return `проект «${String(overlay.get('projects', String(type.projectId))?.name ?? '')}»`;
+    };
+    /** Types a task of one of `projectIds` can have: global ones and the ones scoped to its project. */
+    const visibleTypes = (projectIds: Set<string>) =>
+        overlay.select('task_types').filter(t => t.projectId === null || t.projectId === undefined || projectIds.has(String(t.projectId)));
+    const typeByRef = (ref: string, candidates: Row[]): Row | null => {
+        // An id always finds its type (the scope rules are checked afterwards); names only see `candidates`.
+        const byId = overlay.select('task_types').find(t => t.id === ref.trim());
+        const result: RefResult = byId ? { ok: true, row: byId } : resolveTypeRef(ref, candidates, scopeLabel);
+        if (!result.ok) {
+            fail(result.code, result.message);
+            return null;
+        }
+        overlay.use('task_types', result.row);
+        return result.row;
+    };
     const taskLabel = (t: Row) => `«${String(t.title)}»`;
+
+    /** Tasks picked by `filter` (project / status / ids). Same rules for every action that takes a filter. */
+    const selectTasks = (filter: TaskFilter): Row[] | null => {
+        const project = filter.project !== undefined ? projectByRef(filter.project) : null;
+        if (filter.project !== undefined && !project) return null;
+
+        let rows: Row[];
+        if (filter.ids) {
+            const missing = filter.ids.filter(id => !overlay.get('tasks', id));
+            if (missing.length) {
+                fail('unknown_task', `задачи с id ${missing.map(m => `«${m}»`).join(', ')} не найдены (возможно, удалены ранее в этом плане); бери id только из контекста`);
+                return null;
+            }
+            rows = [...new Set(filter.ids)].map(id => overlay.get('tasks', id) as Row);
+        } else if (project) {
+            rows = overlay.select('tasks', { projectId: project.id });
+        } else {
+            rows = overlay.select('tasks');
+        }
+        if (project) rows = rows.filter(t => t.projectId === project.id);
+        if (filter.status) rows = rows.filter(t => t.status === filter.status);
+        if (rows.length === 0) {
+            fail('no_match', 'фильтру не соответствует ни одна задача');
+            return null;
+        }
+        return rows;
+    };
 
     switch (action.type) {
         case 'create_task': {
@@ -237,6 +320,12 @@ function applyAction(
             const days = start ? resolveDuration(action.duration, start) : null;
             if (start && (days === null || days < 1 || days > MAX_TASK_DAYS)) {
                 fail('bad_token', `duration «${action.duration}» должна быть от 1 до ${MAX_TASK_DAYS} дней`);
+            }
+            let taskTypeId: string | null = null;
+            if (project && action.taskType !== undefined && norm(action.taskType) !== 'none') {
+                const type = typeByRef(action.taskType, visibleTypes(new Set([String(project.id)])));
+                if (!type) return;
+                taskTypeId = String(type.id);
             }
             if (!project || !start || days === null || days < 1 || days > MAX_TASK_DAYS) return;
             const status = action.status ?? 'backlog';
@@ -252,35 +341,15 @@ function applyAction(
                 progress: status === 'done' ? 100 : 0,
                 status,
                 steps: JSON.stringify((action.steps ?? []).map(text => ({ id: ctx.newId(), text: text.trim(), completed: false }))),
-                taskTypeId: null,
+                taskTypeId,
             });
             return;
         }
 
         case 'update_tasks': {
             const { filter, set } = action;
-            const project = filter.project !== undefined ? projectByRef(filter.project) : null;
-            if (filter.project !== undefined && !project) return;
-
-            let rows: Row[];
-            if (filter.ids) {
-                const missing = filter.ids.filter(id => !overlay.get('tasks', id));
-                if (missing.length) {
-                    fail('unknown_task', `задачи с id ${missing.map(m => `«${m}»`).join(', ')} не найдены (возможно, удалены ранее в этом плане); бери id только из контекста`);
-                    return;
-                }
-                rows = [...new Set(filter.ids)].map(id => overlay.get('tasks', id) as Row);
-            } else if (project) {
-                rows = overlay.select('tasks', { projectId: project.id });
-            } else {
-                rows = overlay.select('tasks');
-            }
-            if (project) rows = rows.filter(t => t.projectId === project.id);
-            if (filter.status) rows = rows.filter(t => t.status === filter.status);
-            if (rows.length === 0) {
-                fail('no_match', 'фильтру не соответствует ни одна задача');
-                return;
-            }
+            const rows = selectTasks(filter);
+            if (!rows) return;
 
             for (const task of rows) {
                 const dates = task as unknown as TaskDates;
@@ -344,7 +413,7 @@ function applyAction(
         case 'create_project': {
             const name = action.name.trim();
             if (overlay.select('projects').some(p => norm(p.name) === norm(name))) {
-                warn('duplicate_project_name', `проект с названием «${name}» уже есть; будет создан второй`);
+                warn('duplicate_project_name', `проект с названием «${name}» уже есть; будет создан второй`, { name });
             }
             overlay.put('projects', { id: ctx.newId(), name, createdAt: ctx.now });
             return;
@@ -355,7 +424,7 @@ function applyAction(
             if (!project) return;
             const name = action.name.trim();
             if (String(project.name) === name) {
-                warn('no_change', `проект уже называется «${name}»`);
+                warn('no_change', `проект уже называется «${name}»`, { name });
                 return;
             }
             overlay.patch('projects', String(project.id), { name });
@@ -383,58 +452,259 @@ function applyAction(
             cascades.set(id, { tasks: tasks.length, boardLinks, taskTypes: types.length });
             return;
         }
+
+        case 'create_board': {
+            const name = action.name.trim();
+            if (overlay.select('boards').some(b => norm(b.name) === norm(name))) {
+                warn('duplicate_board_name', `доска с названием «${name}» уже есть; будет создана вторая`, { name });
+            }
+            overlay.put('boards', { id: ctx.newId(), name, createdAt: ctx.now });
+            return;
+        }
+
+        case 'rename_board': {
+            const board = boardByRef(action.board);
+            if (!board) return;
+            const name = action.name.trim();
+            if (String(board.name) === name) {
+                warn('no_change', `доска уже называется «${name}»`, { name });
+                return;
+            }
+            overlay.patch('boards', String(board.id), { name });
+            return;
+        }
+
+        case 'delete_board': {
+            const board = boardByRef(action.board);
+            if (!board) return;
+            // db.boards.delete: the board's links go with it, the tasks stay.
+            const links = overlay.select('board_tasks', { boardId: board.id });
+            for (const link of links) overlay.remove('board_tasks', String(link.id));
+            overlay.remove('boards', String(board.id));
+            cascades.set(String(board.id), { boardLinks: links.length });
+            return;
+        }
+
+        case 'add_to_board': {
+            const board = boardByRef(action.board);
+            const rows = selectTasks(action.filter);
+            if (!board || !rows) return;
+            const linked = new Set(overlay.select('board_tasks', { boardId: board.id }).map(l => String(l.taskId)));
+            const fresh = rows.filter(t => !linked.has(String(t.id)));
+            if (fresh.length === 0) {
+                warn('already_on_board_all', `все выбранные задачи (${rows.length}) уже есть в доске «${String(board.name)}»`, { count: rows.length, board: String(board.name) });
+                return;
+            }
+            if (fresh.length < rows.length) {
+                warn('already_on_board', `${rows.length - fresh.length} из ${rows.length} задач уже в доске «${String(board.name)}»; они пропущены`, { count: rows.length - fresh.length, total: rows.length, board: String(board.name) });
+            }
+            for (const task of fresh) {
+                overlay.use('tasks', task); // a task deleted before confirmation must not leave a dangling link
+                overlay.put('board_tasks', { id: ctx.newId(), boardId: board.id, taskId: task.id, addedAt: ctx.now });
+            }
+            return;
+        }
+
+        case 'remove_from_board': {
+            const board = boardByRef(action.board);
+            const rows = selectTasks(action.filter);
+            if (!board || !rows) return;
+            let removed = 0;
+            for (const task of rows) {
+                for (const link of overlay.select('board_tasks', { boardId: board.id, taskId: task.id })) {
+                    overlay.remove('board_tasks', String(link.id));
+                    removed++;
+                }
+            }
+            if (removed === 0) {
+                warn('not_on_board_all', `выбранных задач нет в доске «${String(board.name)}»`, { board: String(board.name) });
+                return;
+            }
+            if (removed < rows.length) warn('not_on_board', `${rows.length - removed} из ${rows.length} задач и так не были в доске «${String(board.name)}»`, { count: rows.length - removed, total: rows.length, board: String(board.name) });
+            return;
+        }
+
+        case 'create_task_type': {
+            const name = action.name.trim();
+            const project = action.project !== undefined ? projectByRef(action.project) : null;
+            if (action.project !== undefined && !project) return;
+            const scope = project ? String(project.id) : null;
+            if (overlay.select('task_types').some(t => norm(t.name) === norm(name) && (t.projectId ?? null) === scope)) {
+                warn('duplicate_task_type_name', `тип задач «${name}» уже есть в этой области; будет создан второй`, { name });
+            }
+            overlay.put('task_types', { id: ctx.newId(), projectId: scope, name, color: action.color ?? DEFAULT_TYPE_COLOR });
+            return;
+        }
+
+        case 'update_task_type': {
+            const type = typeByRef(action.taskType, overlay.select('task_types'));
+            if (!type) return;
+            const patch: Row = {};
+            if (action.name !== undefined && action.name.trim() !== String(type.name)) patch.name = action.name.trim();
+            if (action.color !== undefined && action.color.toLowerCase() !== String(type.color).toLowerCase()) patch.color = action.color;
+            if (action.global) {
+                if (type.projectId === null || type.projectId === undefined) warn('no_change', `тип «${String(type.name)}» уже общий`, { name: String(type.name) });
+                else patch.projectId = null;
+            }
+            if (Object.keys(patch).length === 0) {
+                warn('no_change', `тип «${String(type.name)}» уже такой`, { name: String(type.name) });
+                return;
+            }
+            overlay.patch('task_types', String(type.id), patch);
+            return;
+        }
+
+        case 'delete_task_type': {
+            const type = typeByRef(action.taskType, overlay.select('task_types'));
+            if (!type) return;
+            // db.taskTypes.delete: tasks that used the type lose it (they are updated, not deleted).
+            const users = overlay.select('tasks', { taskTypeId: type.id });
+            for (const task of users) overlay.patch('tasks', String(task.id), { taskTypeId: null });
+            overlay.remove('task_types', String(type.id));
+            cascades.set(String(type.id), { unassignedTasks: users.length });
+            return;
+        }
+
+        case 'set_task_type': {
+            const rows = selectTasks(action.filter);
+            if (!rows) return;
+            let typeId: string | null = null;
+            if (norm(action.taskType) !== 'none') {
+                const type = typeByRef(action.taskType, visibleTypes(new Set(rows.map(t => String(t.projectId)))));
+                if (!type) return;
+                const scope = type.projectId === null || type.projectId === undefined ? null : String(type.projectId);
+                const foreign = scope === null ? undefined : rows.find(t => String(t.projectId) !== scope);
+                if (foreign) {
+                    fail('type_scope', `тип «${String(type.name)}» относится только к ${scopeLabel(type)}, а задача ${taskLabel(foreign)} из другого проекта`);
+                    return;
+                }
+                typeId = String(type.id);
+            }
+            for (const task of rows) {
+                if ((task.taskTypeId ?? null) !== typeId) overlay.patch('tasks', String(task.id), { taskTypeId: typeId });
+            }
+            return;
+        }
     }
 }
 
 const TASK_CREATE_FIELDS = ['status', 'plannedStartDate', 'plannedDuration', 'progress', 'description'];
 
-function buildDiff(overlay: Overlay, mutations: Mutation[], cascades: Map<string, { tasks: number; boardLinks: number; taskTypes: number }>): DiffItem[] {
-    const projectName = (id: unknown): string | undefined => {
-        const row = overlay.get('projects', String(id)) ?? overlay.original('projects', String(id));
-        return row ? String(row.name) : undefined;
+/**
+ * One DiffItem per user-visible entity. Changes the user did not ask for as such are folded into their cause:
+ * tasks removed with a project, board links removed with a board or a task, scoped types removed with a project,
+ * and tasks that merely lost a deleted type are summarised on the parent item (`cascade`), not listed one by one.
+ * Board links appear as a `board` change on the task they belong to.
+ */
+function buildDiff(overlay: Overlay, mutations: Mutation[], cascades: Cascades): DiffItem[] {
+    const orig = (table: TableName, id: unknown) => overlay.original(table, String(id));
+    const latest = (table: TableName, id: unknown) => overlay.get(table, String(id)) ?? orig(table, id);
+    const nameOf = (table: TableName, id: unknown): string | null => {
+        if (id === null || id === undefined) return null;
+        const row = latest(table, id);
+        return row ? String(row.name) : null;
     };
-    const items: DiffItem[] = [];
+    const ids = (table: TableName) => new Set(mutations.flatMap(m => (m.table === table && m.op === 'delete' ? [m.id] : [])));
+    const deletedProjects = ids('projects');
+    const deletedBoards = ids('boards');
+    const deletedTasks = ids('tasks');
+    const deletedTypes = ids('task_types');
+
+    const items = new Map<string, DiffItem>();
+    const taskItem = (id: string, op: DiffItem['op']): DiffItem => {
+        let item = items.get(`task:${id}`);
+        if (!item) {
+            const row = latest('tasks', id) as Row;
+            item = { entity: 'task', op, id, label: String(row.title), projectId: String(row.projectId), projectName: nameOf('projects', row.projectId) ?? undefined, changes: [] };
+            items.set(`task:${id}`, item);
+        }
+        return item;
+    };
+    const typeChange = (from: unknown, to: unknown): FieldChange => ({ field: 'taskType', from: nameOf('task_types', from), to: nameOf('task_types', to) });
 
     for (const m of mutations) {
-        if (m.table === 'tasks') {
-            if (m.op === 'insert') {
-                const row = m.row;
-                const changes: FieldChange[] = TASK_CREATE_FIELDS.map(field => ({ field, from: null, to: row[field] }));
-                let steps: unknown[] = [];
-                try { steps = JSON.parse(String(row.steps ?? '[]')) as unknown[]; } catch { steps = []; }
-                if (steps.length) changes.push({ field: 'steps', from: null, to: steps.map(s => (s as { text: string }).text) });
-                items.push({ entity: 'task', op: 'create', id: String(row.id), label: String(row.title), projectId: String(row.projectId), projectName: projectName(row.projectId), changes });
-            } else if (m.op === 'update') {
-                const before = overlay.original('tasks', m.id) as Row;
-                const after = overlay.get('tasks', m.id) as Row;
-                const changes = Object.keys(m.patch).map(field => ({ field, from: before[field] ?? null, to: m.patch[field] }));
-                items.push({ entity: 'task', op: 'update', id: m.id, label: String(after.title), projectId: String(after.projectId), projectName: projectName(after.projectId), changes });
-            } else {
-                const before = overlay.original('tasks', m.id) as Row;
-                items.push({ entity: 'task', op: 'delete', id: m.id, label: String(before.title), projectId: String(before.projectId), projectName: projectName(before.projectId), changes: [] });
+        switch (m.table) {
+            case 'tasks': {
+                if (m.op === 'insert') {
+                    const item = taskItem(String(m.row.id), 'create');
+                    for (const field of TASK_CREATE_FIELDS) item.changes.push({ field, from: null, to: m.row[field] });
+                    let steps: unknown[] = [];
+                    try { steps = JSON.parse(String(m.row.steps ?? '[]')) as unknown[]; } catch { steps = []; }
+                    if (steps.length) item.changes.push({ field: 'steps', from: null, to: steps.map(s => (s as { text: string }).text) });
+                    if (m.row.taskTypeId) item.changes.push(typeChange(null, m.row.taskTypeId));
+                } else if (m.op === 'update') {
+                    const before = orig('tasks', m.id) as Row;
+                    const keys = Object.keys(m.patch);
+                    const onlyLostDeletedType = keys.length === 1 && keys[0] === 'taskTypeId' && m.patch.taskTypeId === null && deletedTypes.has(String(before.taskTypeId));
+                    if (onlyLostDeletedType) break;
+                    const item = taskItem(m.id, 'update');
+                    for (const field of keys) {
+                        item.changes.push(field === 'taskTypeId' ? typeChange(before.taskTypeId, m.patch.taskTypeId) : { field, from: before[field] ?? null, to: m.patch[field] });
+                    }
+                } else {
+                    const before = orig('tasks', m.id) as Row;
+                    if (deletedProjects.has(String(before.projectId))) break; // summarised on the project
+                    taskItem(m.id, 'delete');
+                }
+                break;
             }
-        } else if (m.table === 'projects') {
-            if (m.op === 'insert') {
-                items.push({ entity: 'project', op: 'create', id: String(m.row.id), label: String(m.row.name), changes: [{ field: 'name', from: null, to: m.row.name }] });
-            } else if (m.op === 'update') {
-                const before = overlay.original('projects', m.id) as Row;
-                items.push({ entity: 'project', op: 'update', id: m.id, label: String(m.patch.name ?? before.name), changes: Object.keys(m.patch).map(field => ({ field, from: before[field] ?? null, to: m.patch[field] })) });
-            } else {
-                const before = overlay.original('projects', m.id) as Row;
-                items.push({ entity: 'project', op: 'delete', id: m.id, label: String(before.name), changes: [], cascade: cascades.get(m.id) });
+            case 'board_tasks': {
+                if (m.op === 'insert') {
+                    const item = taskItem(String(m.row.taskId), 'update');
+                    item.changes.push({ field: 'board', from: null, to: nameOf('boards', m.row.boardId) });
+                } else if (m.op === 'delete') {
+                    const before = orig('board_tasks', m.id) as Row;
+                    if (deletedBoards.has(String(before.boardId)) || deletedTasks.has(String(before.taskId))) break; // cascade
+                    const item = taskItem(String(before.taskId), 'update');
+                    item.changes.push({ field: 'board', from: nameOf('boards', before.boardId), to: null });
+                }
+                break;
+            }
+            case 'projects': {
+                if (m.op === 'insert') {
+                    items.set(`project:${m.row.id}`, { entity: 'project', op: 'create', id: String(m.row.id), label: String(m.row.name), changes: [{ field: 'name', from: null, to: m.row.name }] });
+                } else if (m.op === 'update') {
+                    const before = orig('projects', m.id) as Row;
+                    items.set(`project:${m.id}`, { entity: 'project', op: 'update', id: m.id, label: String(m.patch.name ?? before.name), changes: Object.keys(m.patch).map(field => ({ field, from: before[field] ?? null, to: m.patch[field] })) });
+                } else {
+                    const before = orig('projects', m.id) as Row;
+                    items.set(`project:${m.id}`, { entity: 'project', op: 'delete', id: m.id, label: String(before.name), changes: [], cascade: cascades.get(m.id) });
+                }
+                break;
+            }
+            case 'boards': {
+                if (m.op === 'insert') {
+                    items.set(`board:${m.row.id}`, { entity: 'board', op: 'create', id: String(m.row.id), label: String(m.row.name), changes: [{ field: 'name', from: null, to: m.row.name }] });
+                } else if (m.op === 'update') {
+                    const before = orig('boards', m.id) as Row;
+                    items.set(`board:${m.id}`, { entity: 'board', op: 'update', id: m.id, label: String(m.patch.name ?? before.name), changes: Object.keys(m.patch).map(field => ({ field, from: before[field] ?? null, to: m.patch[field] })) });
+                } else {
+                    const before = orig('boards', m.id) as Row;
+                    items.set(`board:${m.id}`, { entity: 'board', op: 'delete', id: m.id, label: String(before.name), changes: [], cascade: cascades.get(m.id) });
+                }
+                break;
+            }
+            case 'task_types': {
+                const scope = (projectId: unknown): string | null => nameOf('projects', projectId);
+                if (m.op === 'insert') {
+                    items.set(`task_type:${m.row.id}`, {
+                        entity: 'task_type', op: 'create', id: String(m.row.id), label: String(m.row.name),
+                        changes: [{ field: 'color', from: null, to: m.row.color }, { field: 'scope', from: null, to: scope(m.row.projectId) }],
+                    });
+                } else if (m.op === 'update') {
+                    const before = orig('task_types', m.id) as Row;
+                    const changes: FieldChange[] = Object.keys(m.patch).map(field => (field === 'projectId'
+                        ? { field: 'scope', from: scope(before.projectId), to: scope(m.patch.projectId) }
+                        : { field, from: before[field] ?? null, to: m.patch[field] }));
+                    items.set(`task_type:${m.id}`, { entity: 'task_type', op: 'update', id: m.id, label: String(m.patch.name ?? before.name), changes });
+                } else {
+                    const before = orig('task_types', m.id) as Row;
+                    if (deletedProjects.has(String(before.projectId))) break; // summarised on the project
+                    items.set(`task_type:${m.id}`, { entity: 'task_type', op: 'delete', id: m.id, label: String(before.name), changes: [], cascade: cascades.get(m.id) });
+                }
+                break;
             }
         }
     }
-    // Cascade-deleted tasks are summarised on their project, not listed one by one.
-    const cascadedTaskIds = new Set<string>();
-    for (const m of mutations) {
-        if (m.table === 'projects' && m.op === 'delete') {
-            for (const t of overlay.touched) {
-                if (t.table !== 'tasks') continue;
-                const before = overlay.original('tasks', t.id);
-                if (before && before.projectId === m.id) cascadedTaskIds.add(t.id);
-            }
-        }
-    }
-    return items.filter(i => !(i.entity === 'task' && i.op === 'delete' && cascadedTaskIds.has(i.id)));
+    return [...items.values()];
 }

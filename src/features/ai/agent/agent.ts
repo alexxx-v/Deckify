@@ -3,9 +3,10 @@ import { AiError } from '../types.ts';
 import { extractJson } from '../json.ts';
 import type { JsonRepair } from '../json.ts';
 import type { ResolvedPlan, ResolveResult } from '../actions/types.ts';
-import { buildPlanFormatSchema } from '../actions/specs.ts';
+import { MAX_QUERY_ROUNDS, buildPlanFormatSchema } from '../actions/specs.ts';
 import type { BuiltContext, ScreenInfo } from './context.ts';
 import { NOT_JSON_FEEDBACK, PREVIOUS_PLAN_NOTE, buildSystemPrompt, retryFeedback } from './prompt.ts';
+import { formatQueryResults, parseQueries } from './queries.ts';
 
 /*
  * One user turn: build the messages, ask the model, parse + validate + resolve the plan, and give the model ONE
@@ -30,6 +31,8 @@ export interface TurnDeps {
     resolve(value: unknown): ResolveResult;
     context(screen: ScreenInfo): BuiltContext;
     today(): string;
+    /** Runs one read tool for the `queries` step (see queries.ts). Errors are returned as `{ error }`, not thrown. */
+    runQuery(tool: string, args: Record<string, unknown>): unknown;
 }
 
 interface Success {
@@ -38,6 +41,8 @@ interface Success {
     assistantJson: string;
     attempts: number;
     jsonRepaired: JsonRepair;
+    /** How many query rounds the model used before answering. */
+    queryRounds: number;
 }
 
 export type TurnResult =
@@ -48,6 +53,14 @@ export type TurnResult =
     | { kind: 'aborted' };
 
 const MAX_ATTEMPTS = 2;
+/** The final answer is stored without leftover (empty) `queries`. */
+function stripQueries(value: unknown): unknown {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return value;
+    const rest = { ...(value as Record<string, unknown>) };
+    delete rest.queries;
+    return rest;
+}
+
 const EMPTY_PLAN_FEEDBACK = 'пустой ответ: добавь действия или текст в reply';
 
 export async function runAgentTurn(input: TurnInput, deps: TurnDeps): Promise<TurnResult> {
@@ -61,7 +74,9 @@ export async function runAgentTurn(input: TurnInput, deps: TurnDeps): Promise<Tu
     const format = buildPlanFormatSchema();
 
     let problems: string[] = [];
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let attempt = 1;
+    let queryRounds = 0;
+    while (attempt <= MAX_ATTEMPTS) {
         if (input.signal?.aborted) return { kind: 'aborted' };
 
         let content: string;
@@ -77,26 +92,46 @@ export async function runAgentTurn(input: TurnInput, deps: TurnDeps): Promise<Tu
         if ('error' in parsed) {
             problems = [NOT_JSON_FEEDBACK];
         } else {
-            const resolved = deps.resolve(parsed.value);
-            if (!resolved.ok) {
-                problems = resolved.issues.map(i => i.message);
-            } else if (resolved.plan.mutations.length === 0 && !resolved.plan.reply.trim()) {
-                problems = [EMPTY_PLAN_FEEDBACK];
+            const asked = parseQueries(parsed.value);
+            if (asked && 'queries' in asked) {
+                if (queryRounds < MAX_QUERY_ROUNDS) {
+                    // Data requests do not use up the retry: they are a normal part of answering.
+                    queryRounds++;
+                    const results = asked.queries.map(q => deps.runQuery(q.tool, q.args));
+                    messages = [
+                        ...messages,
+                        { role: 'assistant', content },
+                        { role: 'user', content: formatQueryResults(asked.queries, results, { last: queryRounds >= MAX_QUERY_ROUNDS, request: input.userText }) },
+                    ];
+                    continue;
+                }
+                problems = ['лимит запросов исчерпан: ответь по уже полученным данным, без queries'];
+            } else if (asked) {
+                problems = asked.problems;
             } else {
-                const success: Success = {
-                    reply: resolved.plan.reply,
-                    assistantJson: JSON.stringify(parsed.value),
-                    attempts: attempt,
-                    jsonRepaired: parsed.repaired,
-                };
-                return resolved.plan.mutations.length === 0
-                    ? { kind: 'reply', ...success }
-                    : { kind: 'plan', plan: resolved.plan, ...success };
+                const resolved = deps.resolve(parsed.value);
+                if (!resolved.ok) {
+                    problems = resolved.issues.map(i => i.message);
+                } else if (resolved.plan.mutations.length === 0 && !resolved.plan.reply.trim()) {
+                    problems = [EMPTY_PLAN_FEEDBACK];
+                } else {
+                    const success: Success = {
+                        reply: resolved.plan.reply,
+                        assistantJson: JSON.stringify(stripQueries(parsed.value)),
+                        attempts: attempt,
+                        jsonRepaired: parsed.repaired,
+                        queryRounds,
+                    };
+                    return resolved.plan.mutations.length === 0
+                        ? { kind: 'reply', ...success }
+                        : { kind: 'plan', plan: resolved.plan, ...success };
+                }
             }
         }
         if (attempt < MAX_ATTEMPTS) {
             messages = [...messages, { role: 'assistant', content }, { role: 'user', content: retryFeedback(problems) }];
         }
+        attempt++;
     }
     return { kind: 'invalid', problems, attempts: MAX_ATTEMPTS };
 }

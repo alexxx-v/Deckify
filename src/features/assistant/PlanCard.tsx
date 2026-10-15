@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import type { ScreenInfo } from '@/features/ai/agent/context';
 import type { PlanMessage } from '@/features/ai/agent/conversationState';
 import { confirmPlan, rejectPlan, replan, undoLast } from '@/features/ai/agent/session';
-import type { DiffItem } from '@/features/ai/actions/types';
+import type { Counts, DiffItem } from '@/features/ai/actions/types';
+import type { TFunction } from 'i18next';
 import { fieldLabel, formatValue } from './format';
 
 const COLLAPSED_ITEMS = 8;
@@ -14,6 +15,40 @@ const OP_STYLE: Record<DiffItem['op'], { sign: string; cls: string }> = {
     update: { sign: '✎', cls: 'bg-indigo-100 text-indigo-700' },
     delete: { sign: '−', cls: 'bg-red-100 text-red-700' },
 };
+
+/** Colours are shown as a swatch next to the hex code; everything else goes through formatValue. */
+function renderValue(t: TFunction, field: string, value: unknown) {
+    if (field === 'color' && typeof value === 'string') {
+        return <><span className="inline-block h-3 w-3 rounded-sm border align-middle mr-1" style={{ backgroundColor: value }} aria-hidden="true" />{value}</>;
+    }
+    return formatValue(t, field, value);
+}
+
+/** Only the non-zero parts, so deleting a board does not say "0 tasks, 0 task types". */
+function cascadeText(t: TFunction, item: DiffItem): string | null {
+    const c = item.cascade;
+    if (!c) return null;
+    const removed = [
+        c.tasks ? t('assistant.plan.cascadeTasks', { count: c.tasks }) : null,
+        c.boardLinks ? t('assistant.plan.cascadeLinks', { count: c.boardLinks }) : null,
+        c.taskTypes ? t('assistant.plan.cascadeTypes', { count: c.taskTypes }) : null,
+    ].filter(Boolean);
+    const lines = [
+        removed.length ? t('assistant.plan.cascade', { parts: removed.join(', ') }) : null,
+        c.unassignedTasks ? t('assistant.plan.cascadeUnassigned', { count: c.unassignedTasks }) : null,
+    ].filter(Boolean);
+    return lines.length ? lines.join('. ') : null;
+}
+
+function resultText(t: TFunction, counts: Counts): string {
+    const parts: string[] = [];
+    if (counts.created || counts.updated || counts.deleted) {
+        parts.push(t('assistant.plan.result', { created: counts.created, updated: counts.updated, deleted: counts.deleted }));
+    }
+    if (counts.linked) parts.push(t('assistant.plan.resultLinked', { count: counts.linked }));
+    if (counts.unlinked) parts.push(t('assistant.plan.resultUnlinked', { count: counts.unlinked }));
+    return parts.join(' · ');
+}
 
 export function PlanCard({ message, canUndo, screen }: { message: PlanMessage; canUndo: boolean; screen: ScreenInfo }) {
     const { t } = useTranslation();
@@ -63,17 +98,13 @@ export function PlanCard({ message, canUndo, screen }: { message: PlanMessage; c
                                     {item.changes.map(c => (
                                         <li key={c.field}>
                                             <span>{fieldLabel(t, c.field)}: </span>
-                                            {item.op === 'update' && <><span className="line-through">{formatValue(t, c.field, c.from)}</span> → </>}
-                                            <span className="text-foreground">{formatValue(t, c.field, c.to)}</span>
+                                            {(item.op === 'update' || c.from !== null) && <><span className="line-through">{renderValue(t, c.field, c.from)}</span> → </>}
+                                            <span className="text-foreground">{renderValue(t, c.field, c.to)}</span>
                                         </li>
                                     ))}
                                 </ul>
                             )}
-                            {item.cascade && (item.cascade.tasks > 0 || item.cascade.boardLinks > 0 || item.cascade.taskTypes > 0) && (
-                                <div className="mt-0.5 text-xs text-red-600">
-                                    {t('assistant.plan.cascade', { tasks: item.cascade.tasks, links: item.cascade.boardLinks, types: item.cascade.taskTypes })}
-                                </div>
-                            )}
+                            {cascadeText(t, item) && <div className="mt-0.5 text-xs text-red-600">{cascadeText(t, item)}</div>}
                         </div>
                     </li>
                 ))}
@@ -86,7 +117,7 @@ export function PlanCard({ message, canUndo, screen }: { message: PlanMessage; c
 
             {plan.warnings.length > 0 && (
                 <ul className="mx-3 mb-2 p-2 rounded-md bg-yellow-50 text-yellow-800 border border-yellow-200 text-xs space-y-0.5">
-                    {plan.warnings.map(w => <li key={`${w.code}:${w.actionIndex}`}>{w.message}</li>)}
+                    {plan.warnings.map(w => <li key={`${w.code}:${w.actionIndex}`}>{t(`assistant.warnings.${w.code}`, { ...w.params, defaultValue: w.message })}</li>)}
                 </ul>
             )}
 
@@ -109,9 +140,7 @@ export function PlanCard({ message, canUndo, screen }: { message: PlanMessage; c
 
             {status === 'executed' && outcome?.counts && (
                 <div className="px-3 pb-3 space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                        {t('assistant.plan.result', { created: outcome.counts.created, updated: outcome.counts.updated, deleted: outcome.counts.deleted })}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{resultText(t, outcome.counts)}</p>
                     {outcome.undo === 'failed' && <p className="text-xs text-amber-600">{t('assistant.plan.undoUnavailable')}</p>}
                     {outcome.undo === 'saved' && canUndo && (
                         <Button size="sm" variant="outline" onClick={undoLast}>{t('assistant.plan.undo')}</Button>

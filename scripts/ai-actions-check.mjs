@@ -112,38 +112,57 @@ section('dates');
 
 section('specs');
 {
-    // The spike's measured definitions are extended, never altered.
+    // The spike's measured definitions are a byte-identical PREFIX of ours: later phases only append.
     const src = fs.readFileSync(path.join(ROOT, 'scripts/ai-spike/run.mjs'), 'utf8');
     const from = src.indexOf('const P = {');
     const to = src.indexOf('const SYSTEM');
     check('could locate the spike definitions', from > 0 && to > from);
     const spike = new Function('STATUSES', `${src.slice(from, to)}\nreturn { P, ACTIONS, FORMAT, TOOLS };`)(specs.STATUSES);
     const clone = o => JSON.parse(JSON.stringify(o));
-    const EXTRAS = ['description', 'progress'];
-    const stripSetExtras = o => { const c = clone(o); const props = c.set?.properties ?? c.properties?.set?.properties ?? c.function?.parameters?.properties?.set?.properties; if (props) EXTRAS.forEach(k => delete props[k]); return c; };
+    const SET_EXTRAS = ['description', 'progress'];                    // Phase 3
+    const NEW_PROPS = ['board', 'taskType', 'color', 'global'];        // Phase 5
+    const stripSetExtras = props => { if (props?.set?.properties) SET_EXTRAS.forEach(k => delete props.set.properties[k]); return props; };
+    const stripNew = props => { NEW_PROPS.forEach(k => delete props[k]); return props; };
 
     for (const key of Object.keys(spike.P)) {
         const own = clone(specs.PLAN_PROPERTIES[key]);
-        if (key === 'set') EXTRAS.forEach(k => delete own.properties[k]);
+        if (key === 'set') SET_EXTRAS.forEach(k => delete own.properties[k]);
         eq(`property "${key}" identical to the spike`, own, spike.P[key]);
     }
-    eq('same property names', Object.keys(specs.PLAN_PROPERTIES), Object.keys(spike.P));
-    eq('action specs identical to the spike', specs.ACTION_SPECS, spike.ACTIONS);
+    eq('the spike\'s property names come first, in order', Object.keys(specs.PLAN_PROPERTIES).slice(0, Object.keys(spike.P).length), Object.keys(spike.P));
+    eq('property names added after the spike\'s', Object.keys(specs.PLAN_PROPERTIES).slice(Object.keys(spike.P).length), NEW_PROPS);
+
+    const spikeActions = spike.ACTIONS;
+    eq('the first six action specs are the spike\'s (create_task only gained a trailing taskType prop)',
+        specs.ACTION_SPECS.slice(0, 6).map(a => a.type === 'create_task' ? { ...a, props: a.props.slice(0, -1) } : a), spikeActions);
+    eq('create_task\'s extra prop is taskType', specs.ACTION_SPECS[0].props.at(-1), 'taskType');
+
     const ours = specs.buildActionTools();
-    eq('one tool per action', ours.map(t => t.function.name), spike.TOOLS.map(t => t.function.name));
-    for (let i = 0; i < ours.length; i++) {
-        eq(`tool ${ours[i].function.name} equals the spike's`, stripSetExtras(ours[i]), spike.TOOLS[i]);
+    eq('the spike\'s tools come first, in order', ours.slice(0, 6).map(t => t.function.name), spike.TOOLS.map(t => t.function.name));
+    for (let i = 0; i < 6; i++) {
+        const t = clone(ours[i]);
+        stripSetExtras(t.function.parameters.properties);
+        delete t.function.parameters.properties.taskType;
+        eq(`tool ${t.function.name} equals the spike's`, t, spike.TOOLS[i]);
     }
     const formatSchema = specs.buildPlanFormatSchema();
-    const strippedFormat = clone(formatSchema);
-    EXTRAS.forEach(k => delete strippedFormat.properties.actions.items.properties.set.properties[k]);
-    eq('format schema equals the spike\'s', strippedFormat, spike.FORMAT);
-    eq('set accepts the two extra optional fields', Object.keys(formatSchema.properties.actions.items.properties.set.properties).slice(-2), EXTRAS);
+    const stripped = clone(formatSchema);
+    const items = stripped.properties.actions.items;
+    stripNew(items.properties);
+    delete stripped.properties.queries;     // Phase 5: the data-question step
+    stripSetExtras(items.properties);
+    items.properties.type.enum = items.properties.type.enum.slice(0, 6);
+    eq('format schema equals the spike\'s once the later additions are removed', stripped, spike.FORMAT);
+    eq('set accepts the two Phase 3 optional fields', Object.keys(formatSchema.properties.actions.items.properties.set.properties).slice(-2), SET_EXTRAS);
+    eq('all nine Phase 5 actions are in the schema enum', formatSchema.properties.actions.items.properties.type.enum.slice(6),
+        ['create_board', 'rename_board', 'delete_board', 'add_to_board', 'remove_from_board', 'create_task_type', 'update_task_type', 'delete_task_type', 'set_task_type']);
 
     const prompt = specs.describeActionsForPrompt();
     check('prompt block lists every action type', specs.ACTION_SPECS.every(a => prompt.includes(`- ${a.type}:`)));
     check('prompt block embeds the schema', prompt.includes('"actions"') && prompt.includes('"required"'));
-    eq('read tools', specs.READ_TOOL_SPECS.map(t => t.function.name), ['list_projects', 'list_tasks', 'get_task']);
+    eq('read tools', specs.READ_TOOL_SPECS.map(t => t.function.name), ['list_projects', 'list_tasks', 'list_boards', 'list_task_types', 'get_task']);
+    eq('queries: tool enum equals the read tools the dispatcher knows', [...specs.QUERY_TOOLS].sort(), specs.READ_TOOL_SPECS.map(t => t.function.name).sort());
+    eq('queries are an optional top-level array (reply and actions stay the only required keys)', [Object.keys(formatSchema.properties), formatSchema.required], [['reply', 'actions', 'queries'], ['reply', 'actions']]);
 }
 
 // ==== validate ===========================================================================================
@@ -222,7 +241,7 @@ section('read tools');
     eq('limit + truncated', [page.tasks.length, page.total, page.truncated], [3, 14, true]);
     eq('sorted by start', read.listTasks(ops, TODAY, { project: 'KYC' }).tasks.map(t => t.start), ['2026-09-01', '2026-09-20', '2026-09-28', '2026-10-05', '2026-10-08', '2026-10-20']);
     eq('summary shape', read.listTasks(ops, TODAY, { query: 'Лендинг' }).tasks[0],
-        { id: fixtures.byTitle('Лендинг').id, projectId: MARKETING, project: 'Маркетинг', title: 'Лендинг', status: 'progress', progress: 40, start: '2026-10-01', durationDays: 20, end: '2026-10-21', overdue: false });
+        { id: fixtures.byTitle('Лендинг').id, projectId: MARKETING, project: 'Маркетинг', title: 'Лендинг', status: 'progress', progress: 40, start: '2026-10-01', durationDays: 20, end: '2026-10-21', overdue: false, type: null });
     check('unknown project → Russian error with hints', /не найден.*«KYC»/.test(read.listTasks(ops, TODAY, { project: 'KYC2' }).error ?? ''));
     check('bad status → error', 'error' in read.listTasks(ops, TODAY, { status: 'in_progress' }));
     check('bad date → error', 'error' in read.listTasks(ops, TODAY, { from: 'soon' }));
@@ -246,6 +265,25 @@ section('read tools');
     check('ambiguous project name → error listing ids', /неоднозначно.*dup-1.*dup-2/.test(ambiguous.error ?? ''), JSON.stringify(ambiguous));
     eq('…but an id always works', read.listTasks(ops, TODAY, { project: 'dup-2' }).total, 0);
     check('resolveProjectRef is exported for reuse', typeof resolveProjectRef === 'function');
+}
+
+section('read tools: boards and task types');
+{
+    const { ops, sqlite } = freshDb();
+    const boardId = fixtures.boards[0].id;
+    eq('listBoards', read.listBoards(ops), [{ id: boardId, name: 'Спринт 5', taskCount: 3 }]);
+    eq('listTaskTypes: scope and usage', read.listTaskTypes(ops).map(t => [t.name, t.scope, t.taskCount]), [['Разработка', 'общий', 0], ['Согласование', 'общий', 1], ['KYC-only', 'KYC', 0]]);
+    eq('board filter by name', titles(read.listTasks(ops, TODAY, { board: 'спринт 5' })).sort(), ['Интеграция с Госуслугами', 'Проверка паспортов', 'Экран логина']);
+    eq('board filter by id, combined with a project', titles(read.listTasks(ops, TODAY, { board: boardId, project: 'KYC' })).sort(), ['Интеграция с Госуслугами', 'Проверка паспортов']);
+    check('unknown board → error with the available names', /доска «Нет» не найдена.*Спринт 5/.test(read.listTasks(ops, TODAY, { board: 'Нет' }).error ?? ''));
+    eq('type filter by name', titles(read.listTasks(ops, TODAY, { type: 'согласование' })), ['Экран логина']);
+    eq('type "none" = tasks without a type', read.listTasks(ops, TODAY, { type: 'none' }).total, fixtures.tasks.length - 1);
+    check('unknown type → error', /не найден/.test(read.listTasks(ops, TODAY, { type: 'Нет' }).error ?? ''));
+    eq('the type name is part of the summary', read.listTasks(ops, TODAY, { query: 'логина' }).tasks[0].type, 'Согласование');
+    const detail = read.getTask(ops, TODAY, fixtures.byTitle('Экран логина').id);
+    eq('getTask: type and boards', [detail.type, detail.boards], ['Согласование', ['Спринт 5']]);
+    sqlite.prepare(`INSERT INTO task_types (id, projectId, name, color) VALUES ('tt-dup', NULL, 'Согласование', '#000000')`).run();
+    check('ambiguous type name → error listing both ids', /неоднозначно/.test(read.listTasks(ops, TODAY, { type: 'Согласование' }).error ?? ''));
 }
 
 // ==== resolve ============================================================================================
@@ -431,8 +469,21 @@ section('resolve: cascades, diff, preconditions');
 }
 
 // ==== execute / undo / store ============================================================================
-const { executePlan, undoLastPlan, describeUndo } = await import('../src/features/ai/actions/execute.ts');
+const { executePlan, undoLastPlan, describeUndo, countEntries } = await import('../src/features/ai/actions/execute.ts');
 const { createFileUndoStore } = await import('../src/features/ai/actions/undoStore.ts');
+
+
+/** Counts as the user will see them, computed from a resolved plan without executing it. */
+function countEntriesOf(sqlite, plan) {
+    const ops = createOps(sqlite);
+    const entries = plan.mutations.map(m => {
+        const id = m.op === 'insert' ? m.row.id : m.id;
+        const before = ops.get(m.table, id);
+        const after = m.op === 'insert' ? m.row : m.op === 'delete' ? null : { ...before, ...m.patch };
+        return { table: m.table, id, label: '', before, after };
+    });
+    return countEntries(entries, false);
+}
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'deckify-ai-actions-'));
 let fileN = 0;
@@ -642,6 +693,237 @@ section('undo store: validation');
     eq('a record for another database is ignored', [undoLastPlan(deps).reason, describeUndo(store, deps.dbPath).available], ['none', false]);
     store.clear();
     eq('clear removes the file', fs.existsSync(file), false);
+}
+
+// ==== Phase 5: boards and task types ===================================================================
+const { actionCases } = await import('./ai-cases-phase5.mjs');
+const BOARD = fixtures.boards[0].id;
+const [DEV, APPROVAL] = fixtures.taskTypes.map(t => t.id);
+const T = title => fixtures.byTitle(title).id;
+
+section('phase 5: validation');
+{
+    const codes = plan => { const r = validatePlan(plan); return r.ok ? ['ok'] : r.issues.map(i => i.code); };
+    const one = a => ({ reply: '', actions: [a] });
+    const F = { project: 'KYC' };
+    const valid = [
+        { type: 'create_board', name: 'Релиз' }, { type: 'rename_board', board: 'А', name: 'Б' }, { type: 'delete_board', board: 'А' },
+        { type: 'add_to_board', board: 'А', filter: F }, { type: 'remove_from_board', board: 'А', filter: { ids: ['x'] } },
+        { type: 'create_task_type', name: 'Дизайн' }, { type: 'create_task_type', name: 'Дизайн', color: '#ff0000', project: 'KYC' }, { type: 'create_task_type', name: 'Д', color: '#ABCDEF' },
+        { type: 'update_task_type', taskType: 'Т', name: 'Н' }, { type: 'update_task_type', taskType: 'Т', color: '#00ff00' }, { type: 'update_task_type', taskType: 'Т', global: true },
+        { type: 'update_task_type', taskType: 'Т', name: 'Н', global: false },
+        { type: 'delete_task_type', taskType: 'Т' }, { type: 'set_task_type', filter: F, taskType: 'Т' }, { type: 'set_task_type', filter: F, taskType: 'none' },
+        { type: 'create_task', project: 'KYC', title: 'x', start: 'today', duration: '1d', taskType: 'Т' },
+    ];
+    for (const a of valid) eq(`valid: ${a.type}${a.global === false ? ' (global:false is a filler)' : ''}${a.taskType && a.type === 'create_task' ? ' + taskType' : ''}`, codes(one(a)), ['ok']);
+    eq('create_board needs a name', codes(one({ type: 'create_board' })), ['missing_field']);
+    eq('rename_board needs both', codes(one({ type: 'rename_board', board: 'А' })), ['missing_field']);
+    eq('add_to_board needs a board', codes(one({ type: 'add_to_board', filter: F })), ['missing_field']);
+    eq('add_to_board needs a non-empty filter', codes(one({ type: 'add_to_board', board: 'А', filter: {} })), ['empty_filter']);
+    eq('remove_from_board filter keys are checked', codes(one({ type: 'remove_from_board', board: 'А', filter: { id: 'x' } })), ['unknown_field']);
+    eq('colour names are not hex', codes(one({ type: 'create_task_type', name: 'Д', color: 'red' })), ['bad_token']);
+    eq('five hex digits', codes(one({ type: 'create_task_type', name: 'Д', color: '#12345' })), ['bad_token']);
+    eq('update_task_type with nothing to change', codes(one({ type: 'update_task_type', taskType: 'Т' })), ['empty_set']);
+    eq('global:false alone is "nothing"', codes(one({ type: 'update_task_type', taskType: 'Т', global: false })), ['empty_set']);
+    eq('global must be a boolean', codes(one({ type: 'update_task_type', taskType: 'Т', global: 'yes' })), ['bad_type']);
+    eq('set_task_type needs taskType', codes(one({ type: 'set_task_type', filter: F })), ['missing_field']);
+    eq('set_task_type needs a filter', codes(one({ type: 'set_task_type', taskType: 'Т' })), ['empty_filter']);
+    eq('create_task taskType must be a string', codes(one({ type: 'create_task', project: 'KYC', title: 'x', start: 'today', duration: '1d', taskType: 5 })), ['bad_type']);
+    const unknown = validatePlan(one({ type: 'create_boards' }));
+    check('the unknown-type message lists the new actions', !unknown.ok && /create_board.*set_task_type/.test(unknown.issues[0].message));
+}
+
+section('phase 5: gold plans (12 cases) resolve, execute and undo byte-identically');
+for (const c of actionCases) {
+    const { sqlite, ops } = freshDb();
+    const r = resolveOn(ops, c.gold);
+    if (!r.ok) { check(`resolves: ${c.id}`, false, messages(r)); continue; }
+    const problems = matchExpected(r.plan, c);
+    check(`resolves to the expected effects: ${c.id}`, problems.length === 0, problems.join('; '));
+    const deps = depsFor(sqlite, newStore());
+    const before = dump(sqlite);
+    const done = executePlan(r.plan, deps);
+    check(`executes and changes data: ${c.id}`, done.ok && dump(sqlite) !== before, JSON.stringify(done));
+    const undone = undoLastPlan(deps);
+    check(`undo restores a byte-identical database: ${c.id}`, undone.ok && dump(sqlite) === before, JSON.stringify(undone));
+}
+
+section('phase 5: boards');
+{
+    const { sqlite, ops } = freshDb();
+    let r = resolveOn(ops, actionCases[0].gold);
+    const links = mutationsOf(r, 'board_tasks', 'insert');
+    eq('PRD example: four new links, two tasks were already on the board', [links.length, r.plan.warnings.map(w => w.code), /2 из 6/.test(r.plan.warnings[0].message)], [4, ['already_on_board'], true]);
+    eq('the warning carries the numbers for the localized text', r.plan.warnings[0].params, { count: 2, total: 6, board: 'Спринт 5' });
+    eq('link rows follow the UI rules {id, boardId, taskId, addedAt: now}', links[0].row, { id: 'new-1', boardId: BOARD, taskId: links[0].row.taskId, addedAt: 1_700_000_000_000 });
+    check('every selected task and the board are preconditions (a vanished task must not leave a dangling link)',
+        r.plan.preconditions.some(p => p.table === 'boards' && p.id === BOARD) && links.every(l => r.plan.preconditions.some(p => p.table === 'tasks' && p.id === l.row.taskId)));
+    const linkItems = r.plan.diff.filter(d => d.changes.some(c => c.field === 'board'));
+    eq('diff: the link is a "board" change on the task item', [linkItems.length, linkItems[0].entity, linkItems[0].op, linkItems[0].changes], [4, 'task', 'update', [{ field: 'board', from: null, to: 'Спринт 5' }]]);
+    eq('result counts: four links, nothing else', countEntriesOf(sqlite, r.plan), { created: 0, updated: 0, deleted: 0, linked: 4 });
+
+    r = resolveOn(ops, planOf(
+        { type: 'add_to_board', board: 'Спринт 5', filter: { project: 'KYC' } },
+        { type: 'add_to_board', board: 'Спринт 5', filter: { project: 'KYC', status: 'backlog' } },
+    ));
+    eq('overlapping add_to_board actions never create a duplicate link', [r.ok, mutationsOf(r, 'board_tasks', 'insert').length, r.plan.warnings.length], [true, 4, 2]);
+    r = resolveOn(ops, planOf({ type: 'add_to_board', board: 'Спринт 5', filter: { ids: [T('Проверка паспортов'), T('Экран логина')] } }));
+    check('everything already on the board → one clear error naming why', !r.ok && r.issues[0].code === 'nothing_to_do' && /уже есть в доске «Спринт 5»/.test(r.issues[0].message), messages(r));
+    r = resolveOn(ops, planOf({ type: 'remove_from_board', board: 'Спринт 5', filter: { ids: [T('Скоринг клиентов')] } }));
+    check('removing a task that is not on the board → nothing_to_do with the reason', !r.ok && /нет в доске/.test(r.issues[0].message), messages(r));
+    r = resolveOn(ops, planOf({ type: 'remove_from_board', board: 'Спринт 5', filter: { ids: [T('Скоринг клиентов'), T('Экран логина')] } }));
+    eq('partly present: removes the present one, warns about the other', [mutationsOf(r, 'board_tasks', 'delete').length, r.plan.warnings.map(w => w.code)], [1, ['not_on_board']]);
+
+    r = resolveOn(ops, planOf({ type: 'create_board', name: 'Новая' }, { type: 'add_to_board', board: 'новая', filter: { ids: [T('Лендинг')] } }));
+    eq('a board created earlier in the plan can be filled by name', [r.ok, mutationsOf(r, 'boards', 'insert').length, mutationsOf(r, 'board_tasks', 'insert')[0].row.boardId === mutationsOf(r, 'boards', 'insert')[0].row.id], [true, 1, true]);
+    r = resolveOn(ops, planOf({ type: 'create_board', name: 'спринт 5' }));
+    eq('duplicate board name is a warning', [r.ok, r.plan.warnings.map(w => w.code)], [true, ['duplicate_board_name']]);
+    r = resolveOn(ops, planOf({ type: 'rename_board', board: 'Спринт 5', name: 'Спринт 5' }));
+    check('renaming to the same name changes nothing', !r.ok && r.issues[0].code === 'nothing_to_do', messages(r));
+    r = resolveOn(ops, planOf({ type: 'delete_board', board: 'Спринт 6' }));
+    check('unknown board → Russian message with the available names', !r.ok && r.issues[0].code === 'unknown_board' && /доска «Спринт 6» не найдена/.test(r.issues[0].message) && /Спринт 5/.test(r.issues[0].message), messages(r));
+
+    r = resolveOn(ops, planOf({ type: 'delete_board', board: 'Спринт 5' }));
+    eq('delete_board: links go, tasks stay', [mutationsOf(r, 'board_tasks', 'delete').length, mutationsOf(r, 'boards', 'delete').length, r.plan.mutations.some(m => m.table === 'tasks'), r.plan.affectedTaskIds], [3, 1, false, []]);
+    eq('diff: one board item with the link count', r.plan.diff.map(d => [d.entity, d.op, d.label, d.cascade]), [['board', 'delete', 'Спринт 5', { boardLinks: 3 }]]);
+    eq('result counts: one board, no "unlinked"', countEntriesOf(sqlite, r.plan), { created: 0, updated: 0, deleted: 1 });
+
+    sqlite.prepare(`INSERT INTO boards (id, name, createdAt) VALUES ('b-dup', 'Спринт 5', 9)`).run();
+    r = resolveOn(ops, planOf({ type: 'delete_board', board: 'Спринт 5' }));
+    check('two boards with the same name → ambiguous_board listing both ids', !r.ok && r.issues[0].code === 'ambiguous_board' && r.issues[0].message.includes('b-dup') && r.issues[0].message.includes(BOARD), messages(r));
+    r = resolveOn(ops, planOf({ type: 'delete_board', board: 'b-dup' }));
+    eq('an id resolves the ambiguity', r.ok && r.plan.diff[0].id, 'b-dup');
+}
+{
+    // races between preview and confirmation
+    const { sqlite, ops } = freshDb();
+    const deps = depsFor(sqlite, newStore());
+    let plan = resolveOk(ops, planOf({ type: 'add_to_board', board: 'Спринт 5', filter: { ids: [T('Скоринг клиентов')] } }));
+    sqlite.prepare(`INSERT INTO board_tasks (id, boardId, taskId, addedAt) VALUES ('other-link', ?, ?, 1)`).run(BOARD, T('Скоринг клиентов'));
+    let before = dump(sqlite);
+    let r = executePlan(plan, deps);
+    eq('the same task linked by someone else meanwhile (UNIQUE) → stale, nothing applied', [r.ok, r.reason, dump(sqlite) === before], [false, 'stale', true]);
+
+    plan = resolveOk(ops, planOf({ type: 'add_to_board', board: 'Спринт 5', filter: { ids: [T('Лендинг')] } }));
+    sqlite.prepare(`DELETE FROM boards WHERE id = ?`).run(BOARD);
+    before = dump(sqlite);
+    r = executePlan(plan, deps);
+    eq('the board deleted meanwhile → stale, no dangling link', [r.reason, dump(sqlite) === before], ['stale', true]);
+
+    const f = freshDb(); const d2 = depsFor(f.sqlite, newStore());
+    plan = resolveOk(f.ops, planOf({ type: 'add_to_board', board: 'Спринт 5', filter: { ids: [T('Лендинг')] } }));
+    f.sqlite.prepare(`DELETE FROM tasks WHERE id = ?`).run(T('Лендинг'));
+    before = dump(f.sqlite);
+    r = executePlan(plan, d2);
+    eq('the task deleted meanwhile → stale', [r.reason, dump(f.sqlite) === before], ['stale', true]);
+}
+
+section('phase 5: task types');
+{
+    const { sqlite, ops } = freshDb();
+    let r = resolveOn(ops, planOf({ type: 'create_task_type', name: 'Дизайн' }));
+    eq('global type with the UI default colour', mutationsOf(r, 'task_types', 'insert')[0].row, { id: 'new-1', projectId: null, name: 'Дизайн', color: '#4F46E5' });
+    r = resolveOn(ops, planOf({ type: 'create_task_type', name: ' Дизайн ', color: '#EF4444', project: 'KYC' }));
+    eq('type scoped to a project', mutationsOf(r, 'task_types', 'insert')[0].row, { id: 'new-1', projectId: KYC, name: 'Дизайн', color: '#EF4444' });
+    eq('diff for a scoped type', r.plan.diff.map(d => [d.entity, d.op, d.label, d.changes]), [['task_type', 'create', 'Дизайн', [{ field: 'color', from: null, to: '#EF4444' }, { field: 'scope', from: null, to: 'KYC' }]]]);
+    r = resolveOn(ops, planOf({ type: 'create_task_type', name: 'разработка' }));
+    eq('same name in the same scope is a warning', r.plan.warnings.map(w => w.code), ['duplicate_task_type_name']);
+    r = resolveOn(ops, planOf({ type: 'create_task_type', name: 'Разработка', project: 'KYC' }));
+    eq('same name in another scope is fine', r.plan.warnings.length, 0);
+    r = resolveOn(ops, planOf({ type: 'create_task_type', name: 'X', project: 'Нет такого' }));
+    check('unknown project for a type', !r.ok && r.issues[0].code === 'unknown_project', messages(r));
+
+    r = resolveOn(ops, planOf({ type: 'update_task_type', taskType: 'Согласование', name: 'Ревью', color: '#00ff00' }));
+    eq('rename + recolour patch', mutationsOf(r, 'task_types', 'update')[0].patch, { name: 'Ревью', color: '#00ff00' });
+    eq('diff shows from → to', r.plan.diff[0].changes, [{ field: 'name', from: 'Согласование', to: 'Ревью' }, { field: 'color', from: '#f59e0b', to: '#00ff00' }]);
+    r = resolveOn(ops, planOf({ type: 'update_task_type', taskType: 'Согласование', color: '#F59E0B' }));
+    check('the same colour in another case is no change', !r.ok && r.issues[0].code === 'nothing_to_do', messages(r));
+    r = resolveOn(ops, planOf({ type: 'update_task_type', taskType: 'KYC-only', global: true }));
+    eq('make global sets projectId to NULL; diff says the scope changed', [mutationsOf(r, 'task_types', 'update')[0].patch, r.plan.diff[0].changes], [{ projectId: null }, [{ field: 'scope', from: 'KYC', to: null }]]);
+    r = resolveOn(ops, planOf({ type: 'update_task_type', taskType: 'Разработка', global: true }));
+    check('making a global type global is a no-op', !r.ok && /уже общий/.test(messages(r)), messages(r));
+
+    r = resolveOn(ops, planOf({ type: 'delete_task_type', taskType: 'Согласование' }));
+    eq('delete type: the type goes, its users lose it (updated, not deleted)', [mutationsOf(r, 'task_types', 'delete').length, r.plan.mutations.filter(m => m.table === 'tasks').map(m => [m.op, m.patch])], [1, [['update', { taskTypeId: null }]]]);
+    eq('diff: one type item summarising the unassigned tasks', r.plan.diff.map(d => [d.entity, d.op, d.label, d.cascade]), [['task_type', 'delete', 'Согласование', { unassignedTasks: 1 }]]);
+    eq('the affected task is reported (an open form must reload)', r.plan.affectedTaskIds, [T('Экран логина')]);
+    eq('counts: one type deleted, one task updated', countEntriesOf(sqlite, r.plan), { created: 0, updated: 1, deleted: 1 });
+
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { project: 'KYC', status: 'progress' }, taskType: 'Разработка' }));
+    eq('set_task_type by name on a project filter', r.plan.mutations.map(m => m.patch.taskTypeId), [DEV, DEV, DEV]);
+    eq('diff names the types', r.plan.diff[0].changes, [{ field: 'taskType', from: null, to: 'Разработка' }]);
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { ids: [T('Экран логина')] }, taskType: DEV }));
+    eq('by id; diff shows the old type', r.plan.diff[0].changes, [{ field: 'taskType', from: 'Согласование', to: 'Разработка' }]);
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { ids: [T('Экран логина')] }, taskType: 'NONE' }));
+    eq('"none" clears (any case)', [mutationsOf(r, 'tasks', 'update')[0].patch, r.plan.diff[0].changes], [{ taskTypeId: null }, [{ field: 'taskType', from: 'Согласование', to: null }]]);
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { ids: [T('Проверка паспортов')] }, taskType: 'none' }));
+    check('clearing a task that has no type changes nothing', !r.ok && r.issues[0].code === 'nothing_to_do', messages(r));
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { project: 'KYC' }, taskType: 'KYC-only' }));
+    eq('a type scoped to the project fits its tasks', [r.ok, r.plan.mutations.length], [true, 6]);
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { project: 'Маркетинг' }, taskType: 'tt-kyc-scoped' }));
+    check('a type scoped to another project is refused with both named', !r.ok && r.issues[0].code === 'type_scope' && /проект «KYC»/.test(r.issues[0].message), messages(r));
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { ids: [T('Лендинг')] }, taskType: 'KYC-only' }));
+    check('by name, a type of another project is simply not visible', !r.ok && r.issues[0].code === 'unknown_task_type', messages(r));
+
+    sqlite.prepare(`INSERT INTO task_types (id, projectId, name, color) VALUES ('tt-dup', ?, 'Разработка', '#000000')`).run(KYC);
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { project: 'KYC' }, taskType: 'Разработка' }));
+    check('global + scoped with the same name in one project → ambiguous with scopes', !r.ok && r.issues[0].code === 'ambiguous_task_type' && /общий/.test(r.issues[0].message) && /проект «KYC»/.test(r.issues[0].message) && r.issues[0].message.includes('tt-dup'), messages(r));
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { project: 'Маркетинг' }, taskType: 'Разработка' }));
+    eq('…but another project only sees the global one', [r.ok, r.plan.mutations[0].patch.taskTypeId], [true, DEV]);
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { project: 'KYC' }, taskType: 'tt-dup' }));
+    eq('an id resolves it', r.ok && r.plan.mutations[0].patch.taskTypeId, 'tt-dup');
+
+    r = resolveOn(ops, planOf({ type: 'create_task', project: 'Мобильное приложение', title: 'Т', start: 'today', duration: '1d', taskType: 'Разработка' }));
+    eq('create_task with a type; diff has the name', [mutationsOf(r, 'tasks', 'insert')[0].row.taskTypeId, r.plan.diff[0].changes.find(c => c.field === 'taskType')], [DEV, { field: 'taskType', from: null, to: 'Разработка' }]);
+    r = resolveOn(ops, planOf({ type: 'create_task', project: 'Мобильное приложение', title: 'Т', start: 'today', duration: '1d', taskType: 'KYC-only' }));
+    check('create_task with a type of another project → unknown_task_type', !r.ok && r.issues[0].code === 'unknown_task_type', messages(r));
+    r = resolveOn(ops, planOf({ type: 'create_task', project: 'KYC', title: 'Т', start: 'today', duration: '1d', taskType: 'none' }));
+    eq('create_task with "none" simply has no type', mutationsOf(r, 'tasks', 'insert')[0].row.taskTypeId, null);
+    r = resolveOn(ops, planOf({ type: 'create_task_type', name: 'Новый', color: '#123456' }, { type: 'set_task_type', filter: { ids: [T('Лендинг')] }, taskType: 'новый' }));
+    eq('a type created earlier in the plan can be assigned by name', [r.ok, mutationsOf(r, 'tasks', 'update')[0].patch.taskTypeId === mutationsOf(r, 'task_types', 'insert')[0].row.id], [true, true]);
+    r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { project: 'KYC', status: 'progress' }, taskType: DEV }, { type: 'add_to_board', board: 'Спринт 5', filter: { project: 'KYC', status: 'progress' } }));
+    check('type + board in one plan resolves', r.ok, r.ok ? '' : messages(r));
+    const merged = r.plan.diff.find(d => d.id === T('Верификация адреса'));
+    eq('one diff item per task, with both changes merged', [r.plan.diff.filter(d => d.id === T('Верификация адреса')).length, merged.changes.map(c => c.field)], [1, ['taskType', 'board']]);
+
+    r = resolveOn(ops, planOf({ type: 'delete_project', project: 'KYC' }));
+    check('deleting a project does not list its scoped types as separate items', !r.plan.diff.some(d => d.entity === 'task_type'), JSON.stringify(r.plan.diff.map(d => d.entity)));
+    r = resolveOn(ops, planOf({ type: 'delete_task_type', taskType: 'KYC-only' }, { type: 'delete_project', project: 'KYC' }));
+    check('a type deleted and then its project in one plan resolves', r.ok, r.ok ? '' : messages(r));
+}
+{
+    // counts through execute / undo, including links that are NOT cascades
+    const { sqlite, ops } = freshDb();
+    const deps = depsFor(sqlite, newStore());
+    let res = executePlan(resolveOk(ops, planOf({ type: 'add_to_board', board: 'Спринт 5', filter: { ids: [T('Скоринг клиентов'), T('Лендинг')] } })), deps);
+    eq('execute: two links added', res.counts, { created: 0, updated: 0, deleted: 0, linked: 2 });
+    let undone = undoLastPlan(deps);
+    eq('undo of that: two links removed', undone.restored, { created: 0, updated: 0, deleted: 0, unlinked: 2 });
+    res = executePlan(resolveOk(ops, planOf({ type: 'remove_from_board', board: 'Спринт 5', filter: { ids: [T('Экран логина')] } })), deps);
+    eq('execute: one link removed', res.counts, { created: 0, updated: 0, deleted: 0, unlinked: 1 });
+    undoLastPlan(deps);
+    res = executePlan(resolveOk(ops, planOf({ type: 'delete_tasks', ids: [T('Проверка паспортов')] })), deps);
+    eq('deleting a task that is on a board counts the task only', res.counts, { created: 0, updated: 0, deleted: 1 });
+    undoLastPlan(deps);
+    res = executePlan(resolveOk(ops, planOf({ type: 'create_board', name: 'Н' }, { type: 'create_task_type', name: 'Т' })), deps);
+    eq('boards and types are counted', res.counts, { created: 2, updated: 0, deleted: 0 });
+}
+
+section('phase 5: cascade parity with src/db/schema.ts (boards, task types)');
+{
+    const schemaSrc = fs.readFileSync(path.join(ROOT, 'src/db/schema.ts'), 'utf8');
+    const between = (from, to) => { const a = schemaSrc.indexOf(from); const b = schemaSrc.indexOf(to, a); return schemaSrc.slice(a, b); };
+    const stmts = block => [...block.matchAll(/(DELETE FROM \w+|UPDATE \w+ SET \w+ = NULL)/g)].map(m => m[1]).sort();
+    const { ops } = freshDb();
+    const tablesOf = r => [...new Set(r.plan.mutations.map(m => `${m.op}:${m.table}`))].sort();
+
+    const boardStatements = stmts(between('    boards: {', '    boardTasks: {'));
+    eq('façade: boards.delete removes links, then the board', boardStatements, ['DELETE FROM board_tasks', 'DELETE FROM boards']);
+    eq('delete_board touches exactly those tables', tablesOf(resolveOn(ops, planOf({ type: 'delete_board', board: 'Спринт 5' }))), ['delete:board_tasks', 'delete:boards']);
+
+    const typeStatements = stmts(between('    taskTypes: {', '    boards: {'));
+    eq('façade: taskTypes.delete unassigns tasks, then removes the type', typeStatements, ['DELETE FROM task_types', 'UPDATE tasks SET taskTypeId = NULL']);
+    eq('delete_task_type touches exactly those tables', tablesOf(resolveOn(ops, planOf({ type: 'delete_task_type', taskType: 'Согласование' }))), ['delete:task_types', 'update:tasks']);
 }
 
 fs.rmSync(tmpRoot, { recursive: true, force: true });

@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import type { DbOps, Row } from '../../../db/ops.ts';
 import { getEffectiveDuration, getEffectiveEnd, getEffectiveStartDate, taskOverlapsRange } from '../../../lib/taskDates.ts';
 import type { TaskDates } from '../../../lib/taskDates.ts';
-import { resolveProjectRef } from './resolve.ts';
+import { resolveBoardRef, resolveProjectRef, resolveTypeRef } from './resolve.ts';
 import { STATUSES } from './specs.ts';
 
 /*
@@ -29,6 +29,8 @@ export interface TaskSummary {
     end: string;
     /** End date passed and the task is not done. */
     overdue: boolean;
+    /** Name of the task type, or null. */
+    type: string | null;
 }
 
 export interface ListTasksFilter {
@@ -39,11 +41,31 @@ export interface ListTasksFilter {
     to?: string;
     query?: string;
     limit?: number;
+    /** Board name or id: only tasks on that board. */
+    board?: string;
+    /** Task type name or id; "none" = tasks without a type. */
+    type?: string;
 }
 
 export type ListTasksResult = { tasks: TaskSummary[]; total: number; truncated: boolean } | { error: string };
 
+export interface BoardSummary {
+    id: string;
+    name: string;
+    taskCount: number;
+}
+
+export interface TaskTypeSummary {
+    id: string;
+    name: string;
+    color: string;
+    /** "общий" or the project's name. */
+    scope: string;
+    taskCount: number;
+}
+
 export interface TaskDetail extends TaskSummary {
+    boards: string[];
     description: string;
     steps: { text: string; completed: boolean }[];
     planned: { start: string | null; durationDays: number | null };
@@ -62,7 +84,24 @@ export function listProjects(ops: DbOps): ProjectSummary[] {
     return ops.select('projects', {}, ['createdAt']).map(p => ({ id: String(p.id), name: String(p.name), taskCount: counts.get(String(p.id)) ?? 0 }));
 }
 
-function summarize(task: Row, projectName: string, today: string): TaskSummary {
+export function listBoards(ops: DbOps): BoardSummary[] {
+    const counts = new Map<string, number>();
+    for (const l of ops.select('board_tasks')) counts.set(String(l.boardId), (counts.get(String(l.boardId)) ?? 0) + 1);
+    return ops.select('boards', {}, ['createdAt']).map(b => ({ id: String(b.id), name: String(b.name), taskCount: counts.get(String(b.id)) ?? 0 }));
+}
+
+export function listTaskTypes(ops: DbOps): TaskTypeSummary[] {
+    const projects = new Map(ops.select('projects').map(p => [String(p.id), String(p.name)]));
+    const counts = new Map<string, number>();
+    for (const t of ops.select('tasks')) if (t.taskTypeId) counts.set(String(t.taskTypeId), (counts.get(String(t.taskTypeId)) ?? 0) + 1);
+    return ops.select('task_types').map(t => ({
+        id: String(t.id), name: String(t.name), color: String(t.color),
+        scope: t.projectId ? (projects.get(String(t.projectId)) ?? 'проект') : 'общий',
+        taskCount: counts.get(String(t.id)) ?? 0,
+    }));
+}
+
+function summarize(task: Row, projectName: string, today: string, typeName: string | null): TaskSummary {
     const dates = task as unknown as TaskDates;
     const end = getEffectiveEnd(dates);
     const status = String(task.status ?? 'backlog');
@@ -77,12 +116,15 @@ function summarize(task: Row, projectName: string, today: string): TaskSummary {
         durationDays: getEffectiveDuration(dates),
         end: end.isValid() ? end.format(DAY) : '',
         overdue: status !== 'done' && end.isValid() && end.isBefore(dayjs(today), 'day'),
+        type: typeName,
     };
 }
 
 export function listTasks(ops: DbOps, today: string, filter: ListTasksFilter = {}): ListTasksResult {
     const projects = ops.select('projects');
     const names = new Map(projects.map(p => [String(p.id), String(p.name)]));
+
+    const typeNames = new Map(ops.select('task_types').map(t => [String(t.id), String(t.name)]));
 
     let rows: Row[];
     if (filter.project) {
@@ -96,6 +138,21 @@ export function listTasks(ops: DbOps, today: string, filter: ListTasksFilter = {
         if (!(STATUSES as readonly string[]).includes(filter.status)) return { error: `status должен быть одним из ${STATUSES.join('/')}` };
         rows = rows.filter(t => t.status === filter.status);
     }
+    if (filter.board) {
+        const ref = resolveBoardRef(filter.board, ops.select('boards'));
+        if (!ref.ok) return { error: ref.message };
+        const onBoard = new Set(ops.select('board_tasks', { boardId: ref.row.id }).map(l => String(l.taskId)));
+        rows = rows.filter(t => onBoard.has(String(t.id)));
+    }
+    if (filter.type) {
+        if (filter.type.trim().toLowerCase() === 'none') {
+            rows = rows.filter(t => !t.taskTypeId);
+        } else {
+            const ref = resolveTypeRef(filter.type, ops.select('task_types'));
+            if (!ref.ok) return { error: ref.message };
+            rows = rows.filter(t => t.taskTypeId === ref.row.id);
+        }
+    }
     if (filter.from || filter.to) {
         const from = dayjs(filter.from ?? '1900-01-01').startOf('day');
         const to = dayjs(filter.to ?? '2200-12-31').endOf('day');
@@ -105,7 +162,7 @@ export function listTasks(ops: DbOps, today: string, filter: ListTasksFilter = {
     const q = filter.query?.trim().toLowerCase();
     if (q) rows = rows.filter(t => String(t.title).toLowerCase().includes(q));
 
-    let tasks = rows.map(t => summarize(t, names.get(String(t.projectId)) ?? '', today));
+    let tasks = rows.map(t => summarize(t, names.get(String(t.projectId)) ?? '', today, t.taskTypeId ? (typeNames.get(String(t.taskTypeId)) ?? null) : null));
     if (filter.overdue !== undefined) tasks = tasks.filter(t => t.overdue === filter.overdue);
     tasks.sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title));
 
@@ -128,7 +185,8 @@ export function getTask(ops: DbOps, today: string, id: string): TaskDetail | { e
     }
     const text = htmlToText(String(task.description ?? ''));
     return {
-        ...summarize(task, project ? String(project.name) : '', today),
+        ...summarize(task, project ? String(project.name) : '', today, task.taskTypeId ? String(ops.get('task_types', String(task.taskTypeId))?.name ?? '') || null : null),
+        boards: ops.select('board_tasks', { taskId: task.id }).map(l => String(ops.get('boards', String(l.boardId))?.name ?? '')).filter(Boolean),
         description: text.length > DESCRIPTION_CHARS ? `${text.slice(0, DESCRIPTION_CHARS)}…` : text,
         steps,
         planned: { start: (task.plannedStartDate as string | null) || null, durationDays: (task.plannedDuration as number | null) || null },

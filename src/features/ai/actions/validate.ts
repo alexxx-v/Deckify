@@ -1,6 +1,6 @@
 import type { Action, Plan, PlanIssue, TaskFilter, TaskSet, TaskStatusValue, ValidateResult } from './types.ts';
 import { DATE_TOKEN_RE, DURATION_TOKEN_RE, SHIFT_TOKEN_RE, resolveDate } from './dates.ts';
-import { LIMITS, MAX_ACTIONS, STATUSES } from './specs.ts';
+import { ACTION_SPECS, LIMITS, MAX_ACTIONS, STATUSES } from './specs.ts';
 
 /*
  * Schema-level validation of a model plan. Nothing is coerced or repaired: a numeric `duration` is a
@@ -13,6 +13,7 @@ const SET_KEYS = ['shift', 'start', 'duration', 'status', 'title', 'description'
 const FILTER_KEYS = ['project', 'status', 'ids'];
 // Relative tokens are range-checked again against the real "today" in resolve.ts.
 const SANITY_BASE = '2026-01-01';
+const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -58,6 +59,20 @@ function validateAction(rawAction: unknown, index: number, issues: PlanIssue[]):
         if (value.length > LIMITS.ids) err('too_many', `${type}: в ${field} не больше ${LIMITS.ids} id`);
         return value as string[];
     };
+    /** The `filter` object shared by update_tasks, add_to_board, remove_from_board and set_task_type. */
+    const readFilter = (f: unknown): TaskFilter => {
+        const filter: TaskFilter = {};
+        if (!isObj(f) || Object.keys(f).length === 0) {
+            err('empty_filter', `${type}: нужен непустой filter (project, status или ids)`);
+            return filter;
+        }
+        const bad = Object.keys(f).filter(k => !FILTER_KEYS.includes(k));
+        if (bad.length) err('unknown_field', `${type}: неизвестные поля filter: ${bad.join(', ')}`);
+        if (f.project !== undefined) { if (isStr(f.project)) filter.project = f.project; else err('bad_type', `${type}: filter.project должен быть строкой`); }
+        if (f.status !== undefined) { if (isStatus(f.status)) filter.status = f.status; else err('bad_enum', `${type}: filter.status некорректен «${String(f.status)}»`); }
+        if (f.ids !== undefined) filter.ids = idList(f.ids, 'filter.ids');
+        return filter;
+    };
 
     switch (type) {
         case 'create_task': {
@@ -81,22 +96,15 @@ function validateAction(rawAction: unknown, index: number, issues: PlanIssue[]):
                 else steps = a.steps as string[];
             }
             if (a.status !== undefined && !isStatus(a.status)) err('bad_enum', `create_task: status должен быть одним из ${STATUSES.join('/')}, получено «${String(a.status)}»`);
+            let taskType: string | undefined;
+            if (a.taskType !== undefined) { if (isStr(a.taskType)) taskType = a.taskType; else err('bad_type', 'create_task: taskType должен быть строкой'); }
             if (issues.length > before) return null;
-            return { type, project, title, start: start as string, duration: duration as string, description, steps, status: a.status as TaskStatusValue | undefined };
+            return { type, project, title, start: start as string, duration: duration as string, description, steps, status: a.status as TaskStatusValue | undefined, taskType };
         }
         case 'update_tasks': {
-            const filter: TaskFilter = {};
             const set: TaskSet = {};
-            const f = a.filter;
             const s = a.set;
-            if (!isObj(f) || Object.keys(f).length === 0) err('empty_filter', 'update_tasks: нужен непустой filter (project, status или ids)');
-            else {
-                const bad = Object.keys(f).filter(k => !FILTER_KEYS.includes(k));
-                if (bad.length) err('unknown_field', `update_tasks: неизвестные поля filter: ${bad.join(', ')}`);
-                if (f.project !== undefined) { if (isStr(f.project)) filter.project = f.project; else err('bad_type', 'update_tasks: filter.project должен быть строкой'); }
-                if (f.status !== undefined) { if (isStatus(f.status)) filter.status = f.status; else err('bad_enum', `update_tasks: filter.status некорректен «${String(f.status)}»`); }
-                if (f.ids !== undefined) filter.ids = idList(f.ids, 'filter.ids');
-            }
+            const filter = readFilter(a.filter);
             if (!isObj(s) || Object.keys(s).length === 0) err('empty_set', 'update_tasks: нужен непустой set');
             else {
                 const bad = Object.keys(s).filter(k => !SET_KEYS.includes(k));
@@ -145,8 +153,64 @@ function validateAction(rawAction: unknown, index: number, issues: PlanIssue[]):
             if (issues.length > before) return null;
             return { type, project };
         }
+        case 'create_board': {
+            const name = needStr('name', LIMITS.projectName);
+            if (issues.length > before) return null;
+            return { type, name };
+        }
+        case 'rename_board': {
+            const board = needStr('board', LIMITS.projectName * 2);
+            const name = needStr('name', LIMITS.projectName);
+            if (issues.length > before) return null;
+            return { type, board, name };
+        }
+        case 'delete_board': {
+            const board = needStr('board', LIMITS.projectName * 2);
+            if (issues.length > before) return null;
+            return { type, board };
+        }
+        case 'add_to_board':
+        case 'remove_from_board': {
+            const board = needStr('board', LIMITS.projectName * 2);
+            const filter = readFilter(a.filter);
+            if (issues.length > before) return null;
+            return { type, board, filter };
+        }
+        case 'create_task_type': {
+            const name = needStr('name', LIMITS.projectName);
+            let color: string | undefined;
+            if (a.color !== undefined) { if (typeof a.color === 'string' && COLOR_RE.test(a.color)) color = a.color; else err('bad_token', `create_task_type: color должен быть в формате #RRGGBB, получено «${String(a.color)}»`); }
+            let project: string | undefined;
+            if (a.project !== undefined) { if (isStr(a.project)) project = a.project; else err('bad_type', 'create_task_type: project должен быть строкой'); }
+            if (issues.length > before) return null;
+            return { type, name, color, project };
+        }
+        case 'update_task_type': {
+            const taskType = needStr('taskType', LIMITS.projectName * 2);
+            let name: string | undefined;
+            if (a.name !== undefined) { if (isStr(a.name) && a.name.length <= LIMITS.projectName) name = a.name; else err('bad_type', `update_task_type: name должен быть строкой до ${LIMITS.projectName} символов`); }
+            let color: string | undefined;
+            if (a.color !== undefined) { if (typeof a.color === 'string' && COLOR_RE.test(a.color)) color = a.color; else err('bad_token', `update_task_type: color должен быть в формате #RRGGBB, получено «${String(a.color)}»`); }
+            // `global: false` is what constrained decoding writes for an unused boolean; it means "not set".
+            let global: boolean | undefined;
+            if (a.global !== undefined && a.global !== false) { if (a.global === true) global = true; else err('bad_type', 'update_task_type: global может быть только true'); }
+            if (issues.length === before && name === undefined && color === undefined && global === undefined) err('empty_set', 'update_task_type: укажи хотя бы одно из name, color, global');
+            if (issues.length > before) return null;
+            return { type, taskType, name, color, global };
+        }
+        case 'delete_task_type': {
+            const taskType = needStr('taskType', LIMITS.projectName * 2);
+            if (issues.length > before) return null;
+            return { type, taskType };
+        }
+        case 'set_task_type': {
+            const taskType = needStr('taskType', LIMITS.projectName * 2);
+            const filter = readFilter(a.filter);
+            if (issues.length > before) return null;
+            return { type, filter, taskType };
+        }
         default:
-            err('unknown_type', `неизвестный тип действия «${String(type)}»; допустимы create_task, update_tasks, delete_tasks, create_project, rename_project, delete_project`);
+            err('unknown_type', `неизвестный тип действия «${String(type)}»; допустимы ${ACTION_SPECS.map(x => x.type).join(', ')}`);
             return null;
     }
 }

@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
 import { dbRead, dbTransaction, getDbPath } from '@/db/schema';
 import { describeUndo, executePlan, undoLastPlan } from './execute';
-import { getTask, listProjects, listTasks } from './readTools';
+import { getTask, listBoards, listProjects, listTaskTypes, listTasks } from './readTools';
 import type { ListTasksFilter } from './readTools';
 import { resolvePlan } from './resolve';
 import type { ExecuteResult, ResolvedPlan, ResolveResult, UndoResult } from './types';
@@ -74,6 +74,10 @@ export function runAiReadTool(name: string, args: unknown): unknown {
             switch (name) {
                 case 'list_projects':
                     return listProjects(ops);
+                case 'list_boards':
+                    return listBoards(ops);
+                case 'list_task_types':
+                    return listTaskTypes(ops);
                 case 'list_tasks':
                     return listTasks(ops, today(), input as ListTasksFilter);
                 case 'get_task':

@@ -59,7 +59,43 @@ function apply(ops: DbOps, m: Mutation): void {
 }
 
 const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const countable = (table: TableName) => table === 'tasks' || table === 'projects';
+const COUNTED: readonly TableName[] = ['tasks', 'projects', 'boards', 'task_types'];
+
+/**
+ * What a set of row changes means to the user. Rows of tasks, projects, boards and task types are counted as
+ * created / updated / deleted; board links are counted as `linked` / `unlinked` only when they are the change itself,
+ * and a project's scoped task types only when they are not removed together with their project. `invert` reads the entries backwards (undo).
+ */
+export function countEntries(entries: UndoEntry[], invert: boolean): Counts {
+    const from = (e: UndoEntry) => (invert ? e.after : e.before);
+    const to = (e: UndoEntry) => (invert ? e.before : e.after);
+    const gone = (table: TableName) => new Set(entries.filter(e => e.table === table && from(e) !== null && to(e) === null).map(e => e.id));
+    const goneTasks = gone('tasks');
+    const goneBoards = gone('boards');
+    const goneProjects = gone('projects');
+
+    const counts: Counts = { created: 0, updated: 0, deleted: 0 };
+    let linked = 0;
+    let unlinked = 0;
+    for (const e of entries) {
+        if (COUNTED.includes(e.table)) {
+            // A project's own task types disappear with it; they are not what the user asked to delete.
+            if (e.table === 'task_types' && to(e) === null && from(e) !== null && goneProjects.has(String((from(e) as Row).projectId))) continue;
+            if (from(e) === null && to(e) !== null) counts.created++;
+            else if (from(e) !== null && to(e) === null) counts.deleted++;
+            else counts.updated++;
+        } else if (e.table === 'board_tasks') {
+            if (from(e) === null && to(e) !== null) linked++;
+            else if (from(e) !== null && to(e) === null) {
+                const link = from(e) as Row;
+                if (!goneTasks.has(String(link.taskId)) && !goneBoards.has(String(link.boardId))) unlinked++;
+            }
+        }
+    }
+    if (linked) counts.linked = linked;
+    if (unlinked) counts.unlinked = unlinked;
+    return counts;
+}
 
 export function executePlan(plan: ResolvedPlan, deps: ExecuteDeps): ExecuteResult {
     // A reply-only plan must not replace the undo record of the last real change.
@@ -92,16 +128,12 @@ export function executePlan(plan: ResolvedPlan, deps: ExecuteDeps): ExecuteResul
         });
     } catch (e) {
         if (e instanceof StaleError) return { ok: false, reason: 'stale', stale: e.stale };
+        // Someone put the same task on the same board between the preview and the confirmation.
+        if (/UNIQUE constraint failed: board_tasks/.test(errorMessage(e))) return { ok: false, reason: 'stale', stale: [{ table: 'board_tasks', id: '', label: 'board link' }] };
         return { ok: false, reason: 'error', message: errorMessage(e) };
     }
 
-    const counts: Counts = { created: 0, updated: 0, deleted: 0 };
-    for (const e of entries) {
-        if (!countable(e.table)) continue;
-        if (e.before === null && e.after !== null) counts.created++;
-        else if (e.before !== null && e.after === null) counts.deleted++;
-        else counts.updated++;
-    }
+    const counts = countEntries(entries, false);
 
     const record: UndoRecord = {
         version: 1,
@@ -138,13 +170,7 @@ export function undoLastPlan(deps: RunDeps): UndoResult {
             for (const e of record.entries) if (e.before === null) ops.remove(e.table, e.id);
             for (const e of record.entries) if (e.before !== null) ops.upsert(e.table, e.before);
 
-            const counts: Counts = { created: 0, updated: 0, deleted: 0 };
-            for (const e of record.entries) {
-                if (!countable(e.table)) continue;
-                if (e.before === null) counts.deleted++;
-                else if (e.after === null) counts.created++;
-                else counts.updated++;
-            }
+            const counts = countEntries(record.entries, true);
             return counts;
         });
     } catch (e) {

@@ -27,6 +27,8 @@ const cs = await import('../src/features/ai/agent/conversationState.ts');
 const { resolvePlan } = await import('../src/features/ai/actions/resolve.ts');
 const { buildPlanFormatSchema, describeActionsForPrompt } = await import('../src/features/ai/actions/specs.ts');
 const { AiError } = await import('../src/features/ai/types.ts');
+const { parseQueries, formatQueryResults } = await import('../src/features/ai/agent/queries.ts');
+const readTools = await import('../src/features/ai/actions/readTools.ts');
 
 const { TODAY } = fixtures;
 const KYC = fixtures.projectByName('KYC').id;
@@ -64,22 +66,32 @@ section('context');
     const passports = fixtures.byTitle('Проверка паспортов');
     eq('open task wins over the project', screenLineOf({ tab: 'projects', projectId: KYC, taskId: passports.id }), `Открытый экран: задача «Проверка паспортов» (id ${passports.id}) в проекте «KYC»`);
     eq('project settings', screenLineOf({ tab: 'projects', projectSettingsId: KYC }), `Открытый экран: настройки проекта «KYC» (id ${KYC})`);
-    eq('board', screenLineOf({ tab: 'boards', boardId: fixtures.boards[0].id }), 'Открытый экран: доска «Спринт 5»');
+    eq('board (with its id)', screenLineOf({ tab: 'boards', boardId: fixtures.boards[0].id }), `Открытый экран: доска «Спринт 5» (id ${fixtures.boards[0].id})`);
     eq('a deleted task falls back to the project', screenLineOf({ tab: 'projects', projectId: KYC, taskId: 'gone' }), `Открытый экран: проект «KYC» (id ${KYC})`);
     eq('a deleted project falls back to the tab', screenLineOf({ tab: 'projects', projectId: 'gone' }), 'Открытый экран: список проектов');
 
     const text = ctx({ tab: 'projects', projectId: KYC }).text;
     eq('date line', line(text, 'Сегодня:'), 'Сегодня: 2026-10-13 (Tuesday)');
-    // every line of the spike's context is present (layout unchanged), apart from task order and the marker
-    const spikeLines = fixtures.contextFor({ projectName: 'KYC' }).split('\n').filter(l => l.trim());
-    const ourLines = new Set(text.split('\n').map(l => l.replace(' | просрочена', '')));
-    const missing = spikeLines.filter(l => !ourLines.has(l) && !l.startsWith('Типы задач:'));
-    eq('layout is a superset of the spike\'s measured layout', missing, []);
-    check('task types line lists the global types (this DB also has a project-scoped one)', /^Типы задач: Разработка, Согласование/.test(line(text, 'Типы задач:')));
+    // every line of the spike's context is present (layout unchanged), apart from task order, the markers added later
+    // (type suffix, overdue marker) and the two one-line blocks Phase 5 replaced with id tables
+    const spikeLines = fixtures.contextFor({ projectName: 'KYC' }).split('\n').filter(l => l.trim() && !l.startsWith('Типы задач:') && !l.startsWith('Доски:'));
+    const ourLines = new Set(text.split('\n').map(l => l.replace(' | просрочена', '').replace(/ \| тип «[^»]*»/, '')));
+    eq('layout is a superset of the spike\'s measured layout', spikeLines.filter(l => !ourLines.has(l)), []);
+    eq('boards block: id | name | task count', text.split('\n').slice(text.split('\n').indexOf('Доски (id | название | задач):') + 1, text.split('\n').indexOf('Типы задач (id | название | область):') - 1), [`${fixtures.boards[0].id} | Спринт 5 | 3`]);
+    const typeLines = text.split('\n').slice(text.split('\n').indexOf('Типы задач (id | название | область):') + 1).filter(Boolean);
+    eq('types block: id | name | scope (global or the project)', typeLines, [`${fixtures.taskTypes[0].id} | Разработка | общий`, `${fixtures.taskTypes[1].id} | Согласование | общий`, 'tt-kyc-scoped | KYC-only | KYC']);
+    check('the old one-line blocks are gone', !text.includes('\nДоски: ') && !text.includes('\nТипы задач: '));
+    const loginLine = text.split('\n').find(l => l.startsWith(fixtures.byTitle('Экран логина').id));
+    eq('a task with a type gets a trailing "тип" column', loginLine.endsWith('| 8 | тип «Согласование»'), true);
+    check('a task without a type has none', !text.split('\n').find(l => l.startsWith(fixtures.byTitle('Проверка паспортов').id)).includes('тип «'));
     eq('ids are printed in full', fixtures.tasks.every(t => text.includes(t.id)), true);
 
     const overdueIds = text.split('\n').filter(l => l.endsWith(' | просрочена')).map(l => l.split(' | ')[0]).sort();
     eq('overdue marker only on KYC/Legacy overdue tasks', overdueIds, ['Верификация адреса', 'Отчёт для регулятора', 'Миграция старых анкет'].map(t => fixtures.byTitle(t).id).sort());
+    sqlite.prepare(`UPDATE tasks SET taskTypeId = ? WHERE title = 'Отчёт для регулятора'`).run(fixtures.taskTypes[0].id);
+    const both = ctx({}).text.split('\n').find(l => l.startsWith(fixtures.byTitle('Отчёт для регулятора').id));
+    check('type suffix comes before the overdue marker', both.endsWith('| тип «Разработка» | просрочена'), both);
+    sqlite.prepare(`UPDATE tasks SET taskTypeId = NULL WHERE title = 'Отчёт для регулятора'`).run();
     check('open project tasks come first', text.split('\n').slice(text.split('\n').findIndex(l => l.startsWith('Задачи (id')) + 1).slice(0, 6).every(l => l.split(' | ')[1] === 'KYC'));
     const marketingFirst = ctx({ tab: 'projects', projectId: MARKETING }).text.split('\n');
     check('another project in focus reorders', marketingFirst[marketingFirst.findIndex(l => l.startsWith('Задачи (id')) + 1].split(' | ')[1] === 'Маркетинг');
@@ -101,7 +113,7 @@ section('context');
     })();
     const capped = buildContext(bigOps, { today: TODAY, screen: screen({ tab: 'projects', projectId: 'pa' }) });
     eq('task cap', [capped.shownTasks, capped.totalTasks, capped.truncated, MAX_CONTEXT_TASKS], [150, 401, true, 150]);
-    check('truncation note names the numbers', capped.text.includes('Показаны 150 из 401 задач'));
+    check('truncation note names the numbers and points at queries, not at the user', capped.text.includes('Показаны 150 из 401 задач') && capped.text.includes('запросом list_tasks через queries') && !capped.text.includes('попроси'));
     check('the open project\'s task is shown despite the cap', capped.text.includes('Задача малого проекта'));
     check('done tasks are dropped before active ones', !capped.text.includes('| b-000 |') && capped.text.includes('b-001'));
     const small = buildContext(bigOps, { today: TODAY, screen: screen({}), maxChars: 600 });
@@ -134,11 +146,21 @@ const depsFor = (ops, model) => {
         resolve: v => resolvePlan(v, ops, mkCtx()),
         context: s => { contexts.n++; return buildContext(ops, { today: TODAY, screen: s }); },
         today: () => TODAY,
+        queryCalls: [],
+        runQuery(tool, args) {
+            this.queryCalls.push([tool, args]);
+            if (tool === 'list_tasks') return readTools.listTasks(ops, TODAY, args);
+            if (tool === 'list_boards') return readTools.listBoards(ops);
+            if (tool === 'list_task_types') return readTools.listTaskTypes(ops);
+            if (tool === 'list_projects') return readTools.listProjects(ops);
+            if (tool === 'get_task') return readTools.getTask(ops, TODAY, args.id);
+            return { error: 'unknown tool' };
+        },
     };
 };
-const turn = (ops, replies, input = {}) => {
+const turn = (ops, replies, input = {}, tweak = d => d) => {
     const model = fakeModel(replies);
-    const deps = depsFor(ops, model);
+    const deps = tweak(depsFor(ops, model));
     return runAgentTurn({ userText: 'создай задачу', history: [], screen: screen({ tab: 'projects', projectId: KYC }), previousPlan: 'none', ...input }, deps)
         .then(result => ({ result, model, deps }));
 };
@@ -212,6 +234,57 @@ section('turn');
     eq('context is built once per turn, retries reuse it', (await turn(ops, ['bad', createPlan]).then(r => r.deps.contexts.n)), 1);
     ({ model } = await turn(ops, [createPlan], { previousPlan: 'none' }));
     check('no note when there was no previous plan', !model.calls[0].messages[1].content.startsWith('['));
+}
+
+// ==== queries ===============================================================================================
+section('queries (data questions beyond the context)');
+{
+    const { ops } = freshDb();
+    const ask = (...queries) => ({ reply: '', actions: [], queries });
+    const q = (tool, args = {}) => ({ tool, args });
+    const BOARD_Q = ask(q('list_tasks', { board: 'Спринт 5' }));
+
+    let { result, model, deps } = await turn(ops, [BOARD_Q, { reply: 'В доске три задачи.', actions: [] }]);
+    eq('query → results → answer: one visible turn, two model calls, no retry used', [result.kind, result.reply, result.attempts, result.queryRounds, model.calls.length], ['reply', 'В доске три задачи.', 1, 1, 2]);
+    eq('the read tool ran with the model\'s arguments', deps.queryCalls, [['list_tasks', { board: 'Спринт 5' }]]);
+    const msgs = model.calls[1].messages;
+    eq('second call: raw queries answer, then the results', [msgs.at(-2).role, JSON.parse(msgs.at(-2).content).queries.length, msgs.at(-1).role], ['assistant', 1, 'user']);
+    check('results message names the tool, the args and the data', msgs.at(-1).content.startsWith('Результаты запросов:\nlist_tasks({"board":"Спринт 5"}) → ') && msgs.at(-1).content.includes('Экран логина') && msgs.at(-1).content.endsWith('Ответь на текущий запрос пользователя: «создай задачу». Прежний план повторять не нужно.'));
+    eq('history keeps only the final answer, without the query exchange', JSON.parse(result.assistantJson), { reply: 'В доске три задачи.', actions: [] });
+
+    ({ result, model } = await turn(ops, [BOARD_Q, ask(q('list_boards')), { reply: 'Готово.', actions: [] }]));
+    eq('two rounds are allowed; the second results message says "no more queries"', [result.kind, result.queryRounds, model.calls.length, model.calls[2].messages.at(-1).content.includes('Больше запросов нельзя. Ответь на текущий запрос')], ['reply', 2, 3, true]);
+
+    ({ result, model } = await turn(ops, [BOARD_Q, ask(q('list_boards')), ask(q('list_projects')), { reply: 'ладно', actions: [] }]));
+    eq('a third round is refused with feedback and counts as the one retry', [result.kind, result.attempts, model.calls.length, /лимит запросов исчерпан/.test(model.calls[3].messages.at(-1).content)], ['reply', 2, 4, true]);
+    ({ result } = await turn(ops, [BOARD_Q, ask(q('list_boards')), ask(q('list_projects')), ask(q('list_projects'))]));
+    eq('a model that never stops asking ends as invalid', result.kind, 'invalid');
+
+    ({ result, model } = await turn(ops, [{ reply: '', actions: [{ type: 'create_board', name: 'X' }], queries: [q('list_boards')] }, { reply: 'ок', actions: [{ type: 'create_board', name: 'X' }] }]));
+    eq('queries together with actions are rejected with the reason, then fixed', [result.kind, result.attempts, /нельзя одновременно/.test(model.calls[1].messages.at(-1).content)], ['plan', 2, true]);
+    ({ result, model } = await turn(ops, [ask(q('drop_table')), { reply: 'ок', actions: [] }]));
+    eq('an unknown tool is rejected and listed', [result.kind, result.attempts, /tool должен быть одним из list_projects/.test(model.calls[1].messages.at(-1).content)], ['reply', 2, true]);
+    ({ result, model } = await turn(ops, [ask(q('list_projects', { name: 'x' })), { reply: 'ок', actions: [] }]));
+    check('arguments a tool does not have are rejected', /нет аргументов name/.test(model.calls[1].messages.at(-1).content));
+
+    ({ result, deps } = await turn(ops, [ask(q('list_tasks', { overdue: false, limit: 0, project: '', board: null, status: 'progress' })), { reply: 'ок', actions: [] }]));
+    eq('filler values (false / 0 / "" / null) are dropped before the tool runs', deps.queryCalls, [['list_tasks', { status: 'progress' }]]);
+    ({ result } = await turn(ops, [{ reply: 'вот', actions: [], queries: [] }]));
+    eq('an empty queries array is just a normal answer', [result.kind, result.queryRounds], ['reply', 0]);
+    ({ result } = await turn(ops, [{ reply: 'создаю', actions: [{ type: 'create_board', name: 'Н' }], queries: [] }]));
+    eq('actions with an empty queries array are a normal plan', result.kind, 'plan');
+
+    const ac = new AbortController();
+    ({ result, model } = await turn(ops, [BOARD_Q, { reply: 'не должно дойти', actions: [] }], { signal: ac.signal }, d => ({ ...d, runQuery: (...a) => { ac.abort(); return d.runQuery(...a); } })));
+    eq('aborting while queries run stops before the next model call', [result.kind, model.calls.length], ['aborted', 1]);
+
+    // parser and formatter on their own
+    eq('parseQueries: no queries', parseQueries({ reply: 'x', actions: [] }), null);
+    eq('parseQueries: four queries', parseQueries(ask(q('list_boards'), q('list_boards'), q('list_boards'), q('list_boards'))).problems.length, 1);
+    eq('parseQueries: valid', parseQueries(ask(q('get_task', { id: 'abc' }))), { queries: [{ tool: 'get_task', args: { id: 'abc' } }] });
+    const long = formatQueryResults([q('list_tasks')], [{ rows: 'я'.repeat(7000) }], { last: false, request: 'вопрос' });
+    check('a huge result is cut and says so', long.includes('…обрезано (всего ') && long.length < 6500, String(long.length));
+    check('an error result is passed through', formatQueryResults([q('list_boards')], [{ error: 'нет' }], { last: false, request: 'вопрос' }).includes('{"error":"нет"}'));
 }
 
 // ==== conversation state ====================================================================================
@@ -292,8 +365,9 @@ section('locales');
     // keys built from a variable: every possible value must exist
     for (const st of ['executed', 'rejected', 'superseded', 'stale', 'failed', 'undone']) used.add(`assistant.plan.${st}`);
     for (const op of ['create', 'update', 'delete']) used.add(`assistant.ops.${op}`);
-    for (const e of ['task', 'project']) used.add(`assistant.entity.${e}`);
+    for (const e of ['task', 'project', 'board', 'task_type']) used.add(`assistant.entity.${e}`);
     for (const k of ['backlog', 'inProgress', 'onHold', 'done']) used.add(`taskEdit.${k}`);
+    for (const w of ['duplicate_project_name', 'duplicate_board_name', 'duplicate_task_type_name', 'no_change', 'already_on_board', 'already_on_board_all', 'not_on_board', 'not_on_board_all']) used.add(`assistant.warnings.${w}`);
     const missing = [...used].filter(k => !has(en, k) || !has(ru, k));
     eq(`all ${used.size} translation keys used by the assistant exist in both languages`, missing, []);
     const unused = flat(en.assistant).map(k => `assistant.${k}`).filter(k => !used.has(k) && !fs.readFileSync(path.join(ROOT, 'src/features/assistant/AiAssistant.tsx'), 'utf8').includes(k.replace('assistant.', '')));
