@@ -11,6 +11,8 @@ import { BoardTasks } from './features/boards/BoardTasks'
 import { initDb } from './db/schema'
 import { Button } from './components/ui/button'
 import { useTranslation } from 'react-i18next'
+import { AiAssistant } from './features/assistant/AiAssistant'
+import type { DataChange } from './features/ai/agent/session'
 
 type Tab = 'dashboard' | 'projects' | 'boards' | 'settings' | 'templates';
 
@@ -30,6 +32,8 @@ function App() {
     return saved !== null ? JSON.parse(saved) : true;
   });
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
+  // Bumped when the AI assistant changes the task open in the editor: the form fills itself only once, so it is remounted.
+  const [editorReload, setEditorReload] = useState(0);
 
   const showNotification = (message: string, type: 'success' | 'info' = 'success') => {
     setNotification({ message, type });
@@ -81,6 +85,28 @@ function App() {
       setDbError('Failed to initialize SQLite at that path.');
     }
   };
+
+  // The assistant changed or removed data: reload the open task form, and close views whose entity is gone.
+  const handleAiDataChanged = useCallback((change: DataChange) => {
+    let closed = false;
+    if (editingTaskId) {
+      if (change.removedTaskIds.includes(editingTaskId)) {
+        setEditingTaskId(null);
+        closed = true;
+      } else if (change.touchedTaskIds.includes(editingTaskId)) {
+        setEditorReload(n => n + 1);
+      }
+    }
+    if (selectedProjectId && change.removedProjectIds.includes(selectedProjectId)) {
+      setSelectedProjectId(null);
+      closed = true;
+    }
+    if (selectedProjectSettingsId && change.removedProjectIds.includes(selectedProjectSettingsId)) {
+      setSelectedProjectSettingsId(null);
+      closed = true;
+    }
+    if (closed) showNotification(t('assistant.viewClosed'), 'info');
+  }, [editingTaskId, selectedProjectId, selectedProjectSettingsId, t]);
 
   const navigateTo = useCallback((tab: Tab) => {
     setActiveTab(tab);
@@ -201,7 +227,7 @@ function App() {
           <div key={activeTab + (selectedProjectId || '') + (editingTaskId || '') + (selectedBoardId || '')} className="animate-in fade-in zoom-in-95 duration-300 fill-mode-both">
             {editingTaskId ? (
               <TaskEditView
-                key={editingTaskId}
+                key={`${editingTaskId}:${editorReload}`}
                 taskId={editingTaskId}
                 onBack={() => setEditingTaskId(null)}
                 onDuplicate={(newId) => {
@@ -245,7 +271,7 @@ function App() {
       </main>
 
       {notification && (
-        <div className="fixed bottom-6 right-6 z-[60] animate-in slide-in-from-bottom-5 duration-300">
+        <div className="fixed bottom-24 right-6 z-[60] animate-in slide-in-from-bottom-5 duration-300">
           <div className={`px-5 py-3 rounded-xl shadow-2xl border flex items-center gap-3 backdrop-blur-md ${
             notification.type === 'success' 
               ? 'bg-emerald-600/90 text-white border-emerald-500/50 shadow-emerald-500/20' 
@@ -260,6 +286,12 @@ function App() {
           </div>
         </div>
       )}
+
+      <AiAssistant
+        screen={{ tab: activeTab, projectId: selectedProjectId, taskId: editingTaskId, boardId: selectedBoardId, projectSettingsId: selectedProjectSettingsId }}
+        onOpenSettings={() => navigateTo('settings')}
+        onDataChanged={handleAiDataChanged}
+      />
     </div>
   )
 }

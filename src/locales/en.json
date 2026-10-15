@@ -144,7 +144,59 @@
         "projectSettings": "Project Settings",
         "makeGlobal": "Make Global",
         "makeGlobalConfirm": "Make this type global? It will be available in all projects.",
-        "globalLabel": "Global"
+        "globalLabel": "Global",
+        "ai": {
+            "title": "AI assistant (Ollama)",
+            "description": "Connect Deckify to Ollama so the assistant can create and edit tasks. This block only configures the connection.",
+            "desktopOnly": "The AI assistant is available only in the desktop application.",
+            "connection": "Connection",
+            "modeLocal": "Local Ollama",
+            "modeCloud": "Ollama Cloud",
+            "serverUrl": "Server URL",
+            "invalidUrl": "Enter a valid http(s) address, e.g. http://localhost:11434",
+            "localHint": "Cloud models (such as gpt-oss:120b-cloud) also work through the local server after running `ollama signin` in a terminal.",
+            "apiKey": "API key",
+            "apiKeyPlaceholder": "Paste a key from ollama.com/settings/keys",
+            "saveKey": "Save key",
+            "removeKey": "Remove key",
+            "keyStorage": {
+                "keychain": "The key is stored encrypted in the system keychain.",
+                "session": "System secure storage is unavailable: the key is kept only until the app is closed.",
+                "none": "No key saved.",
+                "decryptFailed": "The saved key could not be decrypted. Please enter it again."
+            },
+            "cloudKeyNote": "The key is checked on the first request to the assistant, not by the connection test.",
+            "cloudPrivacy": "With Ollama Cloud, your messages and the task data they include are sent to ollama.com.",
+            "model": "Model",
+            "chooseModel": "Choose a model…",
+            "refreshModels": "Refresh list",
+            "loadingModels": "Loading models…",
+            "noModels": "No models found.",
+            "notFound": "not found",
+            "smallModelWarning": "This model is small ({{size}}). Plans from models under {{threshold}}B are often wrong; prefer a larger model such as gpt-oss:120b.",
+            "testConnection": "Test connection",
+            "testing": "Checking...",
+            "connectedLocal": "Connected: Ollama {{version}}, models: {{count}}",
+            "connectedCloud": "Connected to Ollama Cloud, models: {{count}}",
+            "oldVersion": "Ollama {{version}} is older than {{min}}: structured output may not work. Please update Ollama.",
+            "noModelSelected": "No model selected.",
+            "selectedModelMissing": "The selected model is not available on this server.",
+            "errors": {
+                "unavailable": "The app cannot reach its background process.",
+                "unreachable_local": "Cannot reach Ollama. Start Ollama and check the server URL.",
+                "unreachable_cloud": "Cannot reach ollama.com. Check your internet connection.",
+                "unauthorized": "The API key was rejected. Create a new one at ollama.com/settings/keys.",
+                "signin_required": "Ollama refused the request. For cloud models, run `ollama signin` in a terminal.",
+                "model_not_found": "The model was not found on this server. Pick another one.",
+                "rate_limited": "Rate limit reached. Try again later.",
+                "server": "The Ollama server returned an error.",
+                "bad_request": "The server rejected the request.",
+                "unsupported_version": "This server does not support the required API. Please update Ollama.",
+                "timeout": "The request timed out.",
+                "aborted": "The request was cancelled.",
+                "bad_response": "Unexpected response from the server."
+            }
+        }
     },
     "pdf": {
         "progressOverview": "Progress Overview",
@@ -249,5 +301,88 @@
         "deleteBoard": "Delete Board",
         "deleteBoardConfirm": "Are you sure you want to delete board \"{{name}}\"? Project tasks will not be affected.",
         "fromProject": "from"
+    },
+    "assistant": {
+        "title": "Assistant",
+        "open": "Open the assistant",
+        "close": "Close",
+        "newDialog": "New dialog",
+        "undoLast": "Undo the last change",
+        "placeholder": "Describe what to create or change…",
+        "send": "Send",
+        "stop": "Stop",
+        "thinking": "Thinking… {{seconds}} s",
+        "smallModel": "Small model: plans may be wrong",
+        "cloudNotice": "Ollama Cloud: your messages and task titles are sent to ollama.com.",
+        "viewClosed": "The open screen was closed because the assistant deleted its data.",
+        "empty": {
+            "title": "What should I do with your tasks?",
+            "ex1": "Create a task “Prepare report” in this project, start today, 5 days",
+            "ex2": "Shift all in-progress tasks by a week",
+            "ex3": "What is overdue?"
+        },
+        "notReady": {
+            "noModel": "Choose a model in Settings first.",
+            "noKey": "Ollama Cloud needs an API key. Add it in Settings.",
+            "goToSettings": "Open Settings"
+        },
+        "plan": {
+            "title": "Plan",
+            "execute": "Apply",
+            "reject": "Reject",
+            "executed": "Applied",
+            "rejected": "Rejected",
+            "superseded": "Replaced by a newer plan",
+            "stale": "The data changed after this plan was made. Nothing was applied.",
+            "failed": "The plan could not be applied. Nothing was changed.",
+            "replan": "Plan again",
+            "undo": "Undo",
+            "undone": "Undone",
+            "undoUnavailable": "Undo is not available for this change.",
+            "confirmDirty": "The task “{{title}}” is open with unsaved changes. Applying the plan reloads the form and discards them.",
+            "openTask": "an open task",
+            "confirmExecute": "Apply anyway",
+            "cancel": "Cancel",
+            "showAll": "Show all ({{count}})",
+            "showLess": "Show less",
+            "cascade": "Also removed: {{tasks}} tasks, {{links}} board links, {{types}} task types",
+            "result": "Created {{created}}, changed {{updated}}, deleted {{deleted}}"
+        },
+        "ops": {
+            "create": "Create",
+            "update": "Change",
+            "delete": "Delete"
+        },
+        "entity": {
+            "task": "task",
+            "project": "project"
+        },
+        "fields": {
+            "title": "Title",
+            "name": "Name",
+            "status": "Status",
+            "progress": "Progress",
+            "startDate": "Start (actual)",
+            "duration": "Duration (actual)",
+            "plannedStartDate": "Start (plan)",
+            "plannedDuration": "Duration (plan)",
+            "description": "Description",
+            "steps": "Steps"
+        },
+        "values": {
+            "days": "{{count}} d",
+            "updated": "updated",
+            "items": "{{count}} items",
+            "empty": "—"
+        },
+        "errors": {
+            "invalid": "The model could not produce a valid plan. Nothing was changed. Try rephrasing the request.",
+            "undoConflict": "Undo is blocked: these items were changed after the plan:",
+            "undoError": "Undo failed:"
+        },
+        "info": {
+            "undone": "Undone: {{labels}}",
+            "aborted": "Request stopped."
+        }
     }
 }

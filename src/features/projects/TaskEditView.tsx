@@ -9,6 +9,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { RichTextEditor } from '@/components/RichTextEditor';
+import { setTaskEditorDirty } from '@/lib/editorState';
 
 function SortableStepItem({ step, onUpdate, onDelete, t }: { step: TaskStep, onUpdate: (step: TaskStep) => void, onDelete: () => void, t: any }) {
     const {
@@ -135,6 +136,12 @@ export function TaskEditView({ taskId, onBack, onDuplicate }: { taskId: string, 
     useEffect(() => {
         setIsInitialized(false);
     }, [taskId]);
+
+    // Tell code outside this form (the AI assistant) whether it holds unsaved edits.
+    useEffect(() => {
+        setTaskEditorDirty(taskId, isDirty);
+        return () => setTaskEditorDirty(taskId, false);
+    }, [taskId, isDirty]);
 
     // Browser-level warning for unsaved changes
     useEffect(() => {

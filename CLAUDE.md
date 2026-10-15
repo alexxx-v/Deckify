@@ -25,15 +25,16 @@ Local-first Electron app: React renderer ⇄ SQLite file on disk. No server, no 
 
 ### Database layer (`src/db/schema.ts`) — the load-bearing file
 
-`electron/main.cjs` deliberately runs the window with `nodeIntegration: true, contextIsolation: false`, so the **renderer opens SQLite directly** via `window.require('better-sqlite3')`. There is no preload script and no IPC for data — IPC exists only for `get-user-data-path`, `open-folder`, and update checks.
+`electron/main.cjs` deliberately runs the window with `nodeIntegration: true, contextIsolation: false`, so the **renderer opens SQLite directly** via `window.require('better-sqlite3')`. There is no preload script and no IPC for data — IPC exists only for `get-user-data-path`, `open-folder`, update checks, and the AI assistant's `ai:*` channels (an allow-listed HTTP proxy to Ollama plus the API-key store; see below).
 
 Consequences worth knowing before touching anything data-related:
 
 - `db.*` is a **hand-written Dexie-shaped façade** over raw prepared statements (`db.projects`, `db.tasks`, `db.templates`, `db.taskTypes`, `db.boards`, `db.boardTasks`). Only the method shapes actually used by the UI exist; `where().equals()` etc. are narrow stubs, not a general query builder. Mixed sync/async signatures are intentional (reads sync, writes `async`).
 - Reactivity is a homemade `useLiveQuery` backed by a module-level `listeners` Set. **Every mutation must call `notifySubscribers()`** or the UI silently goes stale.
+- `dbTransaction(fn)` / `dbRead(fn)` / `getDbPath()` (exported from `schema.ts`) give the AI action registry row-level access (`src/db/ops.ts`) in **one** transaction with **one** `notifySubscribers()`. The `db.*` façade is unchanged. **A schema change (new column or table) must also update `TABLE_COLUMNS` in `src/db/ops.ts`** — `assertSchema()` throws on any mismatch so cascades and undo cannot silently miss data.
 - Migrations run in `initDb()` against `PRAGMA user_version` (currently at 2). Add a new `if (dbVersion < N) { ...; sqliteDb.exec('PRAGMA user_version = N') }` block; never edit an existing one. `CREATE TABLE IF NOT EXISTS` at the top covers fresh installs, so new tables/columns need to be added in *both* places.
 - Outside Electron (`npm run dev`), `Database` is `null` and every accessor returns empty — the UI renders but stays blank.
-- The DB path lives in `localStorage['sqliteDataPath']`, chosen by the user on first launch (App.tsx setup screen). View preferences use `deckify_*` localStorage keys.
+- The DB path lives in `localStorage['sqliteDataPath']`, chosen by the user on first launch (App.tsx setup screen). View preferences use `deckify_*` localStorage keys (AI connection settings: `deckify_ai_*`; the Ollama Cloud API key is **never** in localStorage).
 
 ### Second DB consumer: `mcp/src/index.ts`
 
@@ -41,7 +42,7 @@ The MCP server is an independent stdio server (own `package.json`, own TypeScrip
 
 ### Navigation
 
-No router. `App.tsx` holds `activeTab` plus `selectedProjectId` / `editingTaskId` / `selectedBoardId` / `selectedProjectSettingsId`, and the render is one ordered ternary chain — detail views win over tabs by position in that chain. Feature code lives in `src/features/{projects,boards,dashboard,pdf,settings}/`; `src/components/ui/` is generated shadcn/ui.
+No router. `App.tsx` holds `activeTab` plus `selectedProjectId` / `editingTaskId` / `selectedBoardId` / `selectedProjectSettingsId`, and the render is one ordered ternary chain — detail views win over tabs by position in that chain. Feature code lives in `src/features/{projects,boards,dashboard,pdf,settings,ai}/`; `src/components/ui/` is generated shadcn/ui.
 
 ### PDF export pipeline
 
@@ -59,6 +60,18 @@ Adding a block type touches four places: the `TemplateBlockType` union in `src/d
 ### Tasks: planned vs actual
 
 Every task carries two independent schedules — `startDate`/`duration` (actual) and `plannedStartDate`/`plannedDuration` (planned, backfilled by migration 2). The roadmap views draw both layers; keep them in sync when adding task-editing code. `steps` is a JSON string of `TaskStep[]`; `status` is `backlog | progress | hold | done`.
+
+### AI assistant (`src/features/ai/`, `electron/ai-bridge.cjs`)
+
+Connection layer for the Ollama-based assistant (design: `.claude/PRPs/prds/ai-task-assistant.prd.md`, model findings: `docs/plans/2026-10-13-ai-assistant-spike-results.md`).
+
+- All Ollama HTTP goes **through the main process** (`ai:request`, `ai:abort`): same path in dev and packaged builds, no CORS, and the Ollama Cloud key (`ai:key-*`, stored with `safeStorage` in `<userData>/ai-key.bin`) never reaches the renderer. The main process only allows `/api/tags`, `/api/version`, `/api/chat`; the cloud URL is a constant and the key is attached only to cloud chat requests.
+- `createOllamaProvider(config, transport)` is transport-agnostic; the renderer uses `createIpcTransport()`. It only moves messages — a `format` schema is a decoding constraint the model never sees and Ollama Cloud does not enforce it, so callers must also put the schema in the prompt, parse with `extractJson`, and validate.
+- `types.ts`, `ollamaUtils.ts`, `json.ts`, `ollamaProvider.ts` are exercised directly by Node (type stripping), so they import each other with explicit `.ts` extensions and `import type`, and use no enums or constructor parameter properties. Run `node scripts/ai-provider-check.mjs` after touching them or `electron/ai-bridge.cjs` (it fakes Electron for the bridge and also uses a live local Ollama / ollama.com when available). `scripts/ai-spike/` holds the model-evaluation harness.
+
+**Action registry** (`src/features/ai/actions/`): `validatePlan` → `resolvePlan` (names → ids, tokens → dates, cascades expanded into row mutations, diff, preconditions; writes nothing) → `executePlan` (re-checks preconditions, applies in one transaction, writes the undo record after commit) → `undoLastPlan` (only the last plan; blocked if any touched row changed). `runtime.ts` wires it to the real app and the undo file `<db>.ai-undo.json`. Rules decided by the owner (2026-10-15): **create_task mirrors the "Add task" form** (planned layer only, `startDate ''`, `duration 0`); **shift/start/duration write the actual layer like a roadmap drag**, materialised from the effective values, planned stays as the baseline; `done` ⇒ progress 100. Read tools: `readTools.ts`. Model-facing wording and schemas: `specs.ts` (measured in the spike — change only with a spike re-run). Run `node scripts/ai-actions-check.mjs` after touching any of it or `src/db/ops.ts` (needs `cd mcp && npm install`: the root `better-sqlite3` is built for Electron and does not load in Node, so the suite uses `mcp/node_modules`).
+
+**Assistant (agent + UI)**: `src/features/ai/agent/` — `prompt.ts` (the spike's measured system prompt verbatim + one refinement rule; **change it only together with a run of `scripts/ai-agent-live.mjs`**), `context.ts` (budgeted data block with an app-computed `просрочена` marker; descriptions are never sent), `agent.ts` (`runAgentTurn`: chat → `extractJson` → `resolvePlan`, one retry with the rejection text, expected failures returned as values), `conversationState.ts` (pure state + store; messages hold codes, not localized text), `session.ts` (side-effecting glue: `sendMessage`, `confirmPlan`, `undoLast`, `newDialog`, `setDataChangedHandler`). UI: `src/features/assistant/` (`AiAssistant.tsx` floating button + window, `PlanCard.tsx` diff and actions). Integration points in `App.tsx`: `<AiAssistant screen=… onDataChanged=…/>` (the `screen` object mirrors the render chain: task > project settings > board > project > tab), the `editorReload` counter in the `TaskEditView` key, and the notification offset (`bottom-24`, above the button). `TaskEditView` reports unsaved edits to `src/lib/editorState.ts`. **Why the editor is remounted after a plan**: the form fills its fields once and `Save` writes every field, so a stale form would silently revert the assistant's change. Views of entities a plan deleted are closed by `handleAiDataChanged` (otherwise they hang on "Loading…"). Checks: `node scripts/ai-agent-check.mjs` (fake model), `node scripts/ai-agent-live.mjs` (needs Ollama; the quality gate).
 
 ### i18n
 
