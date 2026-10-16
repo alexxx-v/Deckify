@@ -19,6 +19,10 @@ export interface SqliteLike {
  * Every column of every table the registry may touch, `id` first. When the schema changes
  * (new column, new table) this list must change too: assertSchema() fails loudly otherwise, so
  * cascades and undo can never silently miss data. `templates` is intentionally out of scope.
+ *
+ * Extra columns the real database has on a known table (added by another build or tool) are tolerated: rows are read
+ * with SELECT *, so snapshots and undo carry them along unchanged, and the registry never writes them. A column that
+ * is MISSING, or a table nobody listed, is still an error.
  */
 export const TABLE_COLUMNS: Record<TableName, readonly string[]> = {
     projects: ['id', 'name', 'createdAt'],
@@ -51,9 +55,9 @@ function columnsOf(table: string): readonly string[] {
 }
 
 /** Table and column names reach SQL text only after passing this check; values are always bound. */
-function checkColumns(table: string, keys: string[]): void {
+function checkColumns(table: string, keys: string[], extra: readonly string[] = []): void {
     const allowed = columnsOf(table);
-    const unknown = keys.filter(k => !allowed.includes(k));
+    const unknown = keys.filter(k => !allowed.includes(k) && !extra.includes(k));
     if (unknown.length > 0) throw new Error(`ops: unknown column(s) for ${table}: ${unknown.join(', ')}`);
 }
 
@@ -62,6 +66,9 @@ const bind = (v: unknown) => (v === undefined ? null : v);
 
 export function createOps(sqlite: SqliteLike): DbOps {
     let schemaChecked = false;
+    // Columns found in the real database beyond TABLE_COLUMNS (filled by assertSchema).
+    const extraColumns: Partial<Record<TableName, string[]>> = {};
+    const extraOf = (table: string) => extraColumns[table as TableName] ?? [];
 
     const get = (table: TableName, id: string): Row | null => {
         columnsOf(table);
@@ -71,7 +78,7 @@ export function createOps(sqlite: SqliteLike): DbOps {
 
     const select = (table: TableName, where: Row = {}, orderBy: string[] = []): Row[] => {
         const keys = Object.keys(where);
-        checkColumns(table, [...keys, ...orderBy]);
+        checkColumns(table, [...keys, ...orderBy], extraOf(table));
         const clauses = keys.map(k => (where[k] === null || where[k] === undefined ? `${k} IS NULL` : `${k} = ?`));
         const values = keys.filter(k => where[k] !== null && where[k] !== undefined).map(k => where[k]);
         const sql = `SELECT * FROM ${table}`
@@ -82,7 +89,7 @@ export function createOps(sqlite: SqliteLike): DbOps {
 
     const insert = (table: TableName, row: Row): void => {
         const keys = Object.keys(row);
-        checkColumns(table, keys);
+        checkColumns(table, keys, extraOf(table));
         if (!keys.includes('id')) throw new Error(`ops: insert into ${table} needs an id`);
         sqlite
             .prepare(`INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`)
@@ -91,7 +98,7 @@ export function createOps(sqlite: SqliteLike): DbOps {
 
     const update = (table: TableName, id: string, patch: Row): void => {
         const keys = Object.keys(patch);
-        checkColumns(table, keys);
+        checkColumns(table, keys, extraOf(table));
         if (keys.includes('id')) throw new Error(`ops: cannot change the id of a ${table} row`);
         if (keys.length === 0) return;
         sqlite
@@ -101,7 +108,7 @@ export function createOps(sqlite: SqliteLike): DbOps {
 
     const upsert = (table: TableName, row: Row): void => {
         const keys = Object.keys(row);
-        checkColumns(table, keys);
+        checkColumns(table, keys, extraOf(table));
         if (!keys.includes('id')) throw new Error(`ops: upsert into ${table} needs an id`);
         const others = keys.filter(k => k !== 'id');
         const conflict = others.length
@@ -130,15 +137,15 @@ export function createOps(sqlite: SqliteLike): DbOps {
             const actual = (sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map(c => c.name);
             const wanted = TABLE_COLUMNS[table];
             const missing = wanted.filter(c => !actual.includes(c));
-            const added = actual.filter(c => !wanted.includes(c));
-            if (actual.length === 0 || missing.length || added.length) {
+            if (actual.length === 0 || missing.length) {
                 throw new Error(
                     `ops: table ${table} does not match src/db/ops.ts TABLE_COLUMNS`
                     + (actual.length === 0 ? ' (table is missing)' : '')
-                    + (missing.length ? `; missing in DB: ${missing.join(', ')}` : '')
-                    + (added.length ? `; not listed in ops.ts: ${added.join(', ')}` : ''),
+                    + (missing.length ? `; missing in DB: ${missing.join(', ')}` : ''),
                 );
             }
+            const added = actual.filter(c => !wanted.includes(c));
+            if (added.length) extraColumns[table] = added;
         }
         schemaChecked = true;
     };

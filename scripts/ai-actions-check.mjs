@@ -72,9 +72,11 @@ section('ops');
     throws('update cannot change id', () => ops.update('projects', 'p-up', { id: 'other' }), /cannot change the id/);
     eq('tasks table survived the injection attempts', sqlite.prepare('SELECT COUNT(*) c FROM tasks').get().c, fixtures.tasks.length);
 
-    // assertSchema must fail loudly when the schema moves under it
+    // assertSchema: a column the database has but ops.ts does not list is tolerated (see the round-trip test below)…
     const extraCol = new Database(':memory:'); extraCol.exec(TEST_DDL); extraCol.exec('ALTER TABLE tasks ADD COLUMN newcol TEXT');
-    throws('assertSchema: column not listed in ops.ts', () => createOps(extraCol).assertSchema(), /not listed in ops\.ts: newcol/);
+    createOps(extraCol).assertSchema();
+    check('assertSchema: an extra column is tolerated', true);
+    // …but a moved schema is still a loud failure
     const unknownTable = new Database(':memory:'); unknownTable.exec(TEST_DDL); unknownTable.exec('CREATE TABLE comments (id TEXT PRIMARY KEY)');
     throws('assertSchema: unknown table', () => createOps(unknownTable).assertSchema(), /unknown table\(s\) comments/);
     const missingCol = new Database(':memory:'); missingCol.exec(TEST_DDL.replace('name TEXT, color TEXT', 'name TEXT'));
@@ -490,6 +492,7 @@ let fileN = 0;
 const newStore = () => createFileUndoStore(fs, path.join(tmpRoot, `undo-${++fileN}.json`));
 const depsFor = (sqlite, store, extra = {}) => {
     const ops = createOps(sqlite);
+    ops.assertSchema(); // like dbTransaction in schema.ts
     return { run: fn => sqlite.transaction(() => fn(ops))(), undoStore: store, dbPath: '/test/deckify.db', ...extra };
 };
 const resolveOk = (ops, plan) => { const r = resolveOn(ops, plan); if (!r.ok) throw new Error(`resolve failed: ${messages(r)}`); return r.plan; };
@@ -532,6 +535,23 @@ section('execute: results and counts');
     r = executePlan(resolveOk(ops, planOf({ type: 'delete_project', project: 'KYC' })), deps);
     eq('delete project → counts include its tasks (7 tasks incl. the new one + project)', r.counts, { created: 0, updated: 0, deleted: 8 });
     eq('rows gone', [countBy(sqlite, 'projects'), sqlite.prepare(`SELECT COUNT(*) c FROM tasks WHERE projectId = ?`).get(KYC).c, countBy(sqlite, 'board_tasks'), sqlite.prepare(`SELECT COUNT(*) c FROM task_types WHERE projectId = ?`).get(KYC).c], [3, 0, 1, 0]);
+}
+
+section('execute + undo: a column unknown to ops.ts survives');
+{
+    const { sqlite } = freshDb();
+    sqlite.exec('ALTER TABLE tasks ADD COLUMN actualDuration INTEGER');
+    const victim = fixtures.byTitle('Лендинг').id;
+    sqlite.prepare('UPDATE tasks SET actualDuration = 42 WHERE id = ?').run(victim);
+    const ops = createOps(sqlite);
+    ops.assertSchema();
+    const deps = depsFor(sqlite, newStore());
+    let r = executePlan(resolveOk(ops, planOf({ type: 'create_task', project: 'KYC', title: 'Н', start: 'today', duration: '3d' })), deps);
+    eq('create_task works on a database with an extra column', [r.ok, countBy(sqlite, 'tasks')], [true, fixtures.tasks.length + 1]);
+    r = executePlan(resolveOk(ops, planOf({ type: 'delete_tasks', ids: [victim] })), deps);
+    eq('the task is deleted', sqlite.prepare('SELECT COUNT(*) c FROM tasks WHERE id = ?').get(victim).c, 0);
+    const u = undoLastPlan(deps);
+    eq('undo restores the unknown column too', [u.ok, sqlite.prepare('SELECT actualDuration a FROM tasks WHERE id = ?').get(victim).a], [true, 42]);
 }
 
 section('execute: stale previews and atomicity');
