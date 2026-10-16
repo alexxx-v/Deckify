@@ -128,7 +128,7 @@ const QUERIES_SCHEMA: JsonSchema = {
                 properties: {
                     project: { type: 'string', description: 'Название проекта или id' },
                     status: { type: 'string', enum: [...STATUSES] },
-                    overdue: { type: 'boolean', description: 'true — только просроченные' },
+                    overdue: { type: 'boolean', description: 'true — только просроченные, false — только непросроченные' },
                     from: { type: 'string', description: 'Начало периода YYYY-MM-DD' },
                     to: { type: 'string', description: 'Конец периода YYYY-MM-DD' },
                     query: { type: 'string', description: 'Подстрока в названии задачи' },
@@ -194,7 +194,7 @@ export const READ_TOOL_SPECS = [
                 properties: {
                     project: { type: 'string', description: 'Название проекта или id' },
                     status: { type: 'string', enum: [...STATUSES] },
-                    overdue: { type: 'boolean', description: 'Только просроченные' },
+                    overdue: { type: 'boolean', description: 'true — только просроченные, false — только непросроченные' },
                     from: { type: 'string', description: 'Пересекается с периодом начиная с YYYY-MM-DD' },
                     to: { type: 'string', description: 'Пересекается с периодом до YYYY-MM-DD' },
                     query: { type: 'string', description: 'Подстрока в названии' },

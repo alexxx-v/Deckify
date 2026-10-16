@@ -325,6 +325,10 @@ function applyAction(
             if (project && action.taskType !== undefined && norm(action.taskType) !== 'none') {
                 const type = typeByRef(action.taskType, visibleTypes(new Set([String(project.id)])));
                 if (!type) return;
+                if (type.projectId !== null && type.projectId !== undefined && String(type.projectId) !== String(project.id)) {
+                    fail('type_scope', `тип «${String(type.name)}» относится только к ${scopeLabel(type)}, а задача создаётся в проекте «${String(project.name)}»`);
+                    return;
+                }
                 taskTypeId = String(type.id);
             }
             if (!project || !start || days === null || days < 1 || days > MAX_TASK_DAYS) return;
@@ -542,12 +546,12 @@ function applyAction(
             const patch: Row = {};
             if (action.name !== undefined && action.name.trim() !== String(type.name)) patch.name = action.name.trim();
             if (action.color !== undefined && action.color.toLowerCase() !== String(type.color).toLowerCase()) patch.color = action.color;
-            if (action.global) {
-                if (type.projectId === null || type.projectId === undefined) warn('no_change', `тип «${String(type.name)}» уже общий`, { name: String(type.name) });
-                else patch.projectId = null;
-            }
+            const alreadyGlobal = type.projectId === null || type.projectId === undefined;
+            if (action.global && !alreadyGlobal) patch.projectId = null;
             if (Object.keys(patch).length === 0) {
-                warn('no_change', `тип «${String(type.name)}» уже такой`, { name: String(type.name) });
+                // One warning: «уже общий» when that was the only thing asked, otherwise «уже такой».
+                const only = action.global && alreadyGlobal && action.name === undefined && action.color === undefined;
+                warn('no_change', `тип «${String(type.name)}» ${only ? 'уже общий' : 'уже такой'}`, { name: String(type.name) });
                 return;
             }
             overlay.patch('task_types', String(type.id), patch);
@@ -627,6 +631,7 @@ function buildDiff(overlay: Overlay, mutations: Mutation[], cascades: Cascades):
             case 'tasks': {
                 if (m.op === 'insert') {
                     const item = taskItem(String(m.row.id), 'create');
+                    item.op = 'create'; // a board link may have been seen first
                     for (const field of TASK_CREATE_FIELDS) item.changes.push({ field, from: null, to: m.row[field] });
                     let steps: unknown[] = [];
                     try { steps = JSON.parse(String(m.row.steps ?? '[]')) as unknown[]; } catch { steps = []; }
@@ -644,7 +649,9 @@ function buildDiff(overlay: Overlay, mutations: Mutation[], cascades: Cascades):
                 } else {
                     const before = orig('tasks', m.id) as Row;
                     if (deletedProjects.has(String(before.projectId))) break; // summarised on the project
-                    taskItem(m.id, 'delete');
+                    const item = taskItem(m.id, 'delete');
+                    item.op = 'delete';
+                    item.changes = [];
                 }
                 break;
             }
@@ -660,27 +667,18 @@ function buildDiff(overlay: Overlay, mutations: Mutation[], cascades: Cascades):
                 }
                 break;
             }
-            case 'projects': {
-                if (m.op === 'insert') {
-                    items.set(`project:${m.row.id}`, { entity: 'project', op: 'create', id: String(m.row.id), label: String(m.row.name), changes: [{ field: 'name', from: null, to: m.row.name }] });
-                } else if (m.op === 'update') {
-                    const before = orig('projects', m.id) as Row;
-                    items.set(`project:${m.id}`, { entity: 'project', op: 'update', id: m.id, label: String(m.patch.name ?? before.name), changes: Object.keys(m.patch).map(field => ({ field, from: before[field] ?? null, to: m.patch[field] })) });
-                } else {
-                    const before = orig('projects', m.id) as Row;
-                    items.set(`project:${m.id}`, { entity: 'project', op: 'delete', id: m.id, label: String(before.name), changes: [], cascade: cascades.get(m.id) });
-                }
-                break;
-            }
+            case 'projects':
             case 'boards': {
+                const entity = m.table === 'projects' ? 'project' : 'board';
+                const put = (item: Omit<DiffItem, 'entity' | 'id'>, id: string) => items.set(`${entity}:${id}`, { entity, id, ...item });
                 if (m.op === 'insert') {
-                    items.set(`board:${m.row.id}`, { entity: 'board', op: 'create', id: String(m.row.id), label: String(m.row.name), changes: [{ field: 'name', from: null, to: m.row.name }] });
+                    put({ op: 'create', label: String(m.row.name), changes: [{ field: 'name', from: null, to: m.row.name }] }, String(m.row.id));
                 } else if (m.op === 'update') {
-                    const before = orig('boards', m.id) as Row;
-                    items.set(`board:${m.id}`, { entity: 'board', op: 'update', id: m.id, label: String(m.patch.name ?? before.name), changes: Object.keys(m.patch).map(field => ({ field, from: before[field] ?? null, to: m.patch[field] })) });
+                    const before = orig(m.table, m.id) as Row;
+                    put({ op: 'update', label: String(m.patch.name ?? before.name), changes: Object.keys(m.patch).map(field => ({ field, from: before[field] ?? null, to: m.patch[field] })) }, m.id);
                 } else {
-                    const before = orig('boards', m.id) as Row;
-                    items.set(`board:${m.id}`, { entity: 'board', op: 'delete', id: m.id, label: String(before.name), changes: [], cascade: cascades.get(m.id) });
+                    const before = orig(m.table, m.id) as Row;
+                    put({ op: 'delete', label: String(before.name), changes: [], cascade: cascades.get(m.id) }, m.id);
                 }
                 break;
             }

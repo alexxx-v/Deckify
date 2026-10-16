@@ -83,7 +83,9 @@ export function PlanCard({ message, canUndo, screen }: { message: PlanMessage; c
             {message.reply && <p className="px-3 pb-2 whitespace-pre-wrap">{message.reply}</p>}
 
             <ul className="px-3 pb-2 space-y-2">
-                {visible.map(item => (
+                {visible.map(item => {
+                    const cascade = cascadeText(t, item);
+                    return (
                     <li key={`${item.entity}:${item.id}:${item.op}`} className="flex gap-2">
                         <span className={`mt-0.5 shrink-0 h-5 w-5 rounded-md text-xs font-bold flex items-center justify-center ${OP_STYLE[item.op].cls}`} title={t(`assistant.ops.${item.op}`)}>
                             {OP_STYLE[item.op].sign}
@@ -104,10 +106,11 @@ export function PlanCard({ message, canUndo, screen }: { message: PlanMessage; c
                                     ))}
                                 </ul>
                             )}
-                            {cascadeText(t, item) && <div className="mt-0.5 text-xs text-red-600">{cascadeText(t, item)}</div>}
+                            {cascade && <div className="mt-0.5 text-xs text-red-600">{cascade}</div>}
                         </div>
                     </li>
-                ))}
+                    );
+                })}
             </ul>
             {hidden > 0 && (
                 <button type="button" className="px-3 pb-2 text-xs text-indigo-600 hover:underline" onClick={() => setExpanded(e => !e)}>
@@ -117,7 +120,7 @@ export function PlanCard({ message, canUndo, screen }: { message: PlanMessage; c
 
             {plan.warnings.length > 0 && (
                 <ul className="mx-3 mb-2 p-2 rounded-md bg-yellow-50 text-yellow-800 border border-yellow-200 text-xs space-y-0.5">
-                    {plan.warnings.map(w => <li key={`${w.code}:${w.actionIndex}`}>{t(`assistant.warnings.${w.code}`, { ...w.params, defaultValue: w.message })}</li>)}
+                    {plan.warnings.map((w, i) => <li key={`${w.code}:${w.actionIndex}:${i}`}>{t(`assistant.warnings.${w.code}`, { ...w.params, defaultValue: w.message })}</li>)}
                 </ul>
             )}
 

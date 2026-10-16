@@ -128,7 +128,8 @@ export function executePlan(plan: ResolvedPlan, deps: ExecuteDeps): ExecuteResul
         });
     } catch (e) {
         if (e instanceof StaleError) return { ok: false, reason: 'stale', stale: e.stale };
-        // Someone put the same task on the same board between the preview and the confirmation.
+        // Someone put the same task on the same board between the preview and the confirmation. SQLite does not say which
+        // row, and the UI only needs the 'stale' status, so the entry is generic.
         if (/UNIQUE constraint failed: board_tasks/.test(errorMessage(e))) return { ok: false, reason: 'stale', stale: [{ table: 'board_tasks', id: '', label: 'board link' }] };
         return { ok: false, reason: 'error', message: errorMessage(e) };
     }

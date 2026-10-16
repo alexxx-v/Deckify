@@ -16,11 +16,15 @@ export type ParsedQueries = { queries: Query[] } | { problems: string[] };
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isTool = (v: unknown): v is Query['tool'] => typeof v === 'string' && (QUERY_TOOLS as readonly string[]).includes(v);
 
-/** Empty strings, nulls, `false` and 0 are what constrained decoding writes for unused properties: they mean "not set". */
+/**
+ * Empty strings, nulls, `0` and (except for `overdue`, where false means "not overdue") `false` are what constrained
+ * decoding writes for unused properties: they mean "not set".
+ */
 function cleanArgs(args: Record<string, unknown>): Record<string, unknown> {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(args)) {
-        if (v === null || v === undefined || v === '' || v === false || v === 0) continue;
+        if (v === null || v === undefined || v === '' || v === 0) continue;
+        if (v === false && k !== 'overdue') continue;
         out[k] = v;
     }
     return out;

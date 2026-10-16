@@ -131,10 +131,11 @@ export function buildContext(
     }
 
     // Boards and task types carry ids: the model must be able to tell two same-named ones apart.
-    const boardTasks = ops.select('board_tasks');
+    const linkCounts = new Map<string, number>();
+    for (const l of ops.select('board_tasks')) linkCounts.set(String(l.boardId), (linkCounts.get(String(l.boardId)) ?? 0) + 1);
     const boards = ops.select('boards', {}, ['createdAt']);
     out.push('', 'Доски (id | название | задач):');
-    for (const b of boards.slice(0, MAX_NAMES)) out.push(`${String(b.id)} | ${String(b.name)} | ${boardTasks.filter(l => l.boardId === b.id).length}`);
+    for (const b of boards.slice(0, MAX_NAMES)) out.push(`${String(b.id)} | ${String(b.name)} | ${linkCounts.get(String(b.id)) ?? 0}`);
     if (boards.length > MAX_NAMES) out.push(`… и ещё ${boards.length - MAX_NAMES} досок`);
     const types = ops.select('task_types');
     out.push('', 'Типы задач (id | название | область):');

@@ -862,6 +862,14 @@ section('phase 5: task types');
     eq('a type scoped to the project fits its tasks', [r.ok, r.plan.mutations.length], [true, 6]);
     r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { project: 'Маркетинг' }, taskType: 'tt-kyc-scoped' }));
     check('a type scoped to another project is refused with both named', !r.ok && r.issues[0].code === 'type_scope' && /проект «KYC»/.test(r.issues[0].message), messages(r));
+    r = resolveOn(ops, planOf({ type: 'create_task', project: 'Маркетинг', title: 'x', start: 'today', duration: '1d', taskType: 'tt-kyc-scoped' }));
+    check('create_task refuses a type scoped to another project (even by id)', !r.ok && r.issues[0].code === 'type_scope' && /проект «KYC»/.test(r.issues[0].message), messages(r));
+    r = resolveOn(ops, planOf({ type: 'create_task', project: 'KYC', title: 'x', start: 'today', duration: '1d', taskType: 'tt-kyc-scoped' }));
+    eq('create_task accepts a type scoped to its own project', [r.ok, r.ok && r.plan.mutations[0].row.taskTypeId], [true, 'tt-kyc-scoped']);
+    r = resolveOn(ops, planOf({ type: 'update_task_type', taskType: DEV, global: true }));
+    check('making a global type global gives exactly one "already global" warning', !r.ok && r.issues[0].code === 'nothing_to_do' && (r.issues[0].message.match(/Действие 1/g) ?? []).length === 1 && /уже общий/.test(r.issues[0].message), messages(r));
+    r = resolveOn(ops, planOf({ type: 'update_task_type', taskType: DEV, global: true, name: 'Разработка' }));
+    check('global + unchanged name → one warning, not two', !r.ok && (r.issues[0].message.match(/Действие 1/g) ?? []).length === 1, messages(r));
     r = resolveOn(ops, planOf({ type: 'set_task_type', filter: { ids: [T('Лендинг')] }, taskType: 'KYC-only' }));
     check('by name, a type of another project is simply not visible', !r.ok && r.issues[0].code === 'unknown_task_type', messages(r));
 
