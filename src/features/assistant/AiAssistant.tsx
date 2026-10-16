@@ -11,6 +11,7 @@ import type { DataChange, Readiness } from '@/features/ai/agent/session';
 import { aiErrorKey } from '@/features/ai/errorText';
 import { isSmallModel, parseParamSizeB } from '@/features/ai/ollamaUtils';
 import { isAiAvailable } from '@/features/ai/transport';
+import { Markdown } from './Markdown';
 import { PlanCard } from './PlanCard';
 
 interface Props {
@@ -27,7 +28,7 @@ function MessageView({ message, canUndo, screen }: { message: UiMessage; canUndo
         case 'user':
             return <div className="ml-8 self-end rounded-2xl rounded-br-sm bg-indigo-600 text-white px-3 py-2 text-sm whitespace-pre-wrap break-words">{message.text}</div>;
         case 'assistant':
-            return <div className="mr-8 self-start rounded-2xl rounded-bl-sm bg-muted px-3 py-2 text-sm whitespace-pre-wrap break-words">{message.text}</div>;
+            return <Markdown className="mr-8 self-start rounded-2xl rounded-bl-sm bg-muted px-3 py-2 text-sm break-words" text={message.text} />;
         case 'plan':
             return <PlanCard message={message} canUndo={canUndo} screen={screen} />;
         case 'error':

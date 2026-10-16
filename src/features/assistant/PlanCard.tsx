@@ -6,6 +6,7 @@ import type { PlanMessage } from '@/features/ai/agent/conversationState';
 import { confirmPlan, rejectPlan, replan, undoLast } from '@/features/ai/agent/session';
 import type { Counts, DiffItem } from '@/features/ai/actions/types';
 import type { TFunction } from 'i18next';
+import { Markdown } from './Markdown';
 import { fieldLabel, formatValue } from './format';
 
 const COLLAPSED_ITEMS = 8;
@@ -80,7 +81,7 @@ export function PlanCard({ message, canUndo, screen }: { message: PlanMessage; c
                 )}
             </div>
 
-            {message.reply && <p className="px-3 pb-2 whitespace-pre-wrap">{message.reply}</p>}
+            {message.reply && <Markdown className="px-3 pb-2 break-words" text={message.reply} />}
 
             <ul className="px-3 pb-2 space-y-2">
                 {visible.map(item => {
