@@ -23,6 +23,10 @@ const BASE = opt('base-url', 'http://localhost:11434').replace(/\/$/, '');
 const CASES = opt('cases', '') ? opt('cases', '').split(',') : null;   // ids of reference cases; skips dialogue scenarios unless --only
 const ONLY = opt('only', '');   // substring of a dialogue scenario name; also skips the 10 reference requests
 
+// Ids are for the app, not for the user: a reply that quotes one is noise.
+const ALLOW_IDS = argv.includes('--allow-ids');   // for A/B runs of prompts that predate the no-ids rule
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/i;
+
 const { createOllamaProvider } = await import('../src/features/ai/ollamaProvider.ts');
 const { runAgentTurn } = await import('../src/features/ai/agent/agent.ts');
 const { buildContext } = await import('../src/features/ai/agent/context.ts');
@@ -78,7 +82,7 @@ function depsFor(ops) {
     };
 }
 const run = (ops, input) => runAgentTurn({ history: [], previousPlan: 'none', ...input }, depsFor(ops));
-const fold = t => String(t).toLowerCase().replaceAll('ё', 'е');
+const fold = t => String(t).toLowerCase().replaceAll('ё', 'е').replace(/[\u2010-\u2015\u00a0]/g, c => (c === '\u00a0' ? ' ' : '-'));   // typographic hyphens / nbsp are not content
 const describe = r => (r.kind === 'reply' ? `reply ${JSON.stringify(r.reply.slice(0, 420))}` : r.kind === 'invalid' ? `invalid: ${r.problems.join('; ').slice(0, 160)}` : r.kind === 'provider' ? `provider: ${r.error.kind} ${r.error.detail ?? ''}` : r.kind);
 
 // ---- reference requests -------------------------------------------------------------------------------
@@ -108,6 +112,7 @@ async function runGroup(title, all) {
                     if (c.expected.clarification && !r.reply.trim()) problems.push('empty clarification');
                     for (const s of c.expected.replyIncludes ?? []) if (!fold(r.reply).includes(fold(s))) problems.push(`reply lacks «${s}»`);
                     if (c.expected.replyIncludesAny && !c.expected.replyIncludesAny.some(x => fold(r.reply).includes(fold(x)))) problems.push(`reply has none of ${JSON.stringify(c.expected.replyIncludesAny)}`);
+                    if (!ALLOW_IDS && UUID_RE.test(r.reply)) problems.push('reply shows a raw id');
                     for (const s of c.expected.replyExcludes ?? []) if (fold(r.reply).includes(fold(s))) problems.push(`reply must not contain «${s}»`);
                 }
             } else {
@@ -119,6 +124,10 @@ async function runGroup(title, all) {
             if (problems.length === 0) { pass++; ok++; } else why.push(problems.join('; '));
         }
         console.log(`  ${c.id.padEnd(22)} ${pass}/${RUNS}${why.length ? '   ' + why[0].slice(0, 220) : ''}`);
+        // How often each kind of problem occurred (the first one is all the line above shows).
+        const kinds = new Map();
+        for (const w of why) for (const part of w.split('; ')) { if (part.startsWith('reply was:')) continue; const k = part.replace(/«.*?»/g, '«…»'); kinds.set(k, (kinds.get(k) ?? 0) + 1); }
+        if (kinds.size) console.log(`  ${''.padEnd(22)} problems: ${[...kinds].map(([k, n]) => `${k} ×${n}`).join(' | ')}`);
         if (queryRoundsSeen) console.log(`  ${''.padEnd(22)} (model used queries in ${queryRoundsSeen}/${RUNS} runs)`);
     }
     const rate = total ? ok / total : 1;

@@ -24,7 +24,8 @@ export function buildSystemPrompt(today: string): string {
     const noLoop = '- Если ты уже задал уточняющий вопрос и пользователь ответил, не спрашивай повторно: составь план по самому разумному толкованию ответа и укажи допущения в reply. «В работе» означает статус progress.';
     const queries = '- Если данных в контексте не хватает (показаны не все задачи; нужен состав доски, описание или шаги задачи, тип задачи), верни пустой actions и queries: [{tool, args}] — приложение пришлёт результаты. Инструменты: list_projects, list_tasks (project, status, overdue, from, to, query, board, type, limit), get_task (id), list_boards, list_task_types. Запросы и действия в одном ответе недопустимы.';
     const refs = '- Доски и типы задач указывай по названию или id из контекста; значение none в set_task_type снимает тип с задач.';
-    return `${rules}\n${refinement}\n${fresh}\n${noLoop}\n${refs}\n${queries}\n${describeActionsForPrompt()}`;
+    const noIds = '- В reply называй задачи, проекты, доски и типы по названию; id (длинные коды вроде b0000000-…) пользователю не показывай, они нужны только для действий и запросов.';
+    return `${rules}\n${refinement}\n${fresh}\n${noLoop}\n${refs}\n${noIds}\n${queries}\n${describeActionsForPrompt()}`;
 }
 
 /** The follow-up the spike used when a plan was rejected (one retry, then the user sees the error). */

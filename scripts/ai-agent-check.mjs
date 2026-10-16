@@ -249,7 +249,7 @@ section('queries (data questions beyond the context)');
     eq('the read tool ran with the model\'s arguments', deps.queryCalls, [['list_tasks', { board: 'Спринт 5' }]]);
     const msgs = model.calls[1].messages;
     eq('second call: raw queries answer, then the results', [msgs.at(-2).role, JSON.parse(msgs.at(-2).content).queries.length, msgs.at(-1).role], ['assistant', 1, 'user']);
-    check('results message names the tool, the args and the data', msgs.at(-1).content.startsWith('Результаты запросов:\nlist_tasks({"board":"Спринт 5"}) → ') && msgs.at(-1).content.includes('Экран логина') && msgs.at(-1).content.endsWith('Ответь на текущий запрос пользователя: «создай задачу». Прежний план повторять не нужно.'));
+    check('results message names the tool, the args and the data', msgs.at(-1).content.startsWith('Результаты запросов:\nlist_tasks({"board":"Спринт 5"}) → ') && msgs.at(-1).content.includes('Экран логина') && msgs.at(-1).content.endsWith('Ответь на текущий запрос пользователя: «создай задачу». Прежний план повторять не нужно. Задачи называй по названию, id в ответе не показывай.'));
     eq('history keeps only the final answer, without the query exchange', JSON.parse(result.assistantJson), { reply: 'В доске три задачи.', actions: [] });
 
     ({ result, model } = await turn(ops, [BOARD_Q, ask(q('list_boards')), { reply: 'Готово.', actions: [] }]));
@@ -271,6 +271,17 @@ section('queries (data questions beyond the context)');
     eq('filler values (false / 0 / "" / null, overdue:false included) are dropped before the tool runs', deps.queryCalls, [['list_tasks', { status: 'progress' }]]);
     ({ result, deps } = await turn(ops, [ask(q('list_tasks', { overdue: true, limit: 0, query: false })), { reply: 'ок', actions: [] }]));
     eq('overdue:true is kept, false/0 fillers are dropped', deps.queryCalls, [['list_tasks', { overdue: true }]]);
+    {
+        const { stripIds } = await import('../src/features/ai/agent/reply.ts');
+        const U = 'b0000000-0000-4000-8000-000000000008';
+        eq('«(id: …)» is removed', stripIds(`**Push** (id: ${U}) – backlog`, 'что без типа?'), '**Push** – backlog');
+        eq('«(…)» is removed', stripIds(`Релиз (${U}), 5 дн.`, 'что без типа?'), 'Релиз, 5 дн.');
+        eq('a leading id in a list is removed', stripIds(`- ${U}: «Отчёт» (hold)\n- ${U} – Лендинг`, 'что просрочено?'), '- «Отчёт» (hold)\n- Лендинг');
+        eq('«, id …» is removed', stripIds(`Задача «Лендинг», id ${U}, progress`, 'опиши'), 'Задача «Лендинг», progress');
+        eq('a bare id is removed', stripIds(`см. ${U}.`, 'x'), 'см. .');
+        eq('no id → unchanged (same string)', stripIds('Просрочено: A, B', 'x'), 'Просрочено: A, B');
+        eq('the user asked for ids → untouched', stripIds(`Лендинг: ${U}`, 'дай id задачи Лендинг'), `Лендинг: ${U}`);
+    }
     ({ result } = await turn(ops, [{ reply: 'вот', actions: [], queries: [] }]));
     eq('an empty queries array is just a normal answer', [result.kind, result.queryRounds], ['reply', 0]);
     ({ result } = await turn(ops, [{ reply: 'создаю', actions: [{ type: 'create_board', name: 'Н' }], queries: [] }]));

@@ -7,6 +7,7 @@ import { MAX_QUERY_ROUNDS, buildPlanFormatSchema } from '../actions/specs.ts';
 import type { BuiltContext, ScreenInfo } from './context.ts';
 import { NOT_JSON_FEEDBACK, PREVIOUS_PLAN_NOTE, buildSystemPrompt, retryFeedback } from './prompt.ts';
 import { formatQueryResults, parseQueries } from './queries.ts';
+import { stripIds } from './reply.ts';
 
 /*
  * One user turn: build the messages, ask the model, parse + validate + resolve the plan, and give the model ONE
@@ -116,7 +117,7 @@ export async function runAgentTurn(input: TurnInput, deps: TurnDeps): Promise<Tu
                     problems = [EMPTY_PLAN_FEEDBACK];
                 } else {
                     const success: Success = {
-                        reply: resolved.plan.reply,
+                        reply: stripIds(resolved.plan.reply, input.userText),
                         assistantJson: JSON.stringify(stripQueries(parsed.value)),
                         attempts: attempt,
                         jsonRepaired: parsed.repaired,

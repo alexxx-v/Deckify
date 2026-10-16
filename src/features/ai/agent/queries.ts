@@ -69,7 +69,7 @@ export function formatQueryResults(queries: Query[], results: unknown[], opts: {
         return `${q.tool}(${JSON.stringify(q.args)}) → ${text}`;
     });
     // The current request is repeated so that it is not buried under the results (and an old plan is not replayed).
-    const ask = `Ответь на текущий запрос пользователя: «${opts.request}». Прежний план повторять не нужно.`;
+    const ask = `Ответь на текущий запрос пользователя: «${opts.request}». Прежний план повторять не нужно. Задачи называй по названию, id в ответе не показывай.`;
     return `Результаты запросов:\n${blocks.join('\n')}\n${opts.last
         ? `Больше запросов нельзя. ${ask}`
         : ask}`;
