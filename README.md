@@ -43,6 +43,7 @@ Compiled artifacts will be available in the `release/` folder. Alternatively, do
 - **📝 Rich-Text Editing**: Tiptap-powered editor for detailed task descriptions supporting headings, tables, code blocks, and lists.
 - **📋 Cross-Project Boards**: Combine tasks from multiple independent projects into unified boards for top-level reporting.
 - **🖨️ PDF Template Builder**: Construct your own export templates using a visual block builder. Add 'Team Focus' charts, 'Roadmaps', and 'Task Detail' slides and export to PDF with one click.
+- **🤖 AI Assistant Connection (Ollama)**: Connect a local Ollama server or Ollama Cloud, pick a model and test the connection from Settings. The API key is stored encrypted via the OS keychain.
 - **🔄 OTA Auto-Updates**: Built-in `electron-updater` delivers silent updates pulled directly from GitHub Releases.
 
 ---
@@ -55,8 +56,25 @@ Deckify uses an internal SQLite engine (`better-sqlite3`). On the first launch, 
 |---------------|-------------|--------------|
 | **Database Path** | Location for the private database. Can be changed inside User Settings. | `[UserData]/deckify.db` |
 | **Language**  | App interface language (English/Russian). | `en` |
+| **AI connection** | How the AI assistant reaches Ollama: a local server or Ollama Cloud (API key). Set in Settings → AI assistant. | Local, `http://localhost:11434` |
+| **AI model** | Model used by the assistant, remembered separately for each connection mode. | none selected |
 
 *Note: Database schema migrations happen automatically on startup via SQLite `PRAGMA user_version` migrations.*
+
+### AI assistant (Ollama)
+
+Settings → **AI assistant** connects Deckify to [Ollama](https://ollama.com). The chat assistant described below is built on top of it.
+
+- **Local Ollama** — a server on your machine (default `http://localhost:11434`). Cloud models such as `gpt-oss:120b-cloud` also work through it after running `ollama signin` in a terminal.
+- **Ollama Cloud** — talks to `https://ollama.com` directly with an API key from [ollama.com/settings/keys](https://ollama.com/settings/keys). Model names have no `-cloud` suffix here (`gpt-oss:120b`), so the chosen model is remembered per mode.
+- **API key storage** — the key is kept by the app's main process, encrypted with the OS keychain (Electron `safeStorage`), and is never kept in `localStorage` or sent to the UI. If the system has no secure storage (for example Linux without a keyring) the key is held in memory until the app is closed, and Settings says so. On macOS the app is unsigned, so after an update the Keychain may ask again or the saved key may need to be re-entered. Note that the app window runs with Node integration, so this protects the key from accidental exposure, not from malicious code running inside the app.
+- **Model size warning** — models under 20B parameters are marked with ⚠ and produce a warning: in our tests (`docs/plans/2026-10-13-ai-assistant-spike-results.md`) plans from 3–5B models were wrong in roughly 30–60% of requests, while 31B+ models were reliable.
+- **Test connection** — checks the server (and its version; structured output needs Ollama 0.5.0 or newer), lists models and confirms the selected one exists. It does not send a prompt, so for Ollama Cloud a wrong API key is only reported on the first real request.
+- **Safe edits** — the assistant never writes to the database directly. A model plan is validated, names and relative dates are resolved by the app, and the result is shown as a before → after preview. Confirmed plans run in a single transaction (all or nothing, one screen refresh) and the **last plan can be undone, even after a restart**. Undo is blocked if you edited any of the affected rows afterwards, and a plan is rejected if the data changed between preview and confirmation. The undo state is stored in `<database file>.ai-undo.json` next to your database. New tasks look like tasks created with the “Add task” form (planned dates only); moving tasks changes the actual dates, like dragging them on the roadmap.
+- **What it can do** — create, change, delete and shift tasks (also in bulk); create, rename and delete projects; create, rename and delete **boards** and add tasks to / remove them from a board (“добавь все задачи KYC в доску Спринт 5”); create, rename, recolour and delete **task types**, make a project's type global, assign a type to tasks or set it when a task is created. Tasks that are already on the board are skipped and reported, like in the UI. Deleting a board keeps its tasks; deleting a task type unassigns it from its tasks.
+- **Questions about your data** — “что просрочено?”, “какие задачи в доске Спринт 5?”, “что в описании задачи …?”. Small questions are answered from the data the assistant is shown (open project and active tasks first, at most 150 tasks). For everything else it asks the app for exactly the data it needs (at most 2 rounds of 3 queries) and answers from the result; nothing is changed by a question.
+- **Using the assistant** — the round ✦ button in the bottom-right corner opens the chat on any screen. Describe what you want (“создай задачу «Подготовить отчёт» в этом проекте, старт сегодня, срок 5 дней”, “сдвинь все задачи в работе на неделю”, “что просрочено?”). The assistant knows which project, task or board is open. It answers with a **plan**; nothing changes until you press **Apply**. Say what to adjust (“нет, срок 10 дней”) and it replaces the pending plan. **Undo** (on the plan card or in the window header) reverts the last applied plan. The conversation lives until you press “New dialog” or close the app. If the task you are editing is affected, its form is reloaded; if it has unsaved edits you are asked first.
+- **Privacy** — with Ollama Cloud, your messages and the task data they include are sent to ollama.com. With a local server nothing leaves your machine (except through cloud models you chose to run via `ollama signin`).
 
 ---
 

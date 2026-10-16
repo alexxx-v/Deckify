@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { createOps } from './ops';
+import type { DbOps } from './ops';
 
 export interface Project {
     id: string; // UUID
@@ -68,6 +70,8 @@ export interface BoardTask {
 const Database = typeof window !== 'undefined' && 'require' in (window as any) ? (window as any).require('better-sqlite3') : null;
 const nodeFs = typeof window !== 'undefined' && 'require' in (window as any) ? (window as any).require('fs') : null;
 let sqliteDb: any = null;
+let currentDbPath: string | null = null;
+let cachedOps: { handle: unknown; ops: DbOps } | null = null;
 
 /** Schema version this build expects. Bump together with a new migration block below. */
 const LATEST_DB_VERSION = 3;
@@ -149,6 +153,40 @@ const notifySubscribers = () => {
     listeners.forEach(fn => fn());
 };
 
+/** Path of the open database file, or null before initDb succeeds. */
+export function getDbPath(): string | null {
+    return currentDbPath;
+}
+
+function getOps(): DbOps {
+    if (!sqliteDb) throw new Error('Database is not open');
+    if (!cachedOps || cachedOps.handle !== sqliteDb) {
+        const ops = createOps(sqliteDb);
+        ops.assertSchema();
+        cachedOps = { handle: sqliteDb, ops };
+    }
+    return cachedOps.ops;
+}
+
+/** Row-level reads for the AI action registry. Does not notify subscribers. */
+export function dbRead<T>(fn: (ops: DbOps) => T): T {
+    return fn(getOps());
+}
+
+/**
+ * Runs `fn` in one SQLite transaction and notifies subscribers once after it commits. An exception
+ * rolls everything back and propagates without notifying. `fn` must be synchronous (better-sqlite3
+ * rejects a returned promise). Unlike the db.* methods below, this does not call notifySubscribers per row.
+ */
+export function dbTransaction<T>(fn: (ops: DbOps) => T): T {
+    const ops = getOps();
+    // IMMEDIATE: take the write lock first, so the registry's precondition checks (stale / conflict) read what
+    // the other process (the MCP server shares this file) can no longer change before our writes land.
+    const result = sqliteDb.transaction(() => fn(ops)).immediate() as T;
+    notifySubscribers();
+    return result;
+}
+
 export function initDb(dbPath: string): boolean {
     if (!Database) {
         console.error("SQLite not available. Check nodeIntegration.");
@@ -160,6 +198,8 @@ export function initDb(dbPath: string): boolean {
         const isNewDatabase = nodeFs ? !nodeFs.existsSync(dbPath) : false;
 
         sqliteDb = new Database(dbPath);
+        currentDbPath = dbPath;
+        cachedOps = null;
 
         // The MCP server opens the same file from another process: WAL lets its reads
         // run alongside our writes, and busy_timeout waits instead of throwing SQLITE_BUSY.

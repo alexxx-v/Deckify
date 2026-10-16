@@ -1,6 +1,7 @@
-const { app, BrowserWindow, protocol, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, protocol, ipcMain, shell, dialog, net, safeStorage } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
+const { registerAiIpc } = require('./ai-bridge.cjs');
 
 // Basic auto-updater configuration
 autoUpdater.autoDownload = false;
@@ -106,6 +107,8 @@ app.whenReady().then(() => {
     ipcMain.on('open-folder', (event, folderPath) => {
         shell.openPath(folderPath);
     });
+
+    registerAiIpc({ app, ipcMain, net, safeStorage });
 
     createWindow();
 

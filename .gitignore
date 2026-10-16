@@ -27,8 +27,12 @@ tmp-app
 GEMINI.md
 .agents
 .agent
+.claude
 skills-lock.json
 RELEASE_INSTRUCTIONS.md
 
 # TypeScript build info
 *.tsbuildinfo
+
+# AI spike raw model responses
+scripts/ai-spike/results/

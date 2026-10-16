@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { initDb } from '@/db/schema';
 import { useTranslation } from 'react-i18next';
 import { TaskTypeManager } from '../projects/TaskTypeManager';
+import { AiSettings } from './AiSettings';
 
 export function Settings() {
     const { t, i18n } = useTranslation();
@@ -156,6 +157,10 @@ export function Settings() {
                         title={t('settings.globalTaskTypes', 'Global Task Types')}
                         description={t('settings.globalTaskTypesDesc', 'These task types will be available across all your projects.')}
                     />
+                </div>
+
+                <div className="border-t pt-6 mt-6">
+                    <AiSettings />
                 </div>
 
                 <div className="border-t pt-6 mt-6">

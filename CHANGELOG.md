@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.10.0](https://github.com/alexxx-v/Deckify/compare/v1.9.1...v1.10.0) (2026-10-16)
+
+
+### Features
+
+* add Ollama-powered AI assistant with previewed plans and undo ([09b2a48](https://github.com/alexxx-v/Deckify/commit/09b2a48154b90e8cdb9ac010f9d648c678636881))
+* let the AI assistant manage boards, task types and answer data questions ([20b50f9](https://github.com/alexxx-v/Deckify/commit/20b50f951ba6f6a69c8a234ba101e3edc9d26753))
+* render assistant replies as markdown without innerHTML ([9a68509](https://github.com/alexxx-v/Deckify/commit/9a685093d890ede4fda5f8c93690b8534041d0f5))
+
+
+### Bug Fixes
+
+* address code review findings in the AI assistant ([b637b7f](https://github.com/alexxx-v/Deckify/commit/b637b7ffd762a5a2fd889dfa1e956c603e226bac))
+* hide raw ids from assistant replies ([ebf12e7](https://github.com/alexxx-v/Deckify/commit/ebf12e738bad7c5f0a9bf46a1c44e8576e5f9213))
+* keep overdue:false as a filler in assistant queries and share the type-scope check ([3a87248](https://github.com/alexxx-v/Deckify/commit/3a87248500413b91f10f6de450429b208aa3a599))
+* lock the database for plan execution, scale num_ctx and warn on remote Ollama hosts ([aced6a2](https://github.com/alexxx-v/Deckify/commit/aced6a2b9602814cb4c64755016790e8bc8ce715))
+* tolerate extra columns in the database for the AI assistant ([64c26f2](https://github.com/alexxx-v/Deckify/commit/64c26f2c0ff1f8980cf14dbd963b019283b63465))
+
 ### [1.9.1](https://github.com/alexxx-v/Deckify/compare/v1.9.0...v1.9.1) (2026-10-08)
 
 
