@@ -9,7 +9,7 @@ import type { UiMessage } from '@/features/ai/agent/conversationState';
 import { getReadiness, getUndoInfo, MAX_MESSAGE_CHARS, newDialog, sendMessage, setDataChangedHandler, stopTurn, undoLast } from '@/features/ai/agent/session';
 import type { DataChange, Readiness } from '@/features/ai/agent/session';
 import { aiErrorKey } from '@/features/ai/errorText';
-import { isSmallModel, parseParamSizeB } from '@/features/ai/ollamaUtils';
+import { hostOf, isLoopbackUrl, isSmallModel, parseParamSizeB } from '@/features/ai/ollamaUtils';
 import { isAiAvailable } from '@/features/ai/transport';
 import { Markdown } from './Markdown';
 import { PlanCard } from './PlanCard';
@@ -141,6 +141,7 @@ export function AiAssistant({ screen, onOpenSettings, onDataChanged }: Props) {
                     </div>
 
                     {config.mode === 'cloud' && <div className="px-4 py-1.5 text-[11px] bg-yellow-50 text-yellow-800 border-b border-yellow-200">{t('assistant.cloudNotice')}</div>}
+                    {config.mode === 'local' && !isLoopbackUrl(config.baseUrl) && <div className="px-4 py-1.5 text-[11px] bg-yellow-50 text-yellow-800 border-b border-yellow-200">{t('assistant.remoteNotice', { host: hostOf(config.baseUrl) ?? config.baseUrl })}</div>}
 
                     {readiness !== null && readiness !== 'ok' ? (
                         <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8 text-center">

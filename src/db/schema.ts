@@ -180,7 +180,9 @@ export function dbRead<T>(fn: (ops: DbOps) => T): T {
  */
 export function dbTransaction<T>(fn: (ops: DbOps) => T): T {
     const ops = getOps();
-    const result = sqliteDb.transaction(() => fn(ops))() as T;
+    // IMMEDIATE: take the write lock first, so the registry's precondition checks (stale / conflict) read what
+    // the other process (the MCP server shares this file) can no longer change before our writes land.
+    const result = sqliteDb.transaction(() => fn(ops)).immediate() as T;
     notifySubscribers();
     return result;
 }

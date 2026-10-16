@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { loadAiConfig, saveAiConfig } from '@/features/ai/aiConfig';
-import { MIN_OLLAMA_VERSION, SMALL_MODEL_THRESHOLD_B, normalizeBaseUrl } from '@/features/ai/ollamaUtils';
+import { MIN_OLLAMA_VERSION, SMALL_MODEL_THRESHOLD_B, hostOf, isLoopbackUrl, normalizeBaseUrl } from '@/features/ai/ollamaUtils';
 import { createOllamaProvider } from '@/features/ai/ollamaProvider';
 import { createIpcTransport, isAiAvailable, keyStore } from '@/features/ai/transport';
 import type { KeyStatus } from '@/features/ai/transport';
@@ -167,6 +167,9 @@ export function AiSettings() {
                         onKeyDown={(e) => { if (e.key === 'Enter') commitUrl(); }}
                     />
                     {urlInvalid && <p className="text-xs text-red-600 font-medium">{t('settings.ai.invalidUrl')}</p>}
+                    {!isLoopbackUrl(config.baseUrl) && (
+                        <p className="text-xs text-amber-600 font-medium">{t('settings.ai.remoteHost', { host: hostOf(config.baseUrl) ?? config.baseUrl })}</p>
+                    )}
                     <p className="text-xs text-muted-foreground">{t('settings.ai.localHint')}</p>
                 </div>
             ) : (

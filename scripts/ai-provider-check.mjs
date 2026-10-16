@@ -7,7 +7,7 @@
  */
 import {
     CLOUD_URL, DEFAULT_LOCAL_URL, MIN_OLLAMA_VERSION, classifyFailure, compareVersions,
-    filterChatModels, isSmallModel, normalizeBaseUrl, parseParamSizeB,
+    filterChatModels, hostOf, isLoopbackUrl, isSmallModel, neededNumCtx, normalizeBaseUrl, parseParamSizeB,
 } from '../src/features/ai/ollamaUtils.ts';
 import { extractJson } from '../src/features/ai/json.ts';
 import { createOllamaProvider } from '../src/features/ai/ollamaProvider.ts';
@@ -173,6 +173,23 @@ const TAGS = { models: [
     eq('provider chat: result', [r.message.content, r.message.thinking, typeof r.latencyMs], ['{"a":1}', 'hm', 'number']);
     check('provider chat: tools/format omitted when not given', !('tools' in body));
     check('provider chat: never puts credentials in the request', !JSON.stringify(t.calls[0]).toLowerCase().includes('authorization'));
+}
+for (const [url, want] of [
+    ['http://localhost:11434', true], ['http://127.0.0.1:11434', true], ['http://127.1.2.3', true], ['http://[::1]:11434', true],
+    ['http://ollama.localhost:11434', true], ['http://192.168.1.20:11434', false], ['https://example.com', false],
+    ['http://localhost.evil.com', false], ['http://127.0.0.1.evil.com', false], ['not a url', false],
+]) eq(`isLoopbackUrl(${url})`, isLoopbackUrl(url), want);
+eq('hostOf', [hostOf('http://[::1]:11434'), hostOf('https://Example.com:8080/x'), hostOf('nope')], ['::1', 'example.com', null]);
+eq('num_ctx: a small prompt stays on the measured 16384', [neededNumCtx(0), neededNumCtx(5000), neededNumCtx(28000)], [16384, 16384, 16384]);
+eq('num_ctx: grows in 2048 steps once the prompt (+2048 answer tokens) no longer fits', [neededNumCtx(28673), neededNumCtx(40000)], [18432, 22528]);
+eq('num_ctx: capped at 65536', neededNumCtx(10_000_000), 65536);
+{
+    const t = fakeTransport({ '/api/chat': req => ok({ message: { role: 'assistant', content: '{}' }, echo: req.body }) });
+    const p = createOllamaProvider({ mode: 'local', baseUrl: 'http://h:1', model: 'm' }, t);
+    await p.chat({ messages: [{ role: 'system', content: 'я'.repeat(40000) }, { role: 'user', content: 'привет' }], format: { type: 'object' } });
+    eq('provider chat: a large prompt raises num_ctx', t.calls[0].body.options.num_ctx, 22528);
+    await p.chat({ messages: [{ role: 'user', content: 'x' }], options: { num_ctx: 4096 } });
+    eq('provider chat: an explicit num_ctx still wins', t.calls[1].body.options.num_ctx, 4096);
 }
 {
     const t = fakeTransport({ '/api/chat': () => ok({}) });

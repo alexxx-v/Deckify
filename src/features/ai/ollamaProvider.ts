@@ -3,18 +3,24 @@ import type {
     ConnectionWarning, ModelInfo, TransportRequest, TransportResponse,
 } from './types.ts';
 import { AiError } from './types.ts';
-import { MIN_OLLAMA_VERSION, classifyFailure, compareVersions, filterChatModels, toModelInfo } from './ollamaUtils.ts';
+import { BASE_NUM_CTX, MIN_OLLAMA_VERSION, classifyFailure, compareVersions, filterChatModels, neededNumCtx, toModelInfo } from './ollamaUtils.ts';
 import type { TagsEntry } from './ollamaUtils.ts';
 
 const META_TIMEOUT_MS = 10_000;
 /** Same values the spike (scripts/ai-spike/run.mjs) ran with. */
-const DEFAULT_OPTIONS = { temperature: 0.2, num_ctx: 16384 };
+const DEFAULT_OPTIONS = { temperature: 0.2, num_ctx: BASE_NUM_CTX };
 
 /**
  * Ollama implementation of AiProvider. It only moves messages: prompts, schemas and plan parsing
  * belong to the callers (a `format` schema is a decoding constraint the model never sees, and
  * Ollama Cloud does not enforce it at all — see docs/plans/2026-10-13-ai-assistant-spike-results.md).
  */
+/** Everything the model has to read: messages, the `format` schema and tool definitions. */
+function promptChars(req: ChatRequest): number {
+    const extra = (v: unknown) => (v === undefined ? 0 : JSON.stringify(v).length);
+    return req.messages.reduce((n, m) => n + m.content.length, 0) + extra(req.format) + extra(req.tools);
+}
+
 export function createOllamaProvider(config: AiConfig, transport: AiTransport): AiProvider {
     const send = async (
         req: Pick<TransportRequest, 'path' | 'method' | 'body' | 'timeoutMs' | 'signal'>,
@@ -72,7 +78,7 @@ export function createOllamaProvider(config: AiConfig, transport: AiTransport): 
             model: config.model,
             messages: req.messages,
             stream: false,
-            options: { ...DEFAULT_OPTIONS, ...req.options },
+            options: { ...DEFAULT_OPTIONS, num_ctx: neededNumCtx(promptChars(req)), ...req.options },
         };
         if (req.format !== undefined) body.format = req.format;
         if (req.tools !== undefined) body.tools = req.tools;

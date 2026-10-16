@@ -195,7 +195,8 @@
                 "timeout": "The request timed out.",
                 "aborted": "The request was cancelled.",
                 "bad_response": "Unexpected response from the server."
-            }
+            },
+            "remoteHost": "The server at {{host}} is not on this computer: the assistant sends your messages and task data to it, and an http:// address is not encrypted."
         }
     },
     "pdf": {
@@ -406,6 +407,7 @@
             "already_on_board_all": "All {{count}} tasks are already on the board “{{board}}”.",
             "not_on_board": "{{count}} of {{total}} tasks were not on the board “{{board}}” anyway.",
             "not_on_board_all": "None of the selected tasks is on the board “{{board}}”."
-        }
+        },
+        "remoteNotice": "The server at {{host}} is not on this computer: your messages and the task data they include are sent there."
     }
 }

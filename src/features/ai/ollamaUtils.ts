@@ -102,3 +102,38 @@ export function classifyFailure(resp: TransportResponse, ctx: { target: AiMode; 
     if (status >= 500) return new AiError('server', detail);
     return new AiError('bad_response', detail ?? `HTTP ${status}`);
 }
+
+/** The context the spike measured with. Requests that fit stay on exactly this value. */
+export const BASE_NUM_CTX = 16384;
+const MAX_NUM_CTX = 65536;
+const CTX_STEP = 2048;
+/** Room for the model's own answer (a plan with several actions, or a long reply). */
+const ANSWER_RESERVE_TOKENS = 2048;
+/** Cyrillic text and JSON tokenize poorly; two characters per token errs on the safe side. */
+const CHARS_PER_TOKEN = 2;
+
+/**
+ * Ollama silently drops the oldest tokens when a request does not fit `num_ctx` — that is the system prompt with
+ * its rules. So the window grows with the request (in steps, up to a cap) instead of staying fixed.
+ */
+export function neededNumCtx(promptChars: number): number {
+    const tokens = Math.ceil(promptChars / CHARS_PER_TOKEN) + ANSWER_RESERVE_TOKENS;
+    const rounded = Math.ceil(tokens / CTX_STEP) * CTX_STEP;
+    return Math.min(MAX_NUM_CTX, Math.max(BASE_NUM_CTX, rounded));
+}
+
+/** Host name of a base URL, or null when it does not parse. */
+export function hostOf(baseUrl: string): string | null {
+    try {
+        return new URL(baseUrl).hostname.replace(/^\[|\]$/g, '');
+    } catch {
+        return null;
+    }
+}
+
+/** localhost / 127.0.0.0/8 / ::1: the only hosts for which "local server" means the data stays on this machine. */
+export function isLoopbackUrl(baseUrl: string): boolean {
+    const host = hostOf(baseUrl);
+    if (!host) return false;
+    return host === 'localhost' || host.endsWith('.localhost') || host === '::1' || /^127(?:\.\d{1,3}){3}$/.test(host);
+}
