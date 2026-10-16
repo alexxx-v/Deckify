@@ -86,29 +86,29 @@ export function PlanCard({ message, canUndo, screen }: { message: PlanMessage; c
                 {visible.map(item => {
                     const cascade = cascadeText(t, item);
                     return (
-                    <li key={`${item.entity}:${item.id}:${item.op}`} className="flex gap-2">
-                        <span className={`mt-0.5 shrink-0 h-5 w-5 rounded-md text-xs font-bold flex items-center justify-center ${OP_STYLE[item.op].cls}`} title={t(`assistant.ops.${item.op}`)}>
-                            {OP_STYLE[item.op].sign}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                            <div className="font-medium break-words">
-                                {t(`assistant.ops.${item.op}`)} {t(`assistant.entity.${item.entity}`)} «{item.label}»
-                                {item.projectName && <span className="font-normal text-muted-foreground"> · {item.projectName}</span>}
+                        <li key={`${item.entity}:${item.id}:${item.op}`} className="flex gap-2">
+                            <span className={`mt-0.5 shrink-0 h-5 w-5 rounded-md text-xs font-bold flex items-center justify-center ${OP_STYLE[item.op].cls}`} title={t(`assistant.ops.${item.op}`)}>
+                                {OP_STYLE[item.op].sign}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <div className="font-medium break-words">
+                                    {t(`assistant.ops.${item.op}`)} {t(`assistant.entity.${item.entity}`)} «{item.label}»
+                                    {item.projectName && <span className="font-normal text-muted-foreground"> · {item.projectName}</span>}
+                                </div>
+                                {item.changes.length > 0 && (
+                                    <ul className="mt-0.5 text-xs text-muted-foreground space-y-0.5">
+                                        {item.changes.map(c => (
+                                            <li key={c.field}>
+                                                <span>{fieldLabel(t, c.field)}: </span>
+                                                {(item.op === 'update' || c.from !== null) && <><span className="line-through">{renderValue(t, c.field, c.from)}</span> → </>}
+                                                <span className="text-foreground">{renderValue(t, c.field, c.to)}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                {cascade && <div className="mt-0.5 text-xs text-red-600">{cascade}</div>}
                             </div>
-                            {item.changes.length > 0 && (
-                                <ul className="mt-0.5 text-xs text-muted-foreground space-y-0.5">
-                                    {item.changes.map(c => (
-                                        <li key={c.field}>
-                                            <span>{fieldLabel(t, c.field)}: </span>
-                                            {(item.op === 'update' || c.from !== null) && <><span className="line-through">{renderValue(t, c.field, c.from)}</span> → </>}
-                                            <span className="text-foreground">{renderValue(t, c.field, c.to)}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                            {cascade && <div className="mt-0.5 text-xs text-red-600">{cascade}</div>}
-                        </div>
-                    </li>
+                        </li>
                     );
                 })}
             </ul>

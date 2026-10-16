@@ -82,6 +82,9 @@ export const resolveTypeRef = (ref: string, types: Row[], scopeLabel?: (type: Ro
 
 const DEFAULT_TYPE_COLOR = '#4F46E5';
 
+/** A type scoped to a project only fits that project's tasks; a global type (no projectId) fits everything. */
+const scopedElsewhere = (type: Row, projectId: unknown) => type.projectId !== null && type.projectId !== undefined && String(type.projectId) !== String(projectId);
+
 const rowKey = (table: TableName, id: unknown) => `${table}:${String(id)}`;
 const sameValue = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
@@ -325,7 +328,7 @@ function applyAction(
             if (project && action.taskType !== undefined && norm(action.taskType) !== 'none') {
                 const type = typeByRef(action.taskType, visibleTypes(new Set([String(project.id)])));
                 if (!type) return;
-                if (type.projectId !== null && type.projectId !== undefined && String(type.projectId) !== String(project.id)) {
+                if (scopedElsewhere(type, project.id)) {
                     fail('type_scope', `тип «${String(type.name)}» относится только к ${scopeLabel(type)}, а задача создаётся в проекте «${String(project.name)}»`);
                     return;
                 }
@@ -576,8 +579,7 @@ function applyAction(
             if (norm(action.taskType) !== 'none') {
                 const type = typeByRef(action.taskType, visibleTypes(new Set(rows.map(t => String(t.projectId)))));
                 if (!type) return;
-                const scope = type.projectId === null || type.projectId === undefined ? null : String(type.projectId);
-                const foreign = scope === null ? undefined : rows.find(t => String(t.projectId) !== scope);
+                const foreign = rows.find(t => scopedElsewhere(type, t.projectId));
                 if (foreign) {
                     fail('type_scope', `тип «${String(type.name)}» относится только к ${scopeLabel(type)}, а задача ${taskLabel(foreign)} из другого проекта`);
                     return;

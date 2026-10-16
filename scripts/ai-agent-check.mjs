@@ -268,9 +268,9 @@ section('queries (data questions beyond the context)');
     check('arguments a tool does not have are rejected', /нет аргументов name/.test(model.calls[1].messages.at(-1).content));
 
     ({ result, deps } = await turn(ops, [ask(q('list_tasks', { overdue: false, limit: 0, project: '', board: null, status: 'progress' })), { reply: 'ок', actions: [] }]));
-    eq('filler values (false / 0 / "" / null) are dropped before the tool runs, except a deliberate overdue:false', deps.queryCalls, [['list_tasks', { overdue: false, status: 'progress' }]]);
+    eq('filler values (false / 0 / "" / null, overdue:false included) are dropped before the tool runs', deps.queryCalls, [['list_tasks', { status: 'progress' }]]);
     ({ result, deps } = await turn(ops, [ask(q('list_tasks', { overdue: true, limit: 0, query: false })), { reply: 'ок', actions: [] }]));
-    eq('overdue:true is kept, other false/0 are dropped', deps.queryCalls, [['list_tasks', { overdue: true }]]);
+    eq('overdue:true is kept, false/0 fillers are dropped', deps.queryCalls, [['list_tasks', { overdue: true }]]);
     ({ result } = await turn(ops, [{ reply: 'вот', actions: [], queries: [] }]));
     eq('an empty queries array is just a normal answer', [result.kind, result.queryRounds], ['reply', 0]);
     ({ result } = await turn(ops, [{ reply: 'создаю', actions: [{ type: 'create_board', name: 'Н' }], queries: [] }]));
